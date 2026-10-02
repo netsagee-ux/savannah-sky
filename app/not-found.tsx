@@ -1,0 +1,1 @@
+export default function NotFound(){return <section className="section empty"><span className="eyebrow">PAGE NOT FOUND</span><h1>We couldn’t find that page.</h1><p>The link may have changed. You can browse the courses or return to the home page.</p><a className="button" href="/courses">Browse courses</a><p><a className="underlink" href="/">Return home</a></p></section>}

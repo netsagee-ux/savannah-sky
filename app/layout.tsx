@@ -1,0 +1,3 @@
+import type {Metadata} from 'next';import './globals.css';
+export const metadata:Metadata={title:{default:'Savannah Sky | Nail Education',template:'%s | Savannah Sky'},description:'Nail training at Savannah Sky. Browse courses, learn gel application and nail art, and access your lessons from your student dashboard.',icons:{icon:'/favicon.svg'}};
+export default function Layout({children}:{children:React.ReactNode}){return <html lang="en"><head><link rel="preload" href="/fonts/inter-400.woff" as="font" type="font/woff" crossOrigin="anonymous"/></head><body><a href="#main" className="skip">Skip to content</a>{children}</body></html>}

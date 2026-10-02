@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790867367953,
+      "tag": "0000_chilly_butterfly",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790867421318,
+      "tag": "0001_previous_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790904177311,
+      "tag": "0002_puzzling_secret_warriors",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790905562762,
+      "tag": "0003_exotic_network",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790928166584,
+      "tag": "0004_premium_lila_cheney",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790929321313,
+      "tag": "0005_material_thunderbolt_ross",
+      "breakpoints": true
+    }
+  ]
+}

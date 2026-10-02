@@ -1,0 +1,1 @@
+ALTER TABLE `lessons` ADD `thumbnail_key` text;
