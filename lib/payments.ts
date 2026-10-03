@@ -1,4 +1,4 @@
-import {env} from 'cloudflare:workers';
+const env=process.env;
 import {db} from './server';
 import {validPaidSession} from './payment-security';
 const runtime=env as unknown as {APP_ENCRYPTION_KEY?:string;PUBLIC_PAYMENTS_READY?:string};
