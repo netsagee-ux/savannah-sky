@@ -18,3 +18,10 @@ Connect Stripe through the existing admin payment settings and configure the `/a
 Vercel's function request limit prevents the original 25 MB video upload. This version limits uploads to 3 MB per asset; large videos should use the existing hosted course/video link fields until direct-to-storage upload is implemented. Keep a lesson's total upload under 4 MB.
 
 Production release gates: Next build passes; deployment homepage responds successfully; configured login works; admin is denied to other accounts; course thumbnails load; unpaid users cannot access course links; a verified Stripe payment grants exactly one enrolment; revocation removes access.
+
+## Storefront follow-up
+Administrator fallback is explicitly set to Netsagee@gmail.com; ADMIN_EMAIL can override it. The Clerk primary email must be verified. Public navigation has no admin links.
+
+After schema migration, run `node --env-file=.env.local scripts/seed-academy.mjs` to add three unpublished draft courses, with proposed GBP prices of £49, £79 and £39. This never overwrites existing courses. Add real training content, thumbnail, prerequisites and access terms before publication.
+
+Stripe can be configured using STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Vercel instead of the admin encrypted settings. Register checkout.session.completed and checkout.session.async_payment_succeeded at https://savannah-sky-k4rz-three.vercel.app/api/stripe/webhook. Environment configuration takes precedence over stored settings. Use test keys and admin test checkout first; PUBLIC_PAYMENTS_READY remains false until live setup is verified. There is no client-side payment verification or automatic access from an unverified redirect.
