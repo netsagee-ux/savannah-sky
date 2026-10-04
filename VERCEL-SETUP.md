@@ -6,7 +6,7 @@ Required production services:
 
 - Turso/libSQL: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
 - Clerk: `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Enable email verification. Only a verified primary email can receive course access. Existing Sites identity headers are no longer trusted.
-- Private R2/S3 storage: `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`. Keep this bucket private.
+- Private Vercel Blob storage: connect the private `savannah-sky-private` store to this project. Vercel supplies `BLOB_READ_WRITE_TOKEN`. The adapter preserves object paths and serves files through the existing access-checked routes. Never create a public store for course files. R2/S3 remains an optional fallback when Blob is not configured (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`).
 - `ADMIN_EMAIL`: academy administrator's verified email.
 - `APP_ENCRYPTION_KEY`: base64-encoded 32-byte key. Preserve the existing value if migrating encrypted payment settings.
 - Keep `PUBLIC_PAYMENTS_READY` unset until Stripe live checkout and signed webhook have been tested.
