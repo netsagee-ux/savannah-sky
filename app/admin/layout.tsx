@@ -1,1 +1,2 @@
-export default function AdminLayout({children}:{children:React.ReactNode}){return <div className="admin-area"><div className="admin-topbar"><a href="/">SAVANNAH SKY</a><span>ADMIN WORKSPACE</span><a href="/sign-out" target="_top">Sign out</a></div><main id="main">{children}</main></div>}
+import './dashboard.css';
+export default function AdminLayout({children}:{children:React.ReactNode}){return <div className="admin-area"><header className="admin-topbar"><a className="admin-brand" href="/"><b aria-hidden="true">S<span>S</span></b><span>Savannah Sky<small>ACADEMY WORKSPACE</small></span></a><a className="admin-signout" href="/sign-out" target="_top">Sign out ↗</a></header><main id="main">{children}</main></div>}
