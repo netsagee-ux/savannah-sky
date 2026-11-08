@@ -1,4 +1,35 @@
-import {SignIn} from '@clerk/nextjs';
+import { SignIn } from '@clerk/nextjs';
 import AuthFrame from '@/components/auth-frame';
-export const dynamic='force-dynamic';
-export default function Page(){return <AuthFrame>{process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?<SignIn withSignUp appearance={{variables:{colorPrimary:'var(--brand-wine)',borderRadius:'0.5rem',fontFamily:'Bricolage Grotesque, sans-serif'},elements:{card:{boxShadow:'none',border:'none',background:'transparent'},cardBox:{boxShadow:'none',width:'100%',maxWidth:'400px'},rootBox:{width:'100%'},formButtonPrimary:{minHeight:'48px',boxShadow:'inset 0 1px 0 #ffffff55,0 3px 0 #451b2a55',textTransform:'none'},headerTitle:{fontSize:'24px',fontWeight:600}}}} routing="path" path="/sign-in" fallbackRedirectUrl="/dashboard"/>:<div className="notice"><h2>Student sign-in is currently unavailable.</h2><p>Please try again later.</p></div>}</AuthFrame>}
+import './entry.css';
+
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Student sign-in' };
+
+export default function Page() {
+  return <AuthFrame>
+    {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+      ? <SignIn withSignUp routing="path" path="/sign-in" fallbackRedirectUrl="/dashboard"
+          fallback={<p role="status" className="entry-loading">Loading secure sign-in…</p>}
+          appearance={{
+            variables: {
+              colorPrimary: '#512634',
+              colorForeground: '#39292c',
+              colorMutedForeground: '#685853',
+              fontFamily: 'Bricolage Grotesque, Arial, sans-serif',
+              borderRadius: '0.6rem',
+            },
+            elements: {
+              rootBox: 'entry-widget',
+              cardBox: 'entry-widget-box',
+              card: 'entry-widget-card',
+              header: 'entry-widget-header',
+              headerTitle: 'entry-widget-title',
+              headerSubtitle: 'entry-widget-subtitle',
+              formFieldInput: 'entry-widget-input',
+              formButtonPrimary: 'entry-widget-continue',
+              footer: 'entry-widget-footer',
+            },
+          }} />
+      : <div className="notice" role="status"><h1>Student sign-in is unavailable.</h1><p>Please try again later.</p></div>}
+  </AuthFrame>;
+}

@@ -18,7 +18,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <body>
         <a href="#main" className="skip">Skip to content</a>
         {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          ? <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">{children}</ClerkProvider>
+          ? <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up" localization={{
+              signIn: { start: {
+                titleCombined: 'Student sign-in',
+                subtitleCombined: 'Use your email to open your courses and orders.',
+              } },
+            }}>{children}</ClerkProvider>
           : children}
       </body>
     </html>
