@@ -1,6 +1,5 @@
 import { ArrowRight, ArrowUpRight, BookOpen, Check, MonitorPlay, NotebookPen, Plus, UserRound } from 'lucide-react';
 import { NailTool, type ToolName } from '@/components/academy-icons';
-import BrandGallery from '@/components/brand-gallery';
 import Catalog from '@/components/catalog';
 import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
@@ -31,35 +30,37 @@ export default async function Home() {
 
   return (
     <>
-      <section className="atelier-cover" aria-labelledby="cover-title">
-        <div className="atelier-stage">
-          <div className="atelier-heading">
-            <span className="studio-kicker">Savannah Sky Training Academy</span>
-            <h1 id="cover-title">Nail artistry,<br /><em>up close.</em></h1>
-            <p>Explore gel, structure and fine-line art in Carla’s online nail courses.</p>
-            <div className="atelier-actions">
-              <a className="studio-button" href="#collection">Explore courses <ArrowRight size={17} /></a>
-              <a className="educator-link" href="#educator"><img src="/academy-portrait-480.webp" alt="" width={38} height={38} />Meet Carla <ArrowUpRight size={14} /></a>
-            </div>
-          </div>
-          <BrandGallery />
+      <section className="campaign-cover" aria-labelledby="cover-title">
+        <div className="campaign-copy">
+          <span className="campaign-kicker">Online nail academy</span>
+          <h1 id="cover-title">Learn the art <br /><em>of nails.</em></h1>
+          <p>Learn gel polish, builder gel and nail art at your own pace with Carla.</p>
+          <a className="studio-button campaign-button" href="#collection">Explore courses <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
-        <div className="technique-band"><div className="technique-window" aria-label="Nail techniques">
+        <div className="campaign-visual">
+          <img src="/oxblood-campaign-1024.webp"
+            srcSet="/oxblood-campaign-640.webp 640w, /oxblood-campaign-1024.webp 1024w, /oxblood-campaign-1536.webp 1536w"
+            sizes="(max-width: 740px) 100vw, 57vw" width={1536} height={1024} fetchPriority="high"
+            alt="A glossy oxblood manicure resting on curved blush stone" />
+          <a className="campaign-gallery-link" href="#salon-work">View salon work <ArrowUpRight size={15} aria-hidden="true" /></a>
+        </div>
+      </section>
+
+      <section id="collection" className="studio-wrap atelier-collection home-space" aria-labelledby="collection-title">
+        <h2 id="collection-title">Find your <em>course.</em></h2>
+        <Catalog courses={courses} featured />
+        <a className="studio-text-link course-directory-link" href="/courses">View all courses <ArrowRight size={16} /></a>
+      </section>
+
+      <NailStudy />
+
+      <div className="technique-band"><div className="technique-window" aria-label="Nail techniques">
           <div className="technique-track">{[0, 1, 2, 3].map(copy =>
             <ul className="technique-repeat" key={copy} aria-hidden={copy !== 0 || undefined}>
               {techniques.map(item => <li key={item.name}><NailTool name={item.tool} size={24} />{item.name}</li>)}
             </ul>
           )}</div>
         </div></div>
-      </section>
-
-      <section id="collection" className="studio-wrap atelier-collection home-space" aria-labelledby="collection-title">
-        <div className="edit-head"><div><span className="studio-kicker">Online nail courses</span><h2 id="collection-title">The course <em>collection.</em></h2></div>
-          <a className="studio-text-link" href="/courses">All courses <ArrowRight size={16} /></a></div>
-        <Catalog courses={courses} featured />
-      </section>
-
-      <NailStudy />
 
       <section id="educator" className="carla-studio" aria-labelledby="carla-title">
         <div className="studio-wrap carla-layout">
