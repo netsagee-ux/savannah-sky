@@ -197,9 +197,6 @@
 .academy .auth-story h1 { color: white; }
 .academy .auth-story p, .academy .auth-story .eyebrow { color: var(--brand-ivory); }
 .academy .account-nav > a.active, .academy .progress-track > span { background: var(--brand-wine); color: white; }
-.academy .review-section { background: var(--paper); }
-.academy .review-card { background: var(--pale); border-radius: 6px; }
-.academy .review-card blockquote { font-size: 1.8rem; }
 
 /* Footer */
 .academy .academy-footer { padding: 0; background: var(--brand-merlot); color: var(--brand-ivory); border: none; }

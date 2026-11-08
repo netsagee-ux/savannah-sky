@@ -1,3 +1,31 @@
-import {db} from '@/lib/server';
-export type Review={id:string;name:string;text:string;source:string;published:boolean};
-export default async function Reviews(){let reviews:Review[]=[];try{const row=await db().prepare('SELECT value FROM settings WHERE id=?').bind('client_reviews').first<{value:string}>();reviews=row?JSON.parse(row.value).filter((r:Review)=>r.published):[]}catch{return null}if(!reviews.length)return null;return <section className="review-section section"><div className="section-heading"><h2>Words from our clients.</h2><span>Salon experiences</span></div><div className={'review-window '+(reviews.length>1?'is-moving':'')} tabIndex={0} aria-label="Client reviews. Hover or focus to pause."><div className="review-track">{[0,...(reviews.length>1?[1]:[])].map(copy=><div className="review-group" key={copy} aria-hidden={copy===1?true:undefined}>{reviews.map(r=><figure className="review-card" key={r.id}><blockquote>“{r.text}”</blockquote><figcaption>{r.name}{r.source&&<a href={r.source} target="_blank" rel="noopener noreferrer" tabIndex={copy===1?-1:0}>Read original</a>}</figcaption></figure>)}</div>)}</div></div></section>}
+import { db } from '@/lib/server';
+import StudioReview, { type Review } from './studio-review';
+
+export default async function Reviews() {
+  let reviews: Review[];
+  try {
+    const row = await db().prepare('SELECT value FROM settings WHERE id=?')
+      .bind('client_reviews').first<{ value: string }>();
+    const saved = row ? JSON.parse(row.value) : [];
+    reviews = saved.filter((review: Review & { published: boolean }) =>
+      review?.published && typeof review.text === 'string' && review.text.trim() &&
+      typeof review.name === 'string' && review.name.trim());
+  } catch {
+    return null;
+  }
+  if (!reviews.length) return null;
+
+  return (
+    <section className="studio-wrap salon-reviews" id="reviews" aria-labelledby="salon-review-title">
+      <div className="review-spread">
+        <div className="review-cover">
+          <img src="/salon-lounge-480.webp" srcSet="/salon-lounge-480.webp 480w, /salon-lounge-960.webp 960w"
+            sizes="(max-width: 720px) 95vw, 38vw" width={480} height={640} loading="lazy"
+            alt="The pink lounge at Savannah Sky Salon" />
+          <h2 id="salon-review-title">Studio <em>reviews.</em></h2>
+        </div>
+        <StudioReview reviews={reviews} />
+      </div>
+    </section>
+  );
+}

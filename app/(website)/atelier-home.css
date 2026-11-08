@@ -340,3 +340,58 @@
   }
   .atelier-collection .catalog-tools { display: block; }
 }
+
+/* Studio reviews */
+.salon-reviews { padding-block: clamp(30px, 4.4vw, 72px) 0; scroll-margin-top: 18px; }
+.review-spread {
+  display: grid; grid-template-columns: minmax(0, .76fr) minmax(0, 1.24fr);
+  border-radius: 14px; overflow: clip; background: #f3e8df;
+}
+.review-cover { position: relative; isolation: isolate; min-height: 310px; }
+.review-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 59%; }
+.review-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, #311621bf, transparent 70%); }
+.academy .review-cover h2 {
+  position: absolute; bottom: clamp(19px, 2.4vw, 40px); left: clamp(20px, 2.8vw, 46px); z-index: 1;
+  color: #fffaf4; font: 500 clamp(2.4rem, 4.1vw, 4.6rem)/.96 var(--display); letter-spacing: -.045em; margin: 0;
+}
+.academy .review-cover h2 em { color: #ffe1d5; }
+.review-reading {
+  align-self: center; min-width: 0; padding: clamp(32px, 4vw, 68px);
+  overflow-wrap: anywhere; color: var(--brand-merlot);
+}
+.review-quote { padding: 0; margin: 0; }
+.academy .review-quote blockquote {
+  font: 550 clamp(1.9rem, 2.6vw, 3rem)/1.13 var(--display); letter-spacing: -.023em;
+  max-width: 33ch; color: var(--brand-merlot); margin: 0;
+}
+.review-quote figcaption { color: var(--brand-espresso); font: 600 1rem/1.45 var(--sans); margin-top: 21px; }
+.academy .review-reading details.review-disclosure { border: 0; margin: 5px 0 0; padding: 0; }
+.academy .review-reading details.review-disclosure > summary, .review-source {
+  display: inline-flex; justify-content: flex-start; align-items: center; gap: 7px;
+  min-height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: var(--brand-wine); font: 550 .92rem/1.3 var(--sans);
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #ad8b87;
+}
+.academy .review-reading summary > span { transform: none; }
+.academy .review-reading .review-disclosure[open] summary svg { transform: rotate(180deg); }
+.review-disclosure summary::-webkit-details-marker { display: none; }
+.review-close-label, .review-disclosure[open] .review-open-label { display: none; }
+.review-disclosure[open] .review-close-label { display: inline; }
+.review-prose { padding-top: 2px; max-width: 60ch; }
+.academy .review-prose p { color: var(--brand-espresso); font: 400 1rem/1.65 var(--sans); margin: 0 0 .85em; }
+.review-pager { display: flex; align-items: center; gap: 12px; margin-top: 15px; font: 500 .85rem/1.3 var(--sans); }
+.review-pager button {
+  display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  color: var(--brand-wine); background: #fff8ef; box-shadow: inset 0 1px 0 white, 0 2px 0 #cbb3a7;
+}
+.review-pager button:hover { background: var(--brand-wine); color: var(--brand-ivory); }
+@media (max-width: 720px) {
+  .studio-wrap.salon-reviews { padding-inline: clamp(12px, 4vw, 27px); }
+  .review-spread { grid-template-columns: 1fr; border-radius: 12px; }
+  .review-cover { min-height: clamp(112px, 30vw, 165px); }
+  .review-cover img { object-position: 50% 59%; }
+  .academy .review-cover h2 { font-size: clamp(2.25rem, 8vw, 3.4rem); left: 22px; bottom: 15px; }
+  .review-reading { padding: 24px clamp(20px, 5.5vw, 36px) 17px; }
+  .academy .review-quote blockquote { font-size: clamp(1.65rem, 6.7vw, 2.15rem); line-height: 1.17; }
+  .review-quote figcaption { margin-top: 15px; }
+}
