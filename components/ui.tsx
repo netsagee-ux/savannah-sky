@@ -32,15 +32,16 @@ const courseTools: Record<string, ToolName> = {
 
 export function CourseCard({ course, index = 0 }: { course: Course; index?: number }) {
   const hasThumbnail = Boolean(course.thumbnail_key || course.thumbnail_id);
+  const image = courseImage(course,index,480);
   return (
     <a className="programme" href={'/courses/' + course.id}>
       <div className="programme-image">
-        <img src={courseImage(course, index, 480)}
+        <img src={image} style={image.startsWith('/nail-leopard-') ? {objectPosition: '50% 76%'} : undefined}
           srcSet={hasThumbnail ? undefined : courseImage(course, index, 480) + ' 480w, ' + courseImage(course, index, 960) + ' 960w'}
           sizes="(max-width: 720px) 90vw, 30vw" width={480} height={440} loading="lazy" alt="" />
+        <span className="programme-level"><NailTool name={courseTools[course.id] ?? 'swatches'} size={16} />{course.level}</span>
       </div>
       <div className="programme-copy">
-        <span className="programme-level"><NailTool name={courseTools[course.id] ?? 'swatches'} size={21} />{course.level}</span>
         <h3>{course.title}</h3>
         <p>{course.description}</p>
         <div className="programme-foot">

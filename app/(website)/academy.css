@@ -1,4 +1,11 @@
 @font-face {
+  font-family: "Cormorant Garamond";
+  src: url("/fonts/cormorant-garamond.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
   font-family: "Bricolage Grotesque";
   src: url("/fonts/bricolage-grotesque.woff2") format("woff2");
   font-style: normal;
@@ -14,6 +21,7 @@
 }
 
 .academy {
+  --display: "Cormorant Garamond", Georgia, serif;
   --script: "Cormorant Garamond", Georgia, serif;
   --sans: "Bricolage Grotesque", Arial, sans-serif;
   --gutter: clamp(22px, 5.8vw, 100px);
@@ -328,3 +336,55 @@
   background: var(--brand-ivory); color: var(--brand-merlot);
 }
 .academy .learning-sidebar a:hover { background: var(--brand-merlot); color: var(--brand-champagne); }
+
+/* The masthead floats above the campaign and sits in the same shell on interior pages. */
+.academy .academy-header { background: var(--brand-ivory); padding: 16px clamp(12px,4vw,64px); }
+.academy .header-inner {
+  width: min(100%,1120px); min-height: 68px; padding: 6px 12px 6px 26px;
+  border-radius: 60px; background: #fffaf5f2;
+  box-shadow: 0 12px 40px -16px #5b343c40, inset 0 1px 0 #fff;
+}
+.academy .header-inner .authentic-brand { width: 106px; }
+.academy .studio-nav { gap: clamp(6px,1.1vw,20px); }
+.academy .studio-nav a { padding: 8px 12px; font-size: .94rem; }
+.academy .studio-tools { gap: 8px; }
+.academy .student-link { padding: 10px 17px; }
+.academy .programme {
+  background: var(--brand-pearl); border-radius: 24px; overflow: hidden;
+  box-shadow: 0 14px 44px -23px #512a373d, 0 3px 9px -5px #512a3724;
+  transition: transform .3s ease, box-shadow .3s ease;
+}
+.academy .programme-image { position: relative; aspect-ratio: 1.58; border-radius: 0; }
+.academy .programme-image .programme-level {
+  position: absolute; top: 15px; left: 15px; margin: 0; padding: 6px 11px;
+  background: #fffaf5ed; color: var(--brand-merlot); border-radius: 40px;
+  letter-spacing: .045em; text-transform: none; font-size: .78rem; backdrop-filter: blur(12px);
+}
+.academy .programme-copy { padding: 20px clamp(18px,1.7vw,28px) 18px; }
+.academy .programme-copy h3 { font: 600 clamp(1.7rem,2.4vw,2.6rem)/1.03 var(--display); letter-spacing: -.035em; }
+.academy .programme-foot { border: 0; padding-top: 10px; }
+.academy .programme-open { width: 36px; height: 36px; box-shadow: none; }
+.academy .level-options { width: fit-content; max-width: 100%; padding: 4px; gap: 2px; background: var(--brand-blush); border-radius: 26px; }
+.academy .level-options button { border: 0; background: transparent; box-shadow: none; }
+.academy .level-options button[aria-pressed=true] { background: var(--brand-wine); color: white; }
+.academy .intro-band { background: radial-gradient(ellipse at 83% 70%,#efd4cc,transparent 59%), var(--brand-ivory); }
+.academy .intro-inner h1, .academy .course-heading h1, .academy .page-intro h1,
+.academy .enrol-card h2, .academy .order-room h1 { font-family: var(--display); font-weight: 500; letter-spacing: -.052em; }
+.academy .intro-inner > img, .academy .course-cover-img, .academy .enrol-card, .academy .enquiry-layout .form,
+.academy .faq-layout aside, .academy .auth-frame, .academy .account-box { border-radius: 24px; }
+.academy .enrol-card, .academy .enquiry-layout .form { background: linear-gradient(135deg,var(--brand-ivory),var(--brand-blush)); box-shadow: 0 16px 42px -22px #512a373d; }
+.academy .course-cover-img { object-fit: cover; }
+@media (hover:hover) {
+  .academy .programme:hover { transform: translateY(-4px); box-shadow: 0 22px 54px -25px #512a3759; }
+}
+@media (max-width:750px) {
+  .academy .academy-header { padding: 10px; }
+  .academy .header-inner { min-height: 58px; padding: 4px 7px 4px 17px; }
+  .academy .header-inner .authentic-brand { width: 84px; }
+  .academy .student-link { min-height: 41px; padding: 8px 12px; }
+  .academy .menu-button { width: 41px; height: 41px; }
+  .academy .level-options button { padding: 7px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .academy .programme, .academy .programme:hover, .academy .programme:hover .programme-image img { transform: none; transition: none; }
+}

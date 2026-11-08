@@ -36,9 +36,10 @@ export default async function Home() {
           <div className="atelier-heading">
             <span className="studio-kicker">Savannah Sky Training Academy</span>
             <h1 id="cover-title">Nail artistry,<br /><em>up close.</em></h1>
-            <p>Online nail courses with Carla, from your first gel set to the finishing details.</p>
+            <p>Explore gel, structure and fine-line art in Carla’s online nail courses.</p>
             <div className="atelier-actions">
               <a className="studio-button" href="#collection">Explore courses <ArrowRight size={17} /></a>
+              <a className="educator-link" href="#educator"><img src="/academy-portrait-480.webp" alt="" width={38} height={38} />Meet Carla <ArrowUpRight size={14} /></a>
             </div>
           </div>
           <BrandGallery />
@@ -53,7 +54,7 @@ export default async function Home() {
       </section>
 
       <section id="collection" className="studio-wrap atelier-collection home-space" aria-labelledby="collection-title">
-        <div className="edit-head"><div><span className="studio-kicker">Online training</span><h2 id="collection-title">The course <em>collection.</em></h2></div>
+        <div className="edit-head"><div><span className="studio-kicker">Online nail courses</span><h2 id="collection-title">The course <em>collection.</em></h2></div>
           <a className="studio-text-link" href="/courses">All courses <ArrowRight size={16} /></a></div>
         <Catalog courses={courses} featured />
       </section>
@@ -65,6 +66,7 @@ export default async function Home() {
           <div className="carla-pictures">
             <img className="educator-photo" src="/academy-portrait-960.webp" srcSet="/academy-portrait-480.webp 480w, /academy-portrait-960.webp 960w"
               sizes="(max-width: 750px) 90vw, 43vw" width={960} height={1440} loading="lazy" alt="Carla at her teaching desk at Savannah Sky Salon" />
+            <img className="studio-glimpse" src="/salon-lounge-480.webp" width={480} height={640} loading="lazy" alt="A corner of Savannah Sky Salon" />
           </div>
           <div className="carla-note"><span className="studio-kicker">Meet your educator</span><h2 id="carla-title">At the table<br /><em>with Carla.</em></h2>
             <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. I want you to feel you can pull up a chair, ask a question and try again.</p>
