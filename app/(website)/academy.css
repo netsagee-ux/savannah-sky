@@ -152,7 +152,7 @@
 .lookbook-bar { position: absolute; bottom: 0; inset-inline: 0; display: flex; align-items: end; justify-content: space-between; gap: 12px; padding: 20px clamp(22px, 2.7vw, 44px); color: white; pointer-events: none; }
 .lookbook-bar small { display: block; color: #f6dfd5; font: 500 .67rem/1.6 var(--sans); text-transform: uppercase; letter-spacing: .16em; }
 .lookbook-bar > div:first-child span { font: 400 clamp(1.65rem, 2.1vw, 2.35rem)/1.15 var(--serif); }
-.lookbook-controls { display: flex; align-items: center; gap: 12px; pointer-events: auto; font-size: .75rem; font-variant-numeric: tabular-nums; }
+.lookbook-controls { display: flex; align-items: center; gap: 12px; flex-shrink: 0; white-space: nowrap; pointer-events: auto; font-size: .75rem; font-variant-numeric: tabular-nums; }
 .lookbook-controls button { background: #24191833; padding: 0; }
 .lookbook-controls button:hover { background: #341b23aa; }
 .photo-dialog { color: #332624; background: #fcf9f3; }
