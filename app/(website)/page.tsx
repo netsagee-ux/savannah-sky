@@ -1,12 +1,13 @@
 import { ArrowRight, ArrowUpRight, BookOpen, Check, MonitorPlay, NotebookPen, Plus, UserRound } from 'lucide-react';
 import { NailTool, type ToolName } from '@/components/academy-icons';
-import Catalog from '@/components/catalog';
+import { courseImage } from '@/components/ui';
 import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
 import StudentStory from '@/components/student-story';
 import { previews, type Course } from '@/lib/data';
 import { catalog } from '@/lib/server';
 import './atelier-home.css';
+import './silk-home.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,29 +31,19 @@ export default async function Home() {
 
   return (
     <>
-      <section className="campaign-cover" aria-labelledby="cover-title">
-        <div className="campaign-copy">
-          <span className="campaign-kicker">Online nail academy</span>
-          <h1 id="cover-title">Learn the art <br /><em>of nails.</em></h1>
-          <p>Learn gel polish, builder gel and nail art at your own pace with Carla.</p>
-          <a className="studio-button campaign-button" href="#collection">Explore courses <ArrowRight size={18} aria-hidden="true" /></a>
-        </div>
-        <div className="campaign-visual">
-          <img src="/oxblood-campaign-1024.webp"
-            srcSet="/oxblood-campaign-640.webp 640w, /oxblood-campaign-1024.webp 1024w, /oxblood-campaign-1536.webp 1536w"
-            sizes="(max-width: 740px) 100vw, 57vw" width={1536} height={1024} fetchPriority="high"
-            alt="A glossy oxblood manicure resting on curved blush stone" />
-          <a className="campaign-gallery-link" href="#salon-work">View salon work <ArrowUpRight size={15} aria-hidden="true" /></a>
-        </div>
+      <section className="silk-hero" aria-labelledby="silk-title">
+        <picture className="silk-photo">
+          <source media="(max-width: 760px)" srcSet="/silk-manicure-mobile.webp" />
+          <img src="/silk-manicure-wide.webp" srcSet="/silk-manicure-medium.webp 1050w, /silk-manicure-wide.webp 1774w"
+            sizes="100vw" width={1774} height={887} fetchPriority="high" alt="Sheer blush French manicure with a fine gold accent on ivory silk" />
+        </picture>
+        <div className="silk-layout"><div className="silk-copy">
+          <span className="silk-kicker">Online nail training</span>
+          <h1 id="silk-title">Nail artistry,<br /><em>step by step.</em></h1>
+          <p>Join Carla at the nail desk. Learn gel polish, shaping and hand-painted details at your own pace.</p>
+          <a className="silk-button" href="#collection">Explore courses <ArrowRight size={18} aria-hidden="true" /></a>
+        </div></div>
       </section>
-
-      <section id="collection" className="studio-wrap atelier-collection home-space" aria-labelledby="collection-title">
-        <h2 id="collection-title">Find your <em>course.</em></h2>
-        <Catalog courses={courses} featured />
-        <a className="studio-text-link course-directory-link" href="/courses">View all courses <ArrowRight size={16} /></a>
-      </section>
-
-      <NailStudy />
 
       <div className="technique-band"><div className="technique-window" aria-label="Nail techniques">
           <div className="technique-track">{[0, 1, 2, 3].map(copy =>
@@ -61,6 +52,22 @@ export default async function Home() {
             </ul>
           )}</div>
         </div></div>
+
+      <section id="collection" className="course-edit studio-wrap" aria-labelledby="collection-title">
+        <div className="course-edit-heading"><h2 id="collection-title">The course <em>collection.</em></h2>
+          <a className="studio-text-link" href="/courses">All courses <ArrowUpRight size={16} aria-hidden="true" /></a>
+        </div>
+        <div className="course-edit-list">{courses.slice(0, 3).map((course, index) =>
+          <a className="course-edit-piece" key={course.id} href={'/courses/' + encodeURIComponent(course.id)}>
+            <div className="course-edit-photo"><img src={courseImage(course,index,480)}
+              srcSet={course.thumbnail_key || course.thumbnail_id ? undefined : courseImage(course,index,480)+' 480w, '+courseImage(course,index,960)+' 960w'}
+              sizes="(max-width: 650px) 26vw, 30vw" width={480} height={480} loading="lazy" alt=""
+              style={course.id === 'builder-gel' ? {objectPosition: '50% 76%'} : undefined} /></div>
+            <div className="course-edit-info"><span>{course.level}</span><h3>{course.title}</h3></div>
+            <span className="course-edit-arrow" aria-hidden="true"><ArrowUpRight size={19}/></span>
+          </a>
+        )}</div>
+      </section>
 
       <section id="educator" className="carla-studio" aria-labelledby="carla-title">
         <div className="studio-wrap carla-layout">
@@ -75,6 +82,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <NailStudy />
 
       <section className="studio-wrap kit-section home-space" aria-labelledby="kit-title">
         <div><span className="studio-kicker">Before your first class</span><h2 id="kit-title">Set up your <em>desk.</em></h2><p>A little preparation gives you room to concentrate on the technique.</p></div>

@@ -1,4 +1,5 @@
 import { db } from './server';
+import { sendOrderReceipt } from './order-receipt';
 
 export function internationalNumber(value: string) {
   const number = value.trim().replace(/[\s()-]/g, '').replace(/^\+/, '');
@@ -42,11 +43,12 @@ export async function pendingOrder(user: {userId: string; email: string}, course
 export async function confirmManualPayment(id: string) {
   const order = await db().prepare("SELECT * FROM orders WHERE id=? AND mode='whatsapp'").bind(id).first<AcademyOrder>();
   if (!order || !['pending','paid'].includes(order.status)) throw Error('Choose a pending WhatsApp order.');
-  if (order.status === 'paid') return;
+  if (order.status === 'paid') return sendOrderReceipt(id);
   await db().batch([
     db().prepare("INSERT OR IGNORE INTO enrollments(id,email,course_id) SELECT ?,email,course_id FROM orders WHERE id=? AND mode='whatsapp' AND status='pending'")
       .bind(order.email + ':' + order.course_id, id),
     db().prepare("UPDATE orders SET status='paid',paid_at=? WHERE id=? AND mode='whatsapp' AND status='pending'")
       .bind(new Date().toISOString(),id),
   ]);
+  return sendOrderReceipt(id);
 }

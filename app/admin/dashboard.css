@@ -16,3 +16,8 @@
 .admin-area .management-sidebar > a[aria-current] { background:var(--brand-champagne);color:var(--brand-espresso); }
 .management-shell :is(.button,.tabs button) { box-shadow:inset 0 1px 0 #ffffff55,0 3px 0 #431b2844; }
 .management-shell :is(.button,.tabs button):active { transform:translateY(2px);box-shadow:none; }
+
+.academy-enquiry { padding-block: 18px; overflow-wrap: anywhere; }
+.academy-enquiry h3 { margin-bottom: 3px; }
+.academy-enquiry time { color: var(--brand-taupe); font-size: .85rem; }
+.academy-enquiry p { white-space: pre-line; margin: 10px 0; }

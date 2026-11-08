@@ -1,29 +1,29 @@
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import { ArrowUpRight } from 'lucide-react';
 import Brand from './brand';
-import { NailTool } from './academy-icons';
+import AcademyWordmark from './academy-wordmark';
+import { academyPages } from './academy-navigation';
 import MobileMenu from './mobile-menu';
-
-const pages = [
-  ['/courses', 'Courses'], ['/about', 'Meet Carla'], ['/faq', 'FAQs'], ['/contact', 'Contact'],
-];
 
 export async function Header() {
   const signedIn = Boolean(await getChatGPTUser());
-  return (
-    <header className="academy-header">
-      <div className="header-inner">
-        <a href="/" className="studio-brand" aria-label="Savannah Sky Training Academy home"><Brand /></a>
-        <nav className="studio-nav" aria-label="Main navigation">
-          {pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}
+  return <header className="academy-mast">
+    <div className="mast-row">
+      <nav className="mast-nav" aria-label="Academy navigation">
+        {academyPages.slice(0, 2).map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
+      </nav>
+      <a className="mast-brand" href="/" aria-label="Savannah Sky Training Academy home"><AcademyWordmark /></a>
+      <div className="mast-actions">
+        <nav className="mast-nav" aria-label="Help and contact">
+          {academyPages.slice(2).map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
         </nav>
-        <div className="studio-tools">
-          <a className="student-link" href={signedIn ? "/dashboard" : "/sign-in"}><NailTool name="swatches" size={20} /> {signedIn ? "My learning" : "Sign in"}</a>
-          <MobileMenu signedIn={signedIn} />
-        </div>
+        <a className="mast-account" href={signedIn ? '/dashboard' : '/sign-in'}>
+          {signedIn ? 'My learning' : 'Sign in'} <ArrowUpRight size={15} aria-hidden="true" />
+        </a>
+        <MobileMenu signedIn={signedIn} />
       </div>
-    </header>
-  );
+    </div>
+  </header>;
 }
 
 export function Footer() {
@@ -35,7 +35,7 @@ export function Footer() {
             <a href="/" className="studio-brand" aria-label="Savannah Sky Training Academy home"><Brand /></a>
             <p>Where nail techs come to grow, not just to learn.</p>
           </div>
-          <div><h2>The academy</h2>{pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}</div>
+          <div><h2>The academy</h2>{academyPages.map(({href, label}) => <a href={href} key={href}>{label}</a>)}</div>
           <div><h2>Students</h2><a href="/dashboard">My learning</a></div>
           <div><h2>Follow the salon</h2>
             <a href="https://www.instagram.com/savannahskyaromasandbeauty/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>

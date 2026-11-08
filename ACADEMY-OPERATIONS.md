@@ -15,6 +15,7 @@ A signed-in student chooses **Enrol via WhatsApp**. Their chat contains the cour
 - **Payment arranged in chat.** Match the reference, amount and student in **Payments** to the funds actually received. Select **Confirm received payment** on that order. The order and enrolment update together.
 - **Card payment.** With live Stripe configured and enabled, the student can open **Pay securely** on their order page. The server verifies the order, amount, currency, buyer email and completed Stripe session before activating access. Configure the two Checkout events listed in VERCEL-SETUP.md. Admin can reconcile delayed Stripe notifications from **Payments**.
 - **Student confirmation.** The private order page displays payment status. Confirmed courses appear in **My learning**, where the student can watch lessons, save progress and open their completion record.
+- **Email confirmation.** Set `RESEND_API_KEY` and `ACADEMY_RECEIPT_FROM` in the Vercel production environment. Use an address on the academy’s verified sending domain. Set `ACADEMY_PUBLIC_URL` to point students to a custom domain if needed. After a real order is confirmed, **Payments** shows whether the provider accepted the email. If sending failed, use **Send confirmation email** on the paid order. Access is available as soon as the payment is recorded.
 - **Refunds.** Process refunds in Stripe or through the agreed payment method. In **Students**, revoke the corresponding course access when appropriate.
 
 ## Private playback
