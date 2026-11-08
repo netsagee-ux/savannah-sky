@@ -1,5 +1,43 @@
-"use client";
-import {useEffect,useState} from 'react';import {Pause,Play,Lightbulb,Sparkles} from 'lucide-react';
-export function MotionControl(){const [paused,setPaused]=useState(false);useEffect(()=>{let stored:string|null=null;try{stored=localStorage.getItem('sky-motion')}catch{}const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;setPaused(stored==='paused'||reduced);},[]);useEffect(()=>{document.documentElement.dataset.motion=paused?'paused':'playing'},[paused]);return <button className="motion-toggle" aria-label={paused?'Resume animations':'Pause animations'} aria-pressed={paused} onClick={()=>setPaused(p=>{try{localStorage.setItem('sky-motion',p?'playing':'paused')}catch{}return !p})}>{paused?<Play size={14}/>:<Pause size={14}/>}<span>{paused?'Motion off':'Motion on'}</span></button>}
-export function Bulbs(){return <div className="bulb-installation" aria-hidden="true">{[0,1,2].map(i=><span className={'hanging-light light-'+i} key={i}><i/><Lightbulb strokeWidth={1} size={46}/><b/></span>)}</div>}
-export function Marquee(){return <div className="marquee" aria-label="Learn the craft. Make your mark. Create your future."><div className="marquee-track" aria-hidden="true">{[0,1,2,3].map(i=><span key={i}>Learn with care <Sparkles/> Create with confidence <Sparkles/> Grow with Savannah Sky <Sparkles/></span>)}</div></div>}
+'use client';
+
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Pause, Play } from 'lucide-react';
+
+const MotionContext = createContext({ paused: true, reduced: false, toggle: () => {} });
+
+export function MotionProvider({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPreference = () => setReduced(query.matches);
+    syncPreference();
+    try { setUserPaused(localStorage.getItem('sky-motion') === 'paused'); } catch {}
+    setReady(true);
+    query.addEventListener('change', syncPreference);
+    return () => query.removeEventListener('change', syncPreference);
+  }, []);
+
+  const paused = !ready || reduced || userPaused;
+  useEffect(() => {
+    document.documentElement.dataset.motion = paused ? 'paused' : 'playing';
+  }, [paused]);
+
+  function toggle() {
+    if (reduced || !ready) return;
+    setUserPaused(!userPaused);
+    try { localStorage.setItem('sky-motion', userPaused ? 'playing' : 'paused'); } catch {}
+  }
+
+  return <MotionContext.Provider value={{ paused, reduced, toggle }}>{children}</MotionContext.Provider>;
+}
+
+export function MotionControl() {
+  const { paused, reduced, toggle } = useContext(MotionContext);
+  const label = reduced ? 'Reduced motion' : paused ? 'Play motion' : 'Pause motion';
+  return <button className="motion-toggle" type="button" aria-label={label} onClick={toggle} disabled={reduced}>
+    {paused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}<span>{label}</span>
+  </button>;
+}

@@ -1,5 +1,6 @@
-import { ArrowUpRight, BookOpen } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import Brand from './brand';
+import { NailTool } from './academy-icons';
 import MobileMenu from './mobile-menu';
 import { MotionControl } from './motion';
 
@@ -16,7 +17,7 @@ export function Header() {
           {pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}
         </nav>
         <div className="studio-tools">
-          <a className="student-link" href="/dashboard"><BookOpen size={17} aria-hidden="true" /> My learning</a>
+          <a className="student-link" href="/dashboard"><NailTool name="swatches" size={20} /> My learning</a>
           <MobileMenu />
         </div>
       </div>
@@ -31,7 +32,7 @@ export function Footer() {
         <div className="footer-directory">
           <div className="footer-identity">
             <a href="/" className="studio-brand" aria-label="Savannah Sky Training Academy home"><Brand /></a>
-            <p>Online nail education with Carla.</p>
+            <p>Where nail techs come to grow, not just to learn.</p>
           </div>
           <div><h2>The academy</h2>{pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}</div>
           <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/sign-in">Sign in</a><a href="/sign-up">Create account</a></div>

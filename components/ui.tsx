@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, Lightbulb, Play } from 'lucide-react';
 import type { Course } from '@/lib/data';
+import { NailTool, type ToolName } from './academy-icons';
 
 type IntroProps = { kicker: string; title: string; text?: string; image?: { src: string; alt: string } };
 
@@ -25,6 +26,21 @@ export function courseImage(course: Course, index = 0, size = 960) {
   return '/nail-' + look + '-' + size + '.webp';
 }
 
+const courseTools: Record<string, ToolName> = {
+  'gel-foundations': 'polish', 'builder-gel': 'builder', 'nail-art': 'liner',
+};
+
+export function CourseRow({ course, index }: { course: Course; index: number }) {
+  return (
+    <a className="syllabus-row" href={'/courses/' + course.id}>
+      <span className={'tool-tile tile-' + index % 3}><NailTool name={courseTools[course.id] ?? 'swatches'} size={37} /></span>
+      <div className="row-name"><span>{course.level} · {course.preview ? 'Course preview' : 'Online course'}</span><h3>{course.title}</h3></div>
+      <img className="row-photo" width={200} height={78} loading="lazy" src={courseImage(course, index, 480)} alt="" />
+      <span className="row-arrow" aria-hidden="true"><ArrowRight size={20} /></span>
+    </a>
+  );
+}
+
 export function CourseCard({ course, index = 0 }: { course: Course; index?: number }) {
   const hasThumbnail = Boolean(course.thumbnail_key || course.thumbnail_id);
   return (
@@ -35,7 +51,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
           sizes="(max-width: 720px) 90vw, 30vw" width={480} height={440} loading="lazy" alt="" />
       </div>
       <div className="programme-copy">
-        <span className="programme-level">{course.level}</span>
+        <span className="programme-level"><NailTool name={courseTools[course.id] ?? 'swatches'} size={21} />{course.level}</span>
         <h3>{course.title}</h3>
         <p>{course.description}</p>
         <div className="programme-foot">
