@@ -23,5 +23,5 @@ export default function CheckoutButton({courseId, orderId}: {courseId: string; o
       window.location.assign(next.href);
     } catch (e) {setError(e instanceof Error ? e.message : 'Please try again.');setBusy(false);}
   }
-  return <><button type="button" className="button" disabled={busy} onClick={start}>{busy ? 'Opening…' : orderId ? 'Pay securely' : 'Enrol via WhatsApp'} <ArrowUpRight size={17}/></button>{error && <p role="alert">{error}</p>}</>;
+  return <><button type="button" className="button" disabled={busy} onClick={start}>{busy ? 'Opening…' : orderId ? 'Pay by card' : 'Order via WhatsApp'} <ArrowUpRight size={17}/></button>{error && <p role="alert">{error}</p>}</>;
 }

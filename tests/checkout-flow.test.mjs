@@ -37,7 +37,8 @@ test('course checkout checks availability, charges the listed price and grants a
 
   const adapter = await compile('lib/vercel-database.ts', { '@libsql/client': import.meta.resolve('@libsql/client') });
   const db = (await import(adapter)).database();
-  const identity = moduleUrl('export const getChatGPTUser = async () => globalThis.academyCheckoutIdentity.user;');
+  const identity = moduleUrl(`export const getChatGPTUser = async () => globalThis.academyCheckoutIdentity.user;
+    export const chatGPTSignInPath = path => '/sign-in?redirect_url='+encodeURIComponent(path);`);
   const storage = moduleUrl(`export const objectStorage = () => ({
     head: async key => key === 'private-video-key' ? {size: 512} : null,
     get: async (_, options) => ({size: 512, body: new Uint8Array(options?.range?.length || 512),
@@ -47,9 +48,10 @@ test('course checkout checks availability, charges the listed price and grants a
     './vercel-database': adapter, './vercel-storage': storage, '@/app/chatgpt-auth': identity,
   });
   const security = await compile('lib/payment-security.ts', {});
-  const receipts = await compile('lib/order-receipt.ts', { './server': server });
-  const payments = await compile('lib/payments.ts', { './server': server, './payment-security': security, './order-receipt': receipts });
+  const privateUrls = await compile('lib/student-course-link.ts', {});
+  const receipts = await compile('lib/order-receipt.ts', { './server': server, './student-course-link': privateUrls });
   const orderModule = await compile('lib/course-orders.ts', { './server': server, './order-receipt': receipts });
+  const payments = await compile('lib/payments.ts', { './server': server, './payment-security': security, './course-orders': orderModule });
   const { confirmManualPayment, ownedOrder } = await import(orderModule);
   const { fulfill } = await import(payments);
   const { sendOrderReceipt } = await import(receipts);
@@ -111,11 +113,25 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(await sendOrderReceipt(order.id), 'unconfigured');
   assert.equal((await (await checkout()).json()).enrolled, true);
 
-  globalThis.academyCheckoutIdentity = { user: {userId:'manual-student',email:'manual@example.com'} };
+  globalThis.academyCheckoutIdentity = { user: {userId:'manual-student',email:'manual@example.com',sessionId:'mobile'} };
   process.env.PUBLIC_PAYMENTS_READY = 'false';
   assert.equal((await checkout({handoff:true})).status,503);
   await db.prepare("INSERT INTO settings VALUES('academy_whatsapp','+44 7700 900123')").run();
   const manual = await (await checkout({handoff:true})).json();
+  const privateEntry = await import(await compile('app/(website)/orders/[id]/learn/route.ts', {
+    '@/app/chatgpt-auth': identity, '@/lib/course-orders': orderModule, '@/lib/server': server,
+    '@/lib/student-course-link': privateUrls,
+  }));
+  const openLink = () => privateEntry.GET(new Request('https://academy.example/orders/'+manual.orderId+'/learn'),
+    {params:Promise.resolve({id:manual.orderId})});
+  const orderPath = '/orders/'+manual.orderId;
+  const buyer = globalThis.academyCheckoutIdentity.user;
+  assert.equal(new URL((await openLink()).headers.get('Location')).pathname, orderPath);
+  globalThis.academyCheckoutIdentity.user = null;
+  const signInLink = new URL((await openLink()).headers.get('Location'));
+  assert.equal(signInLink.pathname, '/sign-in');
+  assert.equal(signInLink.searchParams.get('redirect_url'), orderPath+'/learn');
+  globalThis.academyCheckoutIdentity.user = buyer;
   assert.equal(new URL(manual.url).pathname, '/447700900123');
   const message = new URL(manual.url).searchParams.get('text');
   assert.ok(message.includes('Gel Foundations (£65.00)'));
@@ -139,7 +155,10 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(emailRequests[1].key, 'academy-receipt/' + manual.orderId);
   assert.deepEqual(emailRequests[1].body.to, ['manual@example.com']);
   assert.ok(emailRequests[1].body.text.includes('£65.00'));
-  assert.ok(emailRequests[1].body.text.includes('https://academy.example/dashboard'));
+  assert.ok(emailRequests[1].body.text.includes('https://academy.example'+orderPath+'/learn'));
+  assert.equal(new URL((await openLink()).headers.get('Location')).pathname, '/learn/prep');
+  assert.equal((await openLink()).headers.get('Cache-Control'), 'private, no-store');
+  await db.prepare("INSERT INTO lessons VALUES('shape','gel','another-private-key',NULL,2)").run();
   assert.equal((await ownedOrder(manual.orderId,'manual-student')).status,'paid');
   assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='manual@example.com'").all()).results.length,1);
 
@@ -164,21 +183,50 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal((await stream.arrayBuffer()).byteLength, 16);
   assert.equal((await progress.POST(forLesson('/api/progress'))).status, 200);
   assert.equal((await db.prepare('SELECT user_id FROM progress').first()).user_id, 'manual-student');
+  assert.equal(new URL((await openLink()).headers.get('Location')).pathname, '/learn/shape');
+  globalThis.academyCheckoutIdentity.user = {...buyer,sessionId:'second-browser'};
+  assert.equal((await readVideo()).status, 403);
+  assert.equal((await token.POST(forLesson('/api/video-access'))).status, 200);
   globalThis.academyCheckoutIdentity.user = {userId: 'outsider', email: 'outsider@example.test'};
   assert.equal((await readVideo()).status, 403);
   assert.equal((await progress.POST(forLesson('/api/progress'))).status, 403);
+  assert.equal((await openLink()).status, 404);
+  globalThis.academyCheckoutIdentity.user = buyer;
+  await db.prepare("DELETE FROM enrollments WHERE id='buyer/manual-student/gel'").run();
+  assert.equal(new URL((await openLink()).headers.get('Location')).pathname, orderPath);
+  assert.equal((await readVideo()).status, 403);
+  await confirmManualPayment(manual.orderId);
+  assert.equal((await readVideo()).status, 403);
 
   process.env.PUBLIC_PAYMENTS_READY = 'true';
   globalThis.academyCheckoutIdentity.user = {userId:'online-student',email:'online@example.com'};
   const online = await (await checkout({handoff:true})).json();
-  assert.equal((await ownedOrder(online.orderId,'online-student')).mode,'live');
-  await assert.rejects(() => confirmManualPayment(online.orderId));
+  const beforeCard = await ownedOrder(online.orderId,'online-student');
+  assert.equal(beforeCard.mode,'whatsapp');
   globalThis.academyCheckoutIdentity.user = {userId:'stranger',email:'other@example.com'};
   assert.equal((await checkout({orderId:online.orderId})).status,409);
   globalThis.academyCheckoutIdentity.user = {userId:'online-student',email:'online@example.com'};
   assert.equal((await checkout({orderId:online.orderId})).status,200);
+  assert.equal((await ownedOrder(online.orderId,'online-student')).mode,'live');
+  await assert.rejects(() => confirmManualPayment(online.orderId));
+  await assert.rejects(() => import(orderModule).then(m => m.recordVerifiedPayment(beforeCard)));
+  assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='online@example.com'").all()).results.length,0);
+  assert.equal((await (await checkout({handoff:true})).json()).orderId,online.orderId);
   assert.equal(stripeForm.get('metadata[orderId]'), online.orderId);
   assert.equal(stripeForm.get('cancel_url'),'https://academy.example/orders/'+online.orderId);
+
+  // On a reused email, keep each buyer’s access independently revocable when upgrading an old enrolment.
+  await db.prepare("UPDATE enrollments SET id=email||':'||course_id WHERE id='buyer/student/gel'").run();
+  await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode) VALUES('second-owner','next-owner','student@example.com','gel','Gel',6500,'gbp','pending','whatsapp')").run();
+  await confirmManualPayment('second-owner');
+  const accessIds = (await db.prepare("SELECT id FROM enrollments WHERE email='student@example.com' ORDER BY id").all()).results.map(row => row.id);
+  assert.deepEqual(accessIds,['buyer/next-owner/gel','buyer/student/gel']);
+  await db.prepare("DELETE FROM enrollments WHERE id='buyer/next-owner/gel'").run();
+  const {enrolled} = await import(server);
+  globalThis.academyCheckoutIdentity.user = {userId:'next-owner',email:'student@example.com'};
+  assert.equal(await enrolled('gel'),false);
+  globalThis.academyCheckoutIdentity.user = {userId:'student',email:'changed@example.com'};
+  assert.equal(await enrolled('gel'),true);
 
 });
 

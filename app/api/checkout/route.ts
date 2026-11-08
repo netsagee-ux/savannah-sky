@@ -33,8 +33,7 @@ export async function POST(request: Request) {
     if (!testing && payload.handoff) {
       const number = await academyWhatsApp();
       if (!number) return Response.json({error:'WhatsApp enrolment is not configured.'},{status:503});
-      const online = publicPaymentsReady() && (await paymentConfig())?.mode === 'live';
-      const order = await pendingOrder(user, {...course, price:course.price}, online ? 'live' : 'whatsapp');
+      const order = await pendingOrder(user, {...course, price:course.price}, 'whatsapp');
       return Response.json({url:chatLink(number,order,origin),orderId:order.id});
     }
     const config = await paymentConfig();
@@ -43,8 +42,17 @@ export async function POST(request: Request) {
     }
     const email = user.email.toLowerCase();
     const existing = payload.orderId ? await ownedOrder(payload.orderId,user.userId) : null;
-    if (payload.orderId && (!existing || existing.course_id !== course.id || existing.email !== email || existing.amount !== course.price || existing.status !== 'pending' || existing.mode !== 'live' || testing)) {
+    if (payload.orderId && (!existing || existing.course_id !== course.id || existing.email !== email || existing.amount !== course.price || existing.status !== 'pending' || !['live','whatsapp'].includes(existing.mode) || testing)) {
       return Response.json({error:'Reopen the course to check its current price and availability.'}, {status:409});
+    }
+    // Selecting hosted card checkout reserves this order for Stripe before any session is created.
+    if (existing?.mode === 'whatsapp') {
+      await db().prepare("UPDATE orders SET mode='live' WHERE id=? AND user_id=? AND status='pending' AND mode='whatsapp' AND session_id IS NULL")
+        .bind(existing.id, user.userId).run();
+      const reserved = await ownedOrder(existing.id, user.userId);
+      if (reserved?.mode !== 'live' || reserved.status !== 'pending') {
+        return Response.json({error:'The order has changed. Reopen it to check your payment.'}, {status:409});
+      }
     }
     const id = existing?.id || crypto.randomUUID();
     let attempt = id;

@@ -1,6 +1,6 @@
 const env=process.env;
 import {bucket,db} from './server';
-import {sendOrderReceipt} from './order-receipt';
+import {recordVerifiedPayment,type AcademyOrder} from './course-orders';
 import {validPaidSession} from './payment-security';
 const runtime=env as unknown as {APP_ENCRYPTION_KEY?:string;PUBLIC_PAYMENTS_READY?:string};
 async function encryptionKey(){if(!runtime.APP_ENCRYPTION_KEY)throw Error('Payment configuration storage is not ready.');return crypto.subtle.importKey('raw',Uint8Array.from(atob(runtime.APP_ENCRYPTION_KEY),c=>c.charCodeAt(0)),'AES-GCM',false,['encrypt','decrypt']);}
@@ -20,14 +20,9 @@ export async function hasCourseDelivery(course: { id: string; course_url?: strin
  return Boolean(lesson && (await bucket().head(lesson.video_key))?.size);
 }
 
-export async function fulfill(session:any){const order:any=await db().prepare('SELECT * FROM orders WHERE session_id=?').bind(session.id).first();if(!order||!validPaidSession(session,order))return false;if(order.status==='paid'){if(order.mode==='live')await sendOrderReceipt(order.id);return true;}
- if(order.status!=='pending')return false;
- // A single D1 transaction makes payment recording and access activation atomic.
- const statements=[];
- // Insert before updating within the transaction, and only for a still-pending order.
- if(order.mode==='live')statements.push(db().prepare("INSERT OR IGNORE INTO enrollments(id,email,course_id) SELECT ?,?,? FROM orders WHERE id=? AND status='pending'").bind(order.email+':'+order.course_id,order.email,order.course_id,order.id));
- statements.push(db().prepare("UPDATE orders SET status='paid',paid_at=? WHERE id=? AND status='pending'").bind(new Date().toISOString(),order.id));
- await db().batch(statements);
- if(order.mode==='live')await sendOrderReceipt(order.id);
+export async function fulfill(session: {id: string}) {
+ const order = await db().prepare('SELECT * FROM orders WHERE session_id=?').bind(session.id).first<AcademyOrder>();
+ if (!order || !['live','test'].includes(order.mode) || !['pending','paid'].includes(order.status) || !validPaidSession(session,order)) return false;
+ await recordVerifiedPayment(order);
  return true;
 }

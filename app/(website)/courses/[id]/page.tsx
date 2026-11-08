@@ -41,7 +41,7 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
         <span className="studio-kicker">{access ? 'Your course' : 'Enrolment'}</span>
         <h2>{access ? 'Ready to learn.' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'Course outline'}</h2>
         {course.duration && <p>{course.duration}</p>}
-        <p>{access ? 'Open your training or return to your student dashboard.' : checkoutReady ? 'Start your order in WhatsApp. Your lessons unlock in this account after payment is verified.' : 'This outline is available to browse. Enrolment is currently closed.'}</p>
+        <p>{access ? 'Open your training or return to your student dashboard.' : checkoutReady ? 'Order through WhatsApp. Once your payment is confirmed, your private link opens the course in the same student account. You can return to practise.' : 'This outline is available to browse. Enrolment is currently closed.'}</p>
         {access ? <a className="button" href={lessons[0] ? '/learn/' + encodeURIComponent(lessons[0].id) : '/dashboard'}>Go to your learning</a>
           : checkoutReady ? <CheckoutButton courseId={id} /> : <a className="button" href={'/contact?course='+encodeURIComponent(course.title)+'#ask'}>Ask about availability <ArrowUpRight size={16} /></a>}
         {checkoutReady && <small><LockKeyhole size={13} /> Private student access</small>}

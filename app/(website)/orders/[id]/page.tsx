@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation';
 import { requireChatGPTUser } from '@/app/chatgpt-auth';
 import { academyWhatsApp, chatLink, ownedOrder } from '@/lib/course-orders';
+import { paymentConfig, publicPaymentsReady } from '@/lib/payments';
+import { enrolled } from '@/lib/server';
+import { studentCoursePath } from '@/lib/student-course-link';
 import CheckoutButton from '@/components/checkout-button';
 import OrderRefresh from '@/components/order-refresh';
 import { headers } from 'next/headers';
@@ -13,7 +16,12 @@ export default async function OrderPage({params,searchParams}: {params: Promise<
   const order = await ownedOrder(id,user.userId);
   if (!order) notFound();
   const paid = order.status === 'paid';
-  const contact = await academyWhatsApp();
+  const hasAccess = paid && ['whatsapp','live'].includes(order.mode) && await enrolled(order.course_id);
+  let offerCard = !paid && order.mode === 'live';
+  if (!paid && order.mode === 'whatsapp' && publicPaymentsReady()) {
+    try { offerCard = (await paymentConfig())?.mode === 'live'; } catch { /* The existing WhatsApp order can still be paid. */ }
+  }
+  const contact = paid ? '' : await academyWhatsApp();
   const requestHeaders = await headers();
   const host = requestHeaders.get('host') || '';
   const origin = new URL('https://' + host).origin;
@@ -22,9 +30,9 @@ export default async function OrderPage({params,searchParams}: {params: Promise<
   return <section className="studio-wrap order-room"><span className="studio-kicker">Your enrolment</span>
     <h1>{order.title}</h1><p className="order-total">£{(order.amount / 100).toFixed(2)}</p>
     <div role="status"><h2>{paid ? 'Payment confirmed' : 'Awaiting payment'}</h2>
-    <p>{paid ? 'Your purchase is recorded in My learning.' : order.mode === 'live' ? 'Complete your payment securely to unlock your lessons.' : 'Arrange payment in your academy WhatsApp chat. Your lessons unlock when the academy verifies receipt.'}</p></div>
-    {paid ? <a className="button" href={'/courses/'+encodeURIComponent(order.course_id)}>Open my course</a>
-      : <>{order.mode === 'live' && <CheckoutButton courseId={order.course_id} orderId={id}/>}
+    <p>{paid ? (hasAccess ? 'Open your next lesson using the account you used to pay. You can return here to practise again.' : order.mode === 'test' ? 'This is a test order.' : 'Course access is inactive. Contact the academy with your order reference.') : order.mode === 'live' ? 'Complete your payment securely to unlock your lessons.' : 'Arrange your payment in the academy WhatsApp chat using this order reference. Your private course link will appear here after the academy verifies the funds.'}</p></div>
+    {paid ? <a className="button" href={hasAccess ? studentCoursePath(order.id) : '/dashboard'}>{hasAccess ? 'Open my course' : 'My learning'}</a>
+      : <>{offerCard && <><CheckoutButton courseId={order.course_id} orderId={id}/>{order.mode === 'whatsapp' && <small>Choose card payment before making a transfer. This switches the order to secure card checkout.</small>}</>}
         {whatsapp && <a className="button outline" href={whatsapp}>Open academy WhatsApp</a>}
         <OrderRefresh handoff={handoff ? whatsapp : undefined}/></>}
     <small>Order reference {order.id}</small>
