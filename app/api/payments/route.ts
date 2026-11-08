@@ -1,11 +1,33 @@
 import {receiptsConfigured,sendOrderReceipt} from '@/lib/order-receipt';
 import {academyWhatsApp,internationalNumber,confirmManualPayment} from '@/lib/course-orders';import {admin,db} from '@/lib/server';
 import {paymentConfig,savePaymentConfig,stripe,publicPaymentsReady,fulfill} from '@/lib/payments';
-export async function GET(){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});try{const config=await paymentConfig();const orders=await db().prepare("SELECT o.id,o.email,o.title,o.amount,o.status,o.mode,o.created_at,o.paid_at,EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=o.course_id AND (e.id='buyer/'||o.user_id||'/'||o.course_id OR (e.id NOT LIKE 'buyer/%' AND e.email=o.email))) AS accessActive,EXISTS(SELECT 1 FROM settings s WHERE s.id='order_receipt:'||o.id) AS receiptSent FROM orders o ORDER BY o.created_at DESC LIMIT 200").all();return Response.json({receiptConfigured:receiptsConfigured(),whatsapp:await academyWhatsApp(),connected:!!config,mode:config?.mode,account:config?.account,webhookConfigured:!!config?.webhook,publicReady:publicPaymentsReady(),orders:orders.results});}catch{return Response.json({error:'Payment settings are temporarily unavailable.'},{status:503});}}
+export async function GET(request:Request) {
+  if(!await admin()) return Response.json({error:'Administrator access required'},{status:403});
+  try {
+    const config=await paymentConfig();
+    const term=new URL(request.url).searchParams.get('order')?.trim().toLowerCase().slice(0,254);
+    const query=db().prepare(`SELECT o.id,o.email,o.title,o.amount,o.status,o.mode,o.created_at,o.paid_at,
+      (o.user_id LIKE 'guest/%' AND o.status='paid' AND o.mode='whatsapp') AS awaitingClaim,
+      EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=o.course_id AND
+        (e.id='buyer/'||o.user_id||'/'||o.course_id OR (e.id NOT LIKE 'buyer/%' AND e.email=o.email
+          AND o.user_id NOT LIKE 'guest/%' AND o.user_id NOT LIKE 'withdrawn/%'))) AS accessActive,
+      EXISTS(SELECT 1 FROM settings s WHERE s.id='order_receipt:'||o.id) AS receiptSent
+      FROM orders o `+(term?'WHERE o.id=? OR o.email=? ':'')+'ORDER BY o.created_at DESC LIMIT 200');
+    const orders=await (term?query.bind(term,term):query).all();
+    return Response.json({receiptConfigured:receiptsConfigured(),whatsapp:await academyWhatsApp(),connected:!!config,
+      mode:config?.mode,account:config?.account,webhookConfigured:!!config?.webhook,publicReady:publicPaymentsReady(),orders:orders.results},
+      {headers:{'Cache-Control':'private, no-store'}});
+  } catch {return Response.json({error:'Payment settings are temporarily unavailable.'},{status:503});}
+}
 export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});if(req.headers.get('origin')!==new URL(req.url).origin)return Response.json({error:'Invalid origin'},{status:403});try{const body:any=await req.json();if(body.action==='whatsapp'){const number=internationalNumber(String(body.number||''));if(!number)throw Error('Enter the business WhatsApp number with its country code.');await db().prepare("INSERT INTO settings(id,value) VALUES ('academy_whatsapp',?) ON CONFLICT(id) DO UPDATE SET value=excluded.value").bind(number).run();return Response.json({ok:true});}
+if(body.action==='withdraw-claim'){
+ const change=await db().prepare("UPDATE orders SET user_id='withdrawn/'||id WHERE id=? AND user_id LIKE 'guest/%' AND status='paid' AND mode='whatsapp'").bind(String(body.id)).run();
+ if(!change.meta.changes)throw Error('Refresh this order. If the student has signed in, revoke access in Students.');
+ return Response.json({ok:true,message:'Course invitation withdrawn.'});
+}
 if(body.action==='confirm-whatsapp'){
  const receipt=await confirmManualPayment(String(body.id));
- return Response.json({ok:true,message:receipt==='sent'?'Payment confirmed. The confirmation email was accepted for sending.':'Payment confirmed. The course is available in My learning.'});
+ return Response.json({ok:true,message:receipt==='sent'?'Payment confirmed. The confirmation email was accepted for sending.':'Payment confirmed. Copy the course link into the buyer’s WhatsApp chat.'});
 }
 if(body.action==='send-receipt'){
  const result=await sendOrderReceipt(String(body.id));

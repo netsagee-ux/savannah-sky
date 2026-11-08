@@ -1,0 +1,76 @@
+"use client";
+import {useState, type FormEvent} from 'react';
+
+type Lesson = {
+  id:string; course_id:string; title:string; position:number; body:string; video_key:string|null;
+  video_url:string|null; thumbnail_key:string|null; question:string|null; options:string|null; answer:number|null;
+};
+type Props = {
+  courses:{id:string;title:string}[]; lessons:Lesson[]; selected:string; onSelect:(id:string)=>void;
+  directUpload:boolean; busy:boolean; save:(event:FormEvent<HTMLFormElement>,action:string)=>Promise<boolean>;
+};
+
+export default function CourseLessons({courses,lessons,selected,onSelect,directUpload,busy,save}:Props) {
+  const [lesson,setLesson]=useState<Lesson|null>(null);
+  const [version,setVersion]=useState(0);
+  const course=courses.find(item=>item.id===selected);
+  const list=lessons.filter(item=>item.course_id===selected);
+  const nextPosition=Math.min(1000,list.reduce((max,item)=>Math.max(max,item.position),0)+1);
+  async function submit(event:FormEvent<HTMLFormElement>) {
+    if(await save(event,'lesson')) {setLesson(null);setVersion(value=>value+1);}
+  }
+  return <section className="admin-section">
+    <label className="form">Course workspace<select aria-label="Course workspace" value={course?.id||''} disabled={busy} onChange={e=>onSelect(e.target.value)}>
+      <option value="">Choose a course</option>{courses.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+    {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
+      <h2>{course.title}</h2>
+      {list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
+        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':'Lesson notes'}{item.question?' · Knowledge check':''}</small></div>
+        <button type="button" className="edit-link" disabled={busy} onClick={()=>{setLesson(item);document.getElementById('lesson-editor')?.scrollIntoView({block:'start'});}}>Edit</button>
+        <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)}>Preview</a>
+      </li>)}</ol> : <p>Add your first lesson below.</p>}
+      <h3 id="lesson-editor">{lesson?'Edit lesson':'Add a lesson'}</h3>
+      <form key={lesson?.id||'new-'+version} className="form" onSubmit={submit}>
+        <input name="id" type="hidden" value={lesson?.id||''}/>
+        <input name="courseId" type="hidden" value={course.id}/>
+        <div className="form-two">
+        <label>Lesson title<input name="title" required maxLength={120} defaultValue={lesson?.title||''}/>
+        </label>
+        <label>Position<input type="number" name="position" min="0" max="1000" defaultValue={lesson?.position??nextPosition}/>
+        </label>
+        </div>
+        <label>Lesson notes (optional with a video)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
+        </label>
+        <div className="notice">
+        <strong>Private video hosting</strong>
+        <p>Students stream uploaded lessons from their own accounts. MP4 (H.264) is recommended.</p>
+        </div>
+        <label>Private training video (MP4 or WebM, up to {directUpload?'1 GB':'3 MB'})<input name="video" type="file" accept="video/mp4,video/webm"/>
+        </label>
+        <label>Video thumbnail (JPG, PNG or WebP, up to 3 MB)<input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"/>
+        </label>{lesson?.thumbnail_key&&<div className="admin-thumbnail">
+        <img src={'/api/thumbnail/'+lesson.id} alt="Current lesson thumbnail" width={320} height={180}/>
+        <label>Existing thumbnail<select name="removeThumbnail">
+        <option value="0">Keep (or replace with upload)</option>
+        <option value="1">Remove thumbnail</option>
+        </select>
+        </label>
+        </div>}<p className="quiet">Thumbnails may be visible before enrolment. Do not upload private material as a thumbnail.</p>{lesson?.video_key&&<label>Existing uploaded video<select name="removeVideo">
+        <option value="0">Keep video (or replace with upload above)</option>
+        <option value="1">Remove existing video</option>
+        </select>
+        </label>}{lesson?.video_url&&!lesson.video_key&&<p>Upload this lesson’s original recording to enable private playback.</p>}<label>Multiple-choice question (optional)<input name="question" maxLength={500} defaultValue={lesson?.question||''}/>
+        </label>
+        <div className="form-two">{[0,1,2].map(i=>
+        <label key={i}>Answer option {i+1}<input name={'option'+i} maxLength={300} defaultValue={lesson?JSON.parse(lesson.options||'[]')[i]||'':''}/>
+        </label>)}<label>Correct answer<select name="answer" defaultValue={lesson?.answer??0}>
+        <option value="0">Option 1</option>
+        <option value="1">Option 2</option>
+        <option value="2">Option 3</option>
+        </select>
+        </label>
+        </div>
+        <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button>{lesson&&<button type="button" className="button outline" onClick={()=>setLesson(null)}>Cancel editing</button>}</form>
+    </>}
+  </section>;
+}

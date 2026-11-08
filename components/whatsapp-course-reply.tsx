@@ -10,7 +10,7 @@ export default function WhatsAppCourseReply({id, title}: {id: string; title: str
   async function prepareReply() {
     const url = new URL(studentCoursePath(id), window.location.origin);
     const text = 'Your payment for ' + title + ' is confirmed. Open your course here: ' + url.href +
-      '\nSign in with the student account you used to order. You can return to your lessons from My learning.';
+      '\nSign in with the email address on your order. If this is your first visit, verify that email to activate your course. You can return to your lessons from My learning.';
     setReply(text);
     try {
       await navigator.clipboard.writeText(text);

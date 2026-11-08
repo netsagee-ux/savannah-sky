@@ -5,6 +5,7 @@ import { courseImage } from '@/components/ui';
 import { previews, type Course } from '@/lib/data';
 import { academyWhatsApp } from '@/lib/course-orders';
 import { hasCourseDelivery, hasCoursePrice } from '@/lib/payments';
+import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { db, enrolled } from '@/lib/server';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,8 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
   } catch { /* Offer an enquiry when a checkout dependency is unavailable. */ }
   if (!course) notFound();
 
+  const signedIn = checkoutReady && Boolean(await getChatGPTUser());
+
   return <section className="studio-wrap course-spread">
     <a className="studio-text-link" href="/courses"><ArrowLeft size={16} />All courses</a>
     <div className="course-spread-grid">
@@ -41,9 +44,9 @@ export default async function Detail({ params }: { params: Promise<{ id: string 
         <span className="studio-kicker">{access ? 'Your course' : 'Enrolment'}</span>
         <h2>{access ? 'Ready to learn.' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'Course outline'}</h2>
         {course.duration && <p>{course.duration}</p>}
-        <p>{access ? 'Open your training or return to your student dashboard.' : checkoutReady ? 'Order through WhatsApp. Once your payment is confirmed, your private link opens the course in the same student account. You can return to practise.' : 'This outline is available to browse. Enrolment is currently closed.'}</p>
+        <p>{access ? 'Open your training or return to your student dashboard.' : checkoutReady ? 'Arrange payment with the academy on WhatsApp. Once confirmed, sign in with your order email to watch your lessons.' : 'This outline is available to browse. Enrolment is currently closed.'}</p>
         {access ? <a className="button" href={lessons[0] ? '/learn/' + encodeURIComponent(lessons[0].id) : '/dashboard'}>Go to your learning</a>
-          : checkoutReady ? <CheckoutButton courseId={id} /> : <a className="button" href={'/contact?course='+encodeURIComponent(course.title)+'#ask'}>Ask about availability <ArrowUpRight size={16} /></a>}
+          : checkoutReady ? <CheckoutButton courseId={id} guest={!signedIn} /> : <a className="button" href={'/contact?course='+encodeURIComponent(course.title)+'#ask'}>Ask about availability <ArrowUpRight size={16} /></a>}
         {checkoutReady && <small><LockKeyhole size={13} /> Private student access</small>}
       </aside>
       <div className="course-syllabus">

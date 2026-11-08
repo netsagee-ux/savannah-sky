@@ -13,7 +13,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
   try {
     const database = db();
     const order = await database.prepare(
-      "SELECT email,title,amount,course_id FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live')"
+      "SELECT email,title,amount,course_id FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live') AND user_id NOT LIKE 'withdrawn/%'"
     ).bind(id).first<PaidOrder>();
     if (!order) return 'ineligible';
 
@@ -36,7 +36,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
         text: [
           'We’ve received your payment for ' + order.title + '.',
           'Amount paid: £' + (order.amount / 100).toFixed(2), 'Order reference: ' + id,
-          '', instructions, 'Use the same student account you used to enrol.', '', 'Savannah Sky Training Academy',
+          '', instructions, 'Sign in with the email address on this order to open your lessons.', '', 'Savannah Sky Training Academy',
         ].join('\n'),
       }),
     });

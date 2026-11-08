@@ -1,21 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import ts from 'typescript';
-
-function moduleUrl(source) {
-  return 'data:text/javascript;base64,' + Buffer.from(source).toString('base64');
-}
-
-async function compile(path, imports) {
-  let source = await readFile(path, 'utf8');
-  for (const [from, to] of Object.entries(imports)) source = source.replaceAll("'" + from + "'", JSON.stringify(to));
-  return moduleUrl(ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-  }).outputText);
-}
+import {compile,moduleUrl} from './compile-fixture.mjs';
 
 test('course checkout checks availability, charges the listed price and grants access only after verified payment', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'academy-checkout-'));
@@ -92,15 +80,17 @@ test('course checkout checks availability, charges the listed price and grants a
   await db.prepare("UPDATE courses SET published=1 WHERE id='gel'").run();
   assert.equal((await checkout()).status, 409);
   await db.prepare("INSERT INTO lessons VALUES('prep','gel','private-video-key',NULL,1)").run();
+  assert.equal((await checkout()).status, 409); // New purchases must start in WhatsApp.
+  await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('legacy-card','student','student@example.com','gel','Gel Foundations',6500,'gbp','pending','live','2026-01-01')").run();
   process.env.PUBLIC_PAYMENTS_READY = 'false';
-  assert.equal((await checkout()).status, 503);
+  assert.equal((await checkout({orderId:'legacy-card'})).status, 503);
   process.env.PUBLIC_PAYMENTS_READY = 'true';
   assert.equal(stripeForm, undefined);
-  const response = await checkout();
+  const response = await checkout({orderId:'legacy-card'});
   assert.equal(response.status, 200);
   assert.match((await response.json()).url, /^https:\/\/checkout\.stripe\.com\//);
   assert.equal(stripeForm.get('line_items[0][price_data][unit_amount]'), '6500');
-  assert.equal(stripeForm.get('cancel_url'), 'https://academy.example/courses/gel#enrol');
+  assert.equal(stripeForm.get('cancel_url'), 'https://academy.example/orders/legacy-card');
 
   const order = await db.prepare('SELECT * FROM orders').first();
   const session = { id: order.session_id, status: 'complete', payment_status: 'paid', amount_total: 6500,
@@ -201,19 +191,10 @@ test('course checkout checks availability, charges the listed price and grants a
   process.env.PUBLIC_PAYMENTS_READY = 'true';
   globalThis.academyCheckoutIdentity.user = {userId:'online-student',email:'online@example.com'};
   const online = await (await checkout({handoff:true})).json();
-  const beforeCard = await ownedOrder(online.orderId,'online-student');
-  assert.equal(beforeCard.mode,'whatsapp');
+  assert.equal((await checkout({orderId:online.orderId})).status,409);
+  assert.equal((await ownedOrder(online.orderId,'online-student')).mode,'whatsapp');
   globalThis.academyCheckoutIdentity.user = {userId:'stranger',email:'other@example.com'};
   assert.equal((await checkout({orderId:online.orderId})).status,409);
-  globalThis.academyCheckoutIdentity.user = {userId:'online-student',email:'online@example.com'};
-  assert.equal((await checkout({orderId:online.orderId})).status,200);
-  assert.equal((await ownedOrder(online.orderId,'online-student')).mode,'live');
-  await assert.rejects(() => confirmManualPayment(online.orderId));
-  await assert.rejects(() => import(orderModule).then(m => m.recordVerifiedPayment(beforeCard)));
-  assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='online@example.com'").all()).results.length,0);
-  assert.equal((await (await checkout({handoff:true})).json()).orderId,online.orderId);
-  assert.equal(stripeForm.get('metadata[orderId]'), online.orderId);
-  assert.equal(stripeForm.get('cancel_url'),'https://academy.example/orders/'+online.orderId);
 
   // On a reused email, keep each buyer’s access independently revocable when upgrading an old enrolment.
   await db.prepare("UPDATE enrollments SET id=email||':'||course_id WHERE id='buyer/student/gel'").run();

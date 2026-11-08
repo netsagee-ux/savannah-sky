@@ -2,7 +2,7 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { admin, db, enrolled } from '@/lib/server';
 import { hasCourseDelivery, hasCoursePrice, paymentConfig, publicPaymentsReady, stripe } from '@/lib/payments';
 
-import { academyWhatsApp, chatLink, ownedOrder, pendingOrder } from '@/lib/course-orders';
+import { academyWhatsApp, chatLink, guestBuyer, GuestOrderLimit, ownedOrder, pendingOrder } from '@/lib/course-orders';
 
 type OrderCourse = { id: string; title: string; price: number | null; course_url: string | null };
 
@@ -10,21 +10,29 @@ export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
   if (request.headers.get('origin') !== origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
   const user = await getChatGPTUser();
-  if (!user) return Response.json({ error: 'Sign in to enrol.' }, { status: 401 });
 
   try {
-    const payload = await request.json() as { courseId?: unknown; test?: unknown; handoff?: boolean; orderId?: string } | null;
+    const payload = await request.json() as { courseId?: unknown; test?: unknown; handoff?: boolean; orderId?: string; email?: unknown; intent?: unknown } | null;
     if (typeof payload?.courseId !== 'string' || !payload.courseId) {
       return Response.json({ error: 'Choose a course before checking out.' }, { status: 400 });
     }
     const { courseId, test } = payload;
+    if (!user && payload.handoff !== true) return Response.json({error:'Sign in to open this order.'},{status:401});
+    if (!user && (!process.env.CLERK_SECRET_KEY || !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)) {
+      return Response.json({error:'Student verification is temporarily unavailable.'},{status:503});
+    }
+    if (user && typeof payload.email === 'string' && user.email !== payload.email.trim().toLowerCase()) {
+      return Response.json({error:'Your signed-in email has changed. Refresh this course before ordering.'},{status:409});
+    }
+    const buyer = user || guestBuyer(payload.email, payload.intent);
+    if (!buyer) return Response.json({error:'Enter the email you will use to watch your lessons.'},{status:400});
     const testing = test === true && await admin();
     const course = await db().prepare('SELECT id,title,price,course_url FROM courses WHERE id=? AND (published=1 OR ?=1)')
       .bind(courseId, testing ? 1 : 0).first<OrderCourse>();
     if (!course || !hasCoursePrice(course.price)) {
       return Response.json({ error: 'This course is not available for online payment.' }, { status: 409 });
     }
-    if (!testing && await enrolled(course.id)) {
+    if (!testing && user && await enrolled(course.id)) {
       return Response.json({ error: 'This course is already in My learning.', enrolled: true }, { status: 409 });
     }
     if (!testing && !await hasCourseDelivery(course)) {
@@ -33,8 +41,12 @@ export async function POST(request: Request) {
     if (!testing && payload.handoff) {
       const number = await academyWhatsApp();
       if (!number) return Response.json({error:'WhatsApp enrolment is not configured.'},{status:503});
-      const order = await pendingOrder(user, {...course, price:course.price}, 'whatsapp');
-      return Response.json({url:chatLink(number,order,origin),orderId:order.id});
+      const order = await pendingOrder(buyer, {...course, price:course.price}, 'whatsapp');
+      if (order.mode === 'live') return Response.json({existingCardOrder:order.id});
+      return Response.json({url:chatLink(number,order,origin),orderId:order.id,guest:!user});
+    }
+    if (!user || (!testing && !payload.orderId)) {
+      return Response.json({error:'Start a new course order through the academy WhatsApp.'},{status:409});
     }
     const config = await paymentConfig();
     if (!config || config.mode !== (testing ? 'test' : 'live') || (!testing && !publicPaymentsReady())) {
@@ -42,17 +54,8 @@ export async function POST(request: Request) {
     }
     const email = user.email.toLowerCase();
     const existing = payload.orderId ? await ownedOrder(payload.orderId,user.userId) : null;
-    if (payload.orderId && (!existing || existing.course_id !== course.id || existing.email !== email || existing.amount !== course.price || existing.status !== 'pending' || !['live','whatsapp'].includes(existing.mode) || testing)) {
+    if (payload.orderId && (!existing || existing.course_id !== course.id || existing.email !== email || existing.amount !== course.price || existing.status !== 'pending' || existing.mode !== 'live' || testing)) {
       return Response.json({error:'Reopen the course to check its current price and availability.'}, {status:409});
-    }
-    // Selecting hosted card checkout reserves this order for Stripe before any session is created.
-    if (existing?.mode === 'whatsapp') {
-      await db().prepare("UPDATE orders SET mode='live' WHERE id=? AND user_id=? AND status='pending' AND mode='whatsapp' AND session_id IS NULL")
-        .bind(existing.id, user.userId).run();
-      const reserved = await ownedOrder(existing.id, user.userId);
-      if (reserved?.mode !== 'live' || reserved.status !== 'pending') {
-        return Response.json({error:'The order has changed. Reopen it to check your payment.'}, {status:409});
-      }
     }
     const id = existing?.id || crypto.randomUUID();
     let attempt = id;
@@ -75,7 +78,8 @@ export async function POST(request: Request) {
     const session = await stripe('checkout/sessions', config.secret, form, attempt);
     await db().prepare('UPDATE orders SET session_id=? WHERE id=?').bind(session.id, id).run();
     return Response.json({ url: session.url });
-  } catch {
+  } catch (error) {
+    if (error instanceof GuestOrderLimit) return Response.json({error:error.message},{status:429});
     return Response.json({ error: 'Checkout could not open. Please try again in a moment.' }, { status: 503 });
   }
 }

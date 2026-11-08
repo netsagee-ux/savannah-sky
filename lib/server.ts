@@ -8,7 +8,7 @@ export async function admin(){const u=await getChatGPTUser();const allowed=((env
 // An order-backed enrolment follows the verified buyer, including after an email change.
 export const enrolmentOwner = `(e.id='buyer/'||?||'/'||e.course_id OR
  (e.id NOT LIKE 'buyer/%' AND (EXISTS (SELECT 1 FROM orders o WHERE o.email=e.email AND o.course_id=e.course_id AND o.status='paid' AND o.mode IN ('live','whatsapp') AND o.user_id=?) OR
- (e.email=? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.email=e.email AND o.course_id=e.course_id AND o.status='paid' AND o.mode IN ('live','whatsapp'))))))`;
+ (e.email=? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.email=e.email AND o.course_id=e.course_id AND o.status='paid' AND o.mode IN ('live','whatsapp') AND o.user_id NOT LIKE 'guest/%' AND o.user_id NOT LIKE 'withdrawn/%')))))`;
 export async function enrolled(courseId:string) {
  const user=await getChatGPTUser();
  if(!user)return false;

@@ -1,3 +1,24 @@
-import {redirect} from 'next/navigation';import {admin} from '@/lib/server';import {getChatGPTUser,chatGPTSignInPath} from '@/app/chatgpt-auth';import {LockKeyhole} from 'lucide-react';
-export const dynamic='force-dynamic';export const metadata={title:'Administrator login'};
-export default async function AdminLogin(){if(await admin())redirect('/admin');const u=await getChatGPTUser();return <section className="standalone-login"><a href="/" className="login-brand">SAVANNAH SKY<span>ACADEMY MANAGEMENT</span></a><div className="login-card"><LockKeyhole size={28}/><span className="eyebrow">ADMINISTRATOR ACCESS</span><h1>Your academy.<br/>Your control room.</h1><p>Manage courses, private videos, student access and payments.</p>{u&&<p className="notice">Signed in as {u.email}. This account is not the configured administrator.</p>}<a className="button" href={u?'/sign-out':chatGPTSignInPath('/admin')} target="_top">{u?'Switch account':'Sign in securely'}</a><p className="quiet">Only the academy administrator can enter. Students should use the student login.</p><a className="underlink" href="/login">Student login</a></div></section>}
+import {SignIn} from '@clerk/nextjs';
+import {redirect} from 'next/navigation';
+import {admin} from '@/lib/server';
+import {getChatGPTUser} from '@/app/chatgpt-auth';
+
+export const dynamic='force-dynamic';
+export const metadata={title:'Academy staff sign-in'};
+
+export default async function AdminLogin() {
+  if(await admin()) redirect('/admin');
+  const user=await getChatGPTUser();
+  return <section className="standalone-login academy-staff-login">
+    <div className="login-card">
+      <span className="eyebrow">ACADEMY MANAGEMENT</span>
+      <h1>Staff sign-in</h1>
+      <p>Manage course recordings, verify payments and look after your students.</p>
+      {user ? <><p className="notice">{user.email} does not have academy management access.</p><a className="button" href="/sign-out">Switch account</a></>
+        : process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        ? <SignIn routing="hash" forceRedirectUrl="/admin" appearance={{elements:{footerAction:{display:'none'}},variables:{colorPrimary:'#512634'}}}/>
+        : <p role="status">Staff sign-in is temporarily unavailable.</p>}
+      <a className="underlink" href="/sign-in">Go to student sign-in</a>
+    </div>
+  </section>;
+}

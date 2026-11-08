@@ -101,8 +101,8 @@ export default async function Home() {
         <div className="edit-head"><div><span className="studio-kicker">Enrolment</span><h2 id="enrol-title">From course to <em>first lesson.</em></h2></div></div>
         <ol className="enrol-steps">
           <li><BookOpen /><h3>Choose a course</h3><p>Check the level, price and lesson plan.</p></li>
-          <li><UserRound /><h3>Sign in and pay</h3><p>Sign in and open your WhatsApp order to arrange payment.</p></li>
-          <li><MonitorPlay /><h3>Open your lessons</h3><p>Once payment is confirmed, your course appears in My learning.</p></li>
+          <li><UserRound /><h3>Arrange payment</h3><p>Enter your student email and arrange payment on WhatsApp.</p></li>
+          <li><MonitorPlay /><h3>Open your lessons</h3><p>After confirmation, sign in with your order email to watch your course.</p></li>
         </ol>
       </section>
 
