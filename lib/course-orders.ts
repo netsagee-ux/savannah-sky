@@ -92,7 +92,8 @@ export async function pendingOrder(user: Buyer, course: {id: string; title: stri
   const quota = guest ? " AND (SELECT COUNT(*) FROM orders WHERE email=? AND user_id LIKE 'guest/%' AND created_at>=?) < 6" : '';
   const quotaArgs = guest ? [email, new Date(Date.now() - 3600000).toISOString()] : [];
   const id = crypto.randomUUID();
-  const batch = [database.prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM orders WHERE '+match+')'+quota)
+  const batch = [database.prepare("UPDATE orders SET mode='whatsapp' WHERE mode='live' AND session_id IS NULL AND user_id=? AND email=? AND course_id=? AND amount=? AND status='pending' AND ?='whatsapp'").bind(user.userId,email,course.id,course.price,mode),
+    database.prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM orders WHERE '+match+')'+quota)
     .bind(id,user.userId,email,course.id,course.title,course.price,'gbp',status,mode,new Date().toISOString(),...args,...quotaArgs)];
   if (guest) batch.push(database.prepare("INSERT INTO settings(id,value) SELECT 'order_activation:'||id,'1' FROM orders WHERE id=?").bind(id));
   if (callback) batch.push(database.prepare("INSERT OR IGNORE INTO settings(id,value) SELECT 'order_callback:'||id,? FROM orders WHERE "+match).bind(callback,...args));

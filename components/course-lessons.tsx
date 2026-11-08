@@ -12,24 +12,29 @@ type Props = {
 
 export default function CourseLessons({courses,lessons,selected,onSelect,directUpload,busy,save}:Props) {
   const [lesson,setLesson]=useState<Lesson|null>(null);
+  const [editorOpen,setEditorOpen]=useState(false);
   const [version,setVersion]=useState(0);
   const course=courses.find(item=>item.id===selected);
-  const list=lessons.filter(item=>item.course_id===selected);
+  const list=lessons.filter(item=>item.course_id===selected).sort((a,b)=>a.position-b.position || a.id.localeCompare(b.id));
   const nextPosition=Math.min(1000,list.reduce((max,item)=>Math.max(max,item.position),0)+1);
   async function submit(event:FormEvent<HTMLFormElement>) {
-    if(await save(event,'lesson')) {setLesson(null);setVersion(value=>value+1);}
+    if(await save(event,'lesson')) {setEditorOpen(false);setLesson(null);setVersion(value=>value+1);}
   }
   return <section className="admin-section">
     <label className="form">Course workspace<select aria-label="Course workspace" value={course?.id||''} disabled={busy} onChange={e=>onSelect(e.target.value)}>
       <option value="">Choose a course</option>{courses.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
     {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
-      <h2>{course.title}</h2>
-      {list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
+      <div className="library-heading">
+        <div><h2>{course.title}</h2><p>{list.length} lessons · {list.filter(item=>item.video_key).length} private videos</p></div>
+        {!editorOpen && <button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button>}
+      </div>
+      {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
         <div><strong>{item.title}</strong><small>{item.video_key?'Private video':'Lesson notes'}{item.question?' · Knowledge check':''}</small></div>
-        <button type="button" className="edit-link" disabled={busy} onClick={()=>{setLesson(item);document.getElementById('lesson-editor')?.scrollIntoView({block:'start'});}}>Edit</button>
-        <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)}>Preview</a>
-      </li>)}</ol> : <p>Add your first lesson below.</p>}
-      <h3 id="lesson-editor">{lesson?'Edit lesson':'Add a lesson'}</h3>
+        <div className="lesson-actions"><button type="button" className="edit-link" disabled={busy} aria-label={'Edit '+item.title} onClick={()=>{setLesson(item);setEditorOpen(true);}}>Edit</button>
+        <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)} aria-label={'Preview '+item.title}>Preview</a></div>
+      </li>)}</ol> : <p>Add the first lesson to start your course library.</p>)}
+      {editorOpen && <><div className="library-heading"><h3>{lesson?'Edit lesson':'Add a lesson'}</h3>
+        <button type="button" disabled={busy} className="edit-link" onClick={()=>setEditorOpen(false)}>Back to lesson list</button></div>
       <form key={lesson?.id||'new-'+version} className="form" onSubmit={submit}>
         <input name="id" type="hidden" value={lesson?.id||''}/>
         <input name="courseId" type="hidden" value={course.id}/>
@@ -45,7 +50,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         <strong>Private video hosting</strong>
         <p>Students stream uploaded lessons from their own accounts. MP4 (H.264) is recommended.</p>
         </div>
-        <label>Private training video (MP4 or WebM, up to {directUpload?'1 GB':'3 MB'})<input name="video" type="file" accept="video/mp4,video/webm"/>
+        <label>Private training video (MP4 or WebM, up to {directUpload?'1 GB':'256 MB'})<input name="video" type="file" accept="video/mp4,video/webm"/>
         </label>
         <label>Video thumbnail (JPG, PNG or WebP, up to 3 MB)<input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"/>
         </label>{lesson?.thumbnail_key&&<div className="admin-thumbnail">
@@ -70,7 +75,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         </select>
         </label>
         </div>
-        <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button>{lesson&&<button type="button" className="button outline" onClick={()=>setLesson(null)}>Cancel editing</button>}</form>
+        <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button></form></>}
     </>}
   </section>;
 }

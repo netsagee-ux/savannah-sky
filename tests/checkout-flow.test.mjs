@@ -37,7 +37,8 @@ test('course checkout checks availability, charges the listed price and grants a
   });
   const security = await compile('lib/payment-security.ts', {});
   const privateUrls = await compile('lib/student-course-link.ts', {});
-  const receipts = await compile('lib/order-receipt.ts', { './server': server, './student-course-link': privateUrls });
+  const invite = await compile('lib/course-invitation.ts', {'./server':server,'./student-course-link':privateUrls});
+  const receipts = await compile('lib/order-receipt.ts', { './server': server, './course-invitation': invite });
   const orderModule = await compile('lib/course-orders.ts', { './server': server, './order-receipt': receipts });
   const payments = await compile('lib/payments.ts', { './server': server, './payment-security': security, './course-orders': orderModule });
   const { confirmManualPayment, ownedOrder } = await import(orderModule);
@@ -83,15 +84,13 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal((await checkout()).status, 409); // New purchases must start in WhatsApp.
   await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('legacy-card','student','student@example.com','gel','Gel Foundations',6500,'gbp','pending','live','2026-01-01')").run();
   process.env.PUBLIC_PAYMENTS_READY = 'false';
-  assert.equal((await checkout({orderId:'legacy-card'})).status, 503);
+  assert.equal((await checkout({orderId:'legacy-card'})).status,409);
   process.env.PUBLIC_PAYMENTS_READY = 'true';
-  assert.equal(stripeForm, undefined);
-  const response = await checkout({orderId:'legacy-card'});
-  assert.equal(response.status, 200);
-  assert.match((await response.json()).url, /^https:\/\/checkout\.stripe\.com\//);
-  assert.equal(stripeForm.get('line_items[0][price_data][unit_amount]'), '6500');
-  assert.equal(stripeForm.get('cancel_url'), 'https://academy.example/orders/legacy-card');
-
+  assert.equal((await checkout({orderId:'legacy-card'})).status,409);
+  assert.equal((await checkout({test:true,handoff:true})).status,409);
+  assert.equal(stripeForm,undefined);
+  // Payments completed in a pre-existing legacy session still reconcile.
+  await db.prepare("UPDATE orders SET session_id='cs_historical' WHERE id='legacy-card'").run();
   const order = await db.prepare('SELECT * FROM orders').first();
   const session = { id: order.session_id, status: 'complete', payment_status: 'paid', amount_total: 6500,
     currency: 'gbp', metadata: { orderId: order.id, courseId: 'gel' }, customer_email: 'student@example.com', livemode: true };
@@ -101,7 +100,7 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(await fulfill(session), true);
   assert.equal((await db.prepare('SELECT * FROM enrollments').all()).results.length, 1);
   assert.equal(await sendOrderReceipt(order.id), 'unconfigured');
-  assert.equal((await (await checkout()).json()).enrolled, true);
+  assert.equal((await (await checkout({handoff:true})).json()).enrolled, true);
 
   globalThis.academyCheckoutIdentity = { user: {userId:'manual-student',email:'manual@example.com',sessionId:'mobile'} };
   process.env.PUBLIC_PAYMENTS_READY = 'false';
@@ -110,7 +109,7 @@ test('course checkout checks availability, charges the listed price and grants a
   const manual = await (await checkout({handoff:true})).json();
   const privateEntry = await import(await compile('app/(website)/orders/[id]/learn/route.ts', {
     '@/app/chatgpt-auth': identity, '@/lib/course-orders': orderModule, '@/lib/server': server,
-    '@/lib/student-course-link': privateUrls,
+    '@/lib/student-course-link': privateUrls, '@/lib/course-invitation':invite,
   }));
   const openLink = () => privateEntry.GET(new Request('https://academy.example/orders/'+manual.orderId+'/learn'),
     {params:Promise.resolve({id:manual.orderId})});
@@ -145,7 +144,7 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(emailRequests[1].key, 'academy-receipt/' + manual.orderId);
   assert.deepEqual(emailRequests[1].body.to, ['manual@example.com']);
   assert.ok(emailRequests[1].body.text.includes('£65.00'));
-  assert.ok(emailRequests[1].body.text.includes('https://academy.example'+orderPath+'/learn'));
+  assert.match(emailRequests[1].body.text,/https:\/\/academy.example\/orders\/s1_[\w-]+\/learn/);
   assert.equal(new URL((await openLink()).headers.get('Location')).pathname, '/learn/prep');
   assert.equal((await openLink()).headers.get('Cache-Control'), 'private, no-store');
   await db.prepare("INSERT INTO lessons VALUES('shape','gel','another-private-key',NULL,2)").run();

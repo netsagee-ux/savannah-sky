@@ -1,1 +1,26 @@
-import {notFound} from 'next/navigation';import {db,enrolled} from '@/lib/server';import {getChatGPTUser} from '@/app/chatgpt-auth';import LessonPlayer from '@/components/lesson-player';export const dynamic='force-dynamic';export default async function Learn({params}:{params:Promise<{id:string}>}){const {id}=await params;let lesson:any;try{lesson=await db().prepare('SELECT * FROM lessons WHERE id=?').bind(id).first()}catch{return <section className="section notice">The learning space is temporarily unavailable. Please try again.</section>}if(!lesson)notFound();if(!await enrolled(lesson.course_id))return <section className="section"><div className="empty"><h1>Your course is waiting.</h1><p>Sign in with the email address used for your enrolment. Course access is activated by the academy.</p><a className="button" href="/dashboard">Go to student space</a></div></section>;const u=await getChatGPTUser();const done=!!await db().prepare('SELECT id FROM progress WHERE user_id=? AND lesson_id=?').bind(u!.userId,id).first();const list=(await db().prepare('SELECT id,title FROM lessons WHERE course_id=? ORDER BY position').bind(lesson.course_id).all()).results;const safe={id:lesson.id,title:lesson.title,body:lesson.body,question:lesson.question,options:JSON.parse(lesson.options||'[]'),hasVideo:!!lesson.video_key,hasThumbnail:!!lesson.thumbnail_key};return <section className="section learning-layout"><aside className="learning-sidebar"><a href="/dashboard">My learning</a><h3>Course lessons</h3>{list.map((l:any)=><a key={l.id} href={'/learn/'+l.id}>{l.title}</a>)}<a href={'/certificate/'+lesson.course_id}>Completion record</a></aside><div><LessonPlayer lesson={safe} completed={done}/></div></section>}
+import {notFound} from 'next/navigation';
+import {db, enrolled} from '@/lib/server';
+import {getChatGPTUser} from '@/app/chatgpt-auth';
+import LessonPlayer from '@/components/lesson-player';
+import CoursePlaylist from '@/components/course-playlist';
+
+export const dynamic='force-dynamic';
+
+export default async function Learn({params}:{params:Promise<{id:string}>}) {
+  const {id}=await params;
+  let lesson;
+  try {
+    lesson=await db().prepare('SELECT l.*,c.title AS course_title FROM lessons l JOIN courses c ON c.id=l.course_id WHERE l.id=?').bind(id).first<any>();
+  } catch {return <section className="section notice">The learning space is temporarily unavailable. Please try again.</section>;}
+  if (!lesson) notFound();
+  const user=await getChatGPTUser();
+  if (!user || !await enrolled(lesson.course_id)) return <section className="section"><div className="empty"><h1>Private course</h1><p>Sign in with the account used for your enrolment to open this lesson.</p><a className="button" href="/dashboard">My learning</a></div></section>;
+  const list=(await db().prepare(`SELECT l.id,l.title,EXISTS(SELECT 1 FROM progress p WHERE p.user_id=? AND p.lesson_id=l.id) AS completed
+    FROM lessons l WHERE l.course_id=? ORDER BY l.position,l.id`).bind(user.userId,lesson.course_id).all()).results as {id:string;title:string;completed:number}[];
+  const index=list.findIndex(item=>item.id===id);
+  if (index===-1) notFound();
+  const safe={id,title:lesson.title,body:lesson.body,question:lesson.question,options:JSON.parse(lesson.options||'[]'),hasVideo:!!lesson.video_key,hasThumbnail:!!lesson.thumbnail_key};
+  return <CoursePlaylist title={lesson.course_title} courseId={lesson.course_id} list={list} index={index}>
+    <LessonPlayer key={id} lesson={safe} completed={Boolean(list[index].completed)}/>
+  </CoursePlaylist>;
+}

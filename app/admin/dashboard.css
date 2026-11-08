@@ -34,3 +34,45 @@
 .academy-staff-login .login-card h1 {font-size:clamp(2rem,5vw,3rem);margin:0;}
 .academy-staff-login .login-card p {margin:0;}
 .academy-staff-login :is(.cl-rootBox,.cl-cardBox,.cl-card) {width:100%;min-width:0;max-width:100%;}
+
+/* Dashboard controls need room for order references, native upload fields and long titles. */
+.admin-area .management-main, .admin-area .admin-section, .admin-area .row > *,
+.admin-area .admin-section :is(form, label, fieldset, input, select, textarea) { min-inline-size:0; max-inline-size:100%; }
+.admin-area .management-shell { overflow-wrap:anywhere; }
+.admin-area .admin-grid { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+.admin-area .tabs { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); overflow:visible; }
+.admin-area .tabs button { min-width:0; min-height:44px; padding-inline:6px; }
+.admin-area .row { flex-wrap:wrap; }
+.admin-area .management-main .button { white-space:normal; text-align:center; }
+.admin-area .library-heading, .admin-area .payment-record { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px 20px; }
+.admin-area .library-heading { margin:24px 0 14px; }
+.admin-area .library-heading :is(h2,h3,p) { margin:0; }
+.admin-area .library-heading p { color:var(--brand-taupe); font-size:.875rem; }
+.admin-area .academy-lesson-list li { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; }
+.admin-area .academy-lesson-list li::before { font-variant-numeric:tabular-nums; }
+.admin-area .academy-lesson-list .lesson-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.admin-area :is(.lesson-actions,.library-heading) :is(.edit-link,.underlink) { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding-inline:8px; margin:0; }
+.admin-area .payment-record { border-top:1px solid var(--brand-line); padding-block:20px; }
+.admin-area .payment-record > :first-child {flex:1 1 17rem;}
+.admin-area .payment-record > :is(form,.form) {width:100%;}
+.admin-area :is(.academy-lesson-list,.payment-record) small {color:var(--brand-taupe);}
+.admin-area .admin-section input[type=file] { display:block; width:100%; box-sizing:border-box; }
+.admin-area #course-form-heading { scroll-margin-block-start:24px; }
+@media(max-width:1150px) {
+  .admin-area .admin-grid { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:840px) {
+  .admin-area .tabs { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .admin-area .management-main { box-sizing:border-box; }
+}
+@media(max-width:560px) {
+  .admin-area .admin-section { padding:20px 15px; }
+  .admin-area .management-main { padding-inline:14px; }
+  .admin-area .management-heading { display:block; }
+  .admin-area .payment-record { display:grid; grid-template-columns:minmax(0,1fr); }
+  .admin-area .admin-section .form-two { grid-template-columns:minmax(0,1fr); }
+  .admin-area .academy-lesson-list li { grid-template-columns:24px minmax(0,1fr); gap:2px 8px; }
+  .admin-area .academy-lesson-list .lesson-actions { grid-column:2; }
+  .admin-area .library-heading { align-items:flex-start; }
+  .admin-area .admin-metrics > div { padding:12px 8px; }
+}

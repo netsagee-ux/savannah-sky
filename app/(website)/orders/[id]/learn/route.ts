@@ -1,19 +1,22 @@
 import { chatGPTSignInPath, getChatGPTUser } from '@/app/chatgpt-auth';
 import { studentOrder } from '@/lib/course-orders';
 import { db, enrolled } from '@/lib/server';
+import { orderFromCourseLink } from '@/lib/course-invitation';
 import { studentCoursePath } from '@/lib/student-course-link';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request, {params}: {params: Promise<{id: string}>}) {
-  const {id} = await params;
+  const {id: ticket} = await params;
   const headers = {'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex'};
   const redirectTo = (path: string) => new Response(null, {
     status: 303, headers: {...headers, Location: new URL(path, request.url).href},
   });
   try {
+    const id = orderFromCourseLink(ticket);
+    if (!id) return new Response('Invalid course invitation.', {status:404, headers});
     const user = await getChatGPTUser();
-    if (!user) return redirectTo(chatGPTSignInPath(studentCoursePath(id)));
+    if (!user) return redirectTo(chatGPTSignInPath(studentCoursePath(ticket)));
     const order = await studentOrder(id, user);
     if (!order) return new Response('This link belongs to the student account used to buy the course.', {status: 404, headers});
     if (order.status !== 'paid' || !['whatsapp', 'live'].includes(order.mode) || !await enrolled(order.course_id)) {

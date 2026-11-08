@@ -1,6 +1,5 @@
 'use client';
 import {useState,type FormEvent} from 'react';
-import {studentCoursePath} from '@/lib/student-course-link';
 
 export default function ActivateCourse({id}:{id:string}) {
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -11,7 +10,8 @@ export default function ActivateCourse({id}:{id:string}) {
     try {
       const result=await fetch('/api/orders/'+encodeURIComponent(id)+'/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
       if(!result.ok)throw Error(((await result.json()) as {error?:string}).error || 'Could not activate your course.');
-      location.assign(studentCoursePath(id));
+      const {path}=await result.json() as {path:string};
+      location.assign(path);
     } catch(reason){setError((reason as Error).message);setBusy(false);}
   }
   return <form onSubmit={activate} className="form"><label>One-time course password

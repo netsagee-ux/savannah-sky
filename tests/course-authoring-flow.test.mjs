@@ -26,6 +26,12 @@ test('administrator uploads a course and a guest can claim it once after a verif
   }await rm(dir,{force:true,recursive:true});});
 
   const adapter=await compile('lib/vercel-database.ts',{'@libsql/client':import.meta.resolve('@libsql/client')});
+  const parts=await compile('lib/lesson-upload.ts',{});
+  const mediaModule=await compile('lib/classroom-media.ts',{'./vercel-database':adapter,'./lesson-upload':parts});
+  const {classroomGet,classroomHead}=await import(mediaModule);
+  const store=globalThis.authoringTest.storage, previousGet=store.get, previousHead=store.head;
+  store.get=(id,options)=>id.startsWith('classroom/')?classroomGet(id,options):previousGet(id,options);
+  store.head=id=>id.startsWith('classroom/')?classroomHead(id):previousHead(id);
   const db=(await import(adapter)).database();
   for(const path of (await readdir('drizzle')).filter(path=>path.endsWith('.sql')).sort()){
     for(const sql of (await readFile('drizzle/'+path,'utf8')).split('--> statement-breakpoint')){
@@ -35,13 +41,14 @@ test('administrator uploads a course and a guest can claim it once after a verif
   const auth=moduleUrl("export const getChatGPTUser=async()=>globalThis.authoringTest.state.user; export const chatGPTSignInPath=path=>'/sign-in?redirect_url='+encodeURIComponent(path)");
   const server=await compile('lib/server.ts',{'./vercel-database':adapter,'./vercel-storage':moduleUrl('export const objectStorage=()=>globalThis.authoringTest.storage'),'@/app/chatgpt-auth':auth});
   const urls=await compile('lib/student-course-link.ts',{});
-  const receipt=await compile('lib/order-receipt.ts',{'./server':server,'./student-course-link':urls});
+  const inviteModule=await compile('lib/course-invitation.ts',{'./server':server,'./student-course-link':urls});
+  const receipt=await compile('lib/order-receipt.ts',{'./server':server,'./course-invitation':inviteModule});
   const orders=await compile('lib/course-orders.ts',{'./server':server,'./order-receipt':receipt});
   const security=await compile('lib/payment-security.ts',{});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':security});
-  const modules={'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
+  const modules={'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
-    '@/lib/lesson-upload':await compile('lib/lesson-upload.ts',{}),'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
+    '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
   const route=async path=>import(await compile(path,modules));
   const author=await route('app/api/admin/route.ts'), checkout=await route('app/api/checkout/route.ts');
   const pay=await route('app/api/payments/route.ts'), entry=await route('app/(website)/orders/[id]/learn/route.ts');
@@ -66,6 +73,31 @@ test('administrator uploads a course and a guest can claim it once after a verif
   assert.equal((await save('lesson',{...lesson,video:file})).status,200);
   const lessonId=(await db.prepare('SELECT id FROM lessons WHERE course_id=?').bind(courseId).first()).id;
   assert.equal((await save('lesson',{...lesson,id:lessonId,removeVideo:'1'})).status,400);
+  const partRoute=await route('app/api/admin/video-part/route.ts');
+  const {mediaPartBytes}=await import(parts);
+  const partRequest=(key,size,index,bytes)=>partRoute.POST(new Request(origin+'/api/admin/video-part?'+new URLSearchParams({key,size:String(size),part:String(index)}),{
+    method:'POST',headers:{origin,'content-type':'video/webm'},body:bytes}));
+  let largerVideo;
+  for(let position=2;position<=15;position++){
+    const key='classroom/'+courseId+'/'+crypto.randomUUID();
+    const bytes=position===15?Buffer.concat([video,Buffer.alloc(mediaPartBytes,0x3a)]):video;
+    assert.equal((await partRequest(key,bytes.length,0,bytes.subarray(0,mediaPartBytes))).status,200);
+    if(position===15){
+      largerVideo=bytes;
+      assert.equal(await classroomHead(key),null);
+      assert.equal((await save('lesson',{...lesson,uploadedVideoKey:key})).status,400);
+      assert.equal((await partRequest(key,bytes.length,0,bytes.subarray(0,mediaPartBytes))).status,200);
+      assert.equal((await partRequest(key,bytes.length,1,bytes.subarray(mediaPartBytes))).status,200);
+      const atRest=await db.prepare('SELECT content FROM classroom_parts WHERE file_id=? AND position=0').bind(key).first();
+      assert.ok(!Buffer.from(atRest.content).includes(video));
+      const fragment=await classroomGet(key,{range:{offset:mediaPartBytes-20,length:46}});
+      assert.deepEqual(Buffer.from(await new Response(fragment.body).arrayBuffer()),bytes.subarray(mediaPartBytes-20,mediaPartBytes+26));
+    }
+    const saved=await save('lesson',{...lesson,title:'Practice '+position,position:String(position),uploadedVideoKey:key});
+    assert.equal(saved.status,200,await saved.text());
+  }
+  const roster=(await db.prepare('SELECT id,position FROM lessons WHERE course_id=? AND video_key IS NOT NULL ORDER BY position').bind(courseId).all()).results;
+  assert.deepEqual(roster.map(row=>row.position),Array.from({length:15},(_,i)=>i+1));
   const intent=crypto.randomUUID(), fields={courseId,handoff:true,email:' Learner@example.test ',intent};
   const order=(overrides={})=>checkout.POST(post('/api/checkout',{...fields,...overrides}));
   const watch=()=>token.POST(post('/api/video-access',{lessonId}));
@@ -121,10 +153,16 @@ test('administrator uploads a course and a guest can claim it once after a verif
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
   assert.equal((await watch()).status,403);
   state.user=owner;
-  assert.equal((await (await payment({action:'course-password',id:orderId})).json()).password,null);
+  assert.equal((await payment({action:'course-password',id:orderId})).status,409);
   assert.equal((await confirm()).status,200);
-  const {password}=await (await payment({action:'course-password',id:orderId})).json();
+  const {password,path}=await (await payment({action:'course-password',id:orderId})).json();
   assert.match(password,/^[A-F0-9]{4}(-[A-F0-9]{4}){3}$/);
+  const ticket=path.split('/')[2];
+  const openInvite=(token=ticket)=>entry.GET(new Request(origin+'/orders/'+token+'/learn'),{params:Promise.resolve({id:token})});
+  assert.match(ticket,/^s1_/);
+  assert.ok(!path.includes(orderId));
+  assert.equal((await openInvite(ticket.slice(0,-2)+'!!')).status,404);
+  assert.equal((await openInvite(ticket.slice(0,10)+(ticket[10]==='a'?'b':'a')+ticket.slice(11))).status,404);
   const activation=await route('app/api/orders/[id]/activate/route.ts');
   const unlock=(value)=>activation.POST(post('/api/orders/'+orderId+'/activate',{password:value}),{params:Promise.resolve({id:orderId})});
   const lookup=()=>pay.GET(new Request(origin+'/api/payments?order='+orderId));
@@ -133,6 +171,7 @@ test('administrator uploads a course and a guest can claim it once after a verif
   state.user=null;
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/sign-in');
   state.user=stranger;
+  assert.equal((await openInvite()).status,404);
   assert.equal((await unlock(password)).status,403);
   assert.equal((await open()).status,404);
   assert.equal((await watch()).status,403);
@@ -147,6 +186,14 @@ test('administrator uploads a course and a guest can claim it once after a verif
   const activations=await Promise.all([unlock(password),unlock(password)]);
   assert.ok(activations.every(result=>result.ok));
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/learn/'+lessonId);
+  assert.equal(new URL((await openInvite()).headers.get('location')).pathname,'/learn/'+lessonId);
+  for(const row of roster){
+    const result=await token.POST(post('/api/video-access',{lessonId:row.id}));
+    assert.equal(result.status,200);
+    const address=(await result.json()).url;
+    const bytes=await stream.GET(new Request(origin+address),{params:Promise.resolve({id:row.id})});
+    assert.deepEqual(Buffer.from(await bytes.arrayBuffer()),row.position===15?largerVideo:video);
+  }
   const playbackUrl=(await (await watch()).json()).url;
   const play=()=>stream.GET(new Request(origin+playbackUrl),{params:Promise.resolve({id:lessonId})});
   assert.deepEqual(Buffer.from(await (await play()).arrayBuffer()),video);
@@ -157,6 +204,7 @@ test('administrator uploads a course and a guest can claim it once after a verif
   assert.equal((await (await lookup()).json()).orders[0].awaitingClaim,0);
   assert.equal((await save('revoke',{id:'buyer/'+buyer.userId+'/'+courseId})).status,200);
   assert.equal((await confirm()).status,200);
+  assert.equal((await payment({action:'course-password',id:orderId})).status,409);
   state.user=buyer;
   await claimPaidOrders(buyer);
   assert.equal((await play()).status,403);

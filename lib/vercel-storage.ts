@@ -1,3 +1,5 @@
+import {classroomGet,classroomHead,classroomDelete,storeMediaPart} from './classroom-media';
+import {mediaPartBytes} from './lesson-upload';
 import {database} from './vercel-database';
 import {S3Client,GetObjectCommand,HeadObjectCommand,PutObjectCommand,DeleteObjectCommand} from '@aws-sdk/client-s3';
 import {head as blobHead,get as blobGet,put as blobPut,del as blobDelete,BlobNotFoundError} from '@vercel/blob';
@@ -40,12 +42,18 @@ function uploadedObjects(){if(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLO
 export function objectStorage() {
  const uploads=uploadedObjects();
  return {
-  put:uploads.put,
+  async put(key:string,data:ArrayBuffer|ReadableStream,opts?:{httpMetadata:{contentType:string}}) {
+   if(!key.startsWith('classroom-assets/')) return uploads.put(key,data,opts);
+   const bytes=Buffer.from(data instanceof ArrayBuffer?data:await new Response(data).arrayBuffer());
+   for(let offset=0;offset<bytes.length;offset+=mediaPartBytes) await storeMediaPart(key,{size:bytes.length,type:opts?.httpMetadata.contentType||'application/octet-stream'},offset/mediaPartBytes,bytes.subarray(offset,offset+mediaPartBytes));
+  },
   async head(key:string) {
+   if(key.startsWith('classroom/')||key.startsWith('classroom-assets/'))return classroomHead(key);
    if(!key.startsWith('practice/'))return uploads.head(key);
    return database().prepare('SELECT length(bytes) AS size FROM academy_practice_files WHERE id=?').bind(key).first<{size:number}>();
   },
   async get(key:string,options?:{range:{offset:number;length:number}}) {
+   if(key.startsWith('classroom/')||key.startsWith('classroom-assets/'))return classroomGet(key,options);
    if(!key.startsWith('practice/'))return uploads.get(key,options);
    const range=options?.range;
    const select=range?'substr(bytes,?,?)':'bytes';
@@ -58,7 +66,10 @@ export function objectStorage() {
   async delete(keys:string|string[]) {
    const all=Array.isArray(keys)?keys:[keys];
    const regular=all.filter(key=>!key.startsWith('practice/'));
-   if(regular.length) await uploads.delete(regular);
+   for(const key of regular){
+    if(key.startsWith('classroom/')||key.startsWith('classroom-assets/'))await classroomDelete(key);
+    else await uploads.delete(key);
+   }
    for(const key of all.filter(key=>key.startsWith('practice/'))) {
     await database().prepare('DELETE FROM academy_practice_files WHERE id=? AND NOT EXISTS(SELECT 1 FROM lessons WHERE video_key=?)').bind(key,key).run();
    }

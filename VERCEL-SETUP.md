@@ -17,7 +17,7 @@ Connect Stripe through the existing admin payment settings and configure the `/a
 
 In Admin → Payments, save the academy business WhatsApp number including its country code. Alternatively set `ACADEMY_WHATSAPP_NUMBER` in the deployment environment. The stored admin setting takes precedence.
 
-Admin → Lessons sends MP4 and WebM recordings up to 1 GiB directly to the connected private Vercel Blob store. Set `BLOB_READ_WRITE_TOKEN` or supply Vercel’s Blob store ID and OIDC credentials. R2 fallback accepts up to 3 MiB per recording through the form. Thumbnails are limited to 3 MiB. Replace legacy externally hosted course material with a privately uploaded recording before opening enrolment.
+Admin → Lessons sends MP4 and WebM recordings up to 1 GiB directly to the connected private Vercel Blob store. Set `BLOB_READ_WRITE_TOKEN` or supply Vercel’s Blob store ID and OIDC credentials. Without direct Blob uploads the dashboard stores recordings in AES-256-GCM encrypted chunks in the academy database, up to 256 MiB per recording. Thumbnails are limited to 3 MiB. Replace legacy externally hosted course material with a privately uploaded recording before opening enrolment.
 
 Production release gates: Next build passes; deployment homepage responds successfully; configured login works; admin is denied to other accounts; course thumbnails load; unpaid users cannot access course links; a verified Stripe payment grants exactly one enrolment; revocation removes access.
 

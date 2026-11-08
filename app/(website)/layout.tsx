@@ -1,6 +1,7 @@
 import { Footer, Header } from '@/components/shell';
 import './academy.css';
 import './masthead.css';
+import './student-workspace.css';
 
 export default function WebsiteLayout({ children }: { children: React.ReactNode }) {
   return <div className="academy">

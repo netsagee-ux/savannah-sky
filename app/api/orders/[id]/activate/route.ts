@@ -1,5 +1,6 @@
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {claimPaidOrders,ownedOrder} from '@/lib/course-orders';
+import {paidInvitationPath} from '@/lib/course-invitation';
 import {enrolled} from '@/lib/server';
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
@@ -13,6 +14,8 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
     await claimPaidOrders(user,id,body.password);
     const order=await ownedOrder(id,user.userId);
     if(order?.status!=='paid'||!await enrolled(order.course_id)) return Response.json({error:'Check the password and your order email.'},{status:403});
-    return Response.json({ok:true});
+    const path=await paidInvitationPath(id);
+    if(!path)return Response.json({error:'Course access is inactive.'},{status:403});
+    return Response.json({ok:true,path},{headers:{'Cache-Control':'private, no-store'}});
   } catch {return Response.json({error:'Activation could not be checked. Please try again.'},{status:503});}
 }

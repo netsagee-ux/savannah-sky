@@ -1,6 +1,6 @@
 import {createHmac} from 'node:crypto';
 import { db } from './server';
-import { studentCoursePath } from './student-course-link';
+import { paidInvitationPath } from './course-invitation';
 
 type PaidOrder = { activatedWithPassword:number; email: string; title: string; amount: number; course_id: string };
 export type ReceiptStatus = 'sent' | 'pending' | 'unconfigured' | 'ineligible';
@@ -30,7 +30,9 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
 
     const base = process.env.ACADEMY_PUBLIC_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL
       ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : '');
-    const instructions = base ? 'Open your private course: ' + new URL(studentCoursePath(id), base).href : 'Sign in to Savannah Sky and open My learning.';
+    const path = await paidInvitationPath(id);
+    if (!path) return 'ineligible';
+    const instructions = base ? 'Open your private course: ' + new URL(path, base).href : 'Sign in to Savannah Sky and open My learning.';
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       signal: AbortSignal.timeout(5000),
