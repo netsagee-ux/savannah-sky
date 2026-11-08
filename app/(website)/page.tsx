@@ -39,7 +39,6 @@ export default async function Home() {
             <p>Online nail courses with Carla, from your first gel set to the finishing details.</p>
             <div className="atelier-actions">
               <a className="studio-button" href="#collection">Explore courses <ArrowRight size={17} /></a>
-              <a className="meet-link" href="#educator">Meet Carla <ArrowUpRight size={15} /></a>
             </div>
           </div>
           <BrandGallery />
@@ -90,7 +89,7 @@ export default async function Home() {
         <div className="edit-head"><div><span className="studio-kicker">Enrolment</span><h2 id="enrol-title">From course to <em>first lesson.</em></h2></div></div>
         <ol className="enrol-steps">
           <li><BookOpen /><h3>Choose a course</h3><p>Check the level, price and lesson plan.</p></li>
-          <li><UserRound /><h3>Sign in and pay</h3><p>For an open course, use your student account and pay securely with Stripe.</p></li>
+          <li><UserRound /><h3>Sign in and pay</h3><p>Sign in and open your WhatsApp order to arrange payment.</p></li>
           <li><MonitorPlay /><h3>Open your lessons</h3><p>Once payment is confirmed, your course appears in My learning.</p></li>
         </ol>
       </section>
@@ -109,8 +108,8 @@ export default async function Home() {
 
       <section className="home-contact" aria-labelledby="support-title"><div className="studio-wrap home-contact-inner">
         <img src="/salon-reception-480.webp" alt="Reception at Savannah Sky Salon" width={480} height={640} loading="lazy" />
-        <div><span className="studio-kicker">Course advice</span><h2 id="support-title">Which course <em>fits you?</em></h2><p>Tell Carla what you’ve tried and what you’d like to learn next.</p>
-          <a className="studio-button" href="/contact">Ask Carla <ArrowUpRight size={17} /></a></div>
+        <div><span className="studio-kicker">Course advice</span><h2 id="support-title">Which course <em>fits you?</em></h2><p>Compare course levels, techniques and lesson plans.</p>
+          <a className="studio-button" href="/courses">Find my course <ArrowUpRight size={17} /></a></div>
       </div></section>
     </>
   );

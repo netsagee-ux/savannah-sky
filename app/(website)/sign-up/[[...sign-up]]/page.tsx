@@ -1,4 +1,6 @@
-import {SignUp} from '@clerk/nextjs';
-import AuthFrame from '@/components/auth-frame';
-export const dynamic='force-dynamic';
-export default function Page(){return <AuthFrame signup>{process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?<SignUp appearance={{variables:{colorPrimary:'#163e34',borderRadius:'0.5rem',fontFamily:'Bricolage Grotesque, sans-serif'},elements:{card:{boxShadow:'none',border:'none',background:'transparent'},cardBox:{boxShadow:'none',width:'100%',maxWidth:'400px'},rootBox:{width:'100%'},formButtonPrimary:{minHeight:'48px',boxShadow:'none',textTransform:'none'},headerTitle:{fontSize:'24px',fontWeight:600}}}} routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/dashboard"/>:<p>Student accounts are being connected.</p>}</AuthFrame>}
+import { redirect } from 'next/navigation';
+import { chatGPTSignInPath } from '@/app/chatgpt-auth';
+export default async function Page({searchParams}: {searchParams: Promise<{redirect_url?:string}>}) {
+  const params = await searchParams;
+  redirect(chatGPTSignInPath(typeof params.redirect_url === 'string' ? params.redirect_url : '/dashboard'));
+}

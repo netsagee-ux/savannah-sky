@@ -292,3 +292,27 @@
 .enquiry-intro a { margin-right: 18px; }
 .enquiry-layout .form { width: 100%; background: var(--pale); border: none; border-radius: 6px; padding: clamp(18px, 3vw, 42px); }
 @media (max-width: 750px) { .enquiry-layout { grid-template-columns: 1fr; } }
+
+.academy :is(.studio-button,.button,.student-link,.menu-button,.menu-close,.plate-controls button,.gallery-expand,.portfolio-controls button,.portfolio-close,.level-options button,.study-choices button,.programme-open,.video-poster), .academy .cl-formButtonPrimary {
+  box-shadow: inset 0 1px 0 #ffffff61, inset 0 -1px 0 #00000015, 0 3px 0 #24352966, 0 5px 9px -5px #17271d75;
+  transition: transform .18s, box-shadow .18s, background-color .22s, color .22s;
+}
+.academy :is(.studio-button,.button,.student-link,.menu-button,.menu-close,.plate-controls button,.gallery-expand,.portfolio-controls button,.portfolio-close,.level-options button,.study-choices button):hover:not(:disabled) { transform:translateY(-2px); box-shadow:inset 0 1px 0 #ffffff61,0 4px 0 #43374366,0 8px 13px -6px #241a2866; }
+.academy :is(.studio-button,.button,.student-link,button):active:not(:disabled) { transform: translateY(2px); box-shadow:inset 0 1px 3px #241b2426; }
+.academy .student-link { background:linear-gradient(165deg,#624759,#402d40);color:#fff6ef;border-radius:30px; }
+.academy .student-link:hover { background:#73516b;color:white; }
+.academy .studio-drawer, .academy .account-nav, .academy .learning-sidebar { color:#fff6ee; background:linear-gradient(150deg,#493345,#342531 85%); }
+.academy .studio-drawer::backdrop { background:#21142199; backdrop-filter:blur(5px); }
+.academy .drawer-bar .authentic-brand img { filter:brightness(0) invert(94%); }
+.academy .drawer-panel nav a { color:#f9f1eb; border-color:#d8bec733; }
+.academy .drawer-panel nav a:hover,.academy .learning-sidebar a:hover { color:#dfc299; }
+.academy .drawer-account { background:#f0ddc3; color:#362737; margin-top:34px; min-width:155px; }
+.academy .drawer-panel .menu-close { color:#432f40; background:#eedfdb; }
+.academy .account-nav a, .academy .learning-sidebar a, .academy .learning-sidebar h3 { color:#fff8f0; }
+.academy .account-nav > a.active { color:#352934; background:#eddbc3; }
+.order-room { max-width:780px; padding-block:clamp(45px,8vw,110px); }
+.order-room h1 { font-size:clamp(2.7rem,6vw,5rem); margin:10px 0; }
+.order-room h2 { font-size:1.8rem; margin:30px 0 8px; }
+.order-room .order-total { font-size:1.5rem; }
+.order-room .button { margin:5px 10px 12px 0; }
+.order-room small { display:block; overflow-wrap:anywhere; }

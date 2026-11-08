@@ -44,7 +44,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
         <h3>{course.title}</h3>
         <p>{course.description}</p>
         <div className="programme-foot">
-          <span>{course.preview ? 'Course preview' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'Coming soon'}</span>
+          <span>{course.preview ? 'Course preview' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'View availability'}</span>
           <span className="programme-open" aria-hidden="true"><ArrowRight size={17} /></span>
         </div>
       </div>

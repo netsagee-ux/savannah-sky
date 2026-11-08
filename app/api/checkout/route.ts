@@ -2,6 +2,8 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { admin, db, enrolled } from '@/lib/server';
 import { hasCourseDelivery, hasCoursePrice, paymentConfig, publicPaymentsReady, stripe } from '@/lib/payments';
 
+import { academyWhatsApp, chatLink, ownedOrder, pendingOrder } from '@/lib/course-orders';
+
 type OrderCourse = { id: string; title: string; price: number | null; course_url: string | null };
 
 export async function POST(request: Request) {
@@ -11,7 +13,7 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: 'Sign in to enrol.' }, { status: 401 });
 
   try {
-    const payload = await request.json() as { courseId?: unknown; test?: unknown } | null;
+    const payload = await request.json() as { courseId?: unknown; test?: unknown; handoff?: boolean; orderId?: string } | null;
     if (typeof payload?.courseId !== 'string' || !payload.courseId) {
       return Response.json({ error: 'Choose a course before checking out.' }, { status: 400 });
     }
@@ -28,14 +30,31 @@ export async function POST(request: Request) {
     if (!testing && !await hasCourseDelivery(course)) {
       return Response.json({ error: 'This course is still being prepared.' }, { status: 409 });
     }
+    if (!testing && payload.handoff) {
+      const number = await academyWhatsApp();
+      if (!number) return Response.json({error:'WhatsApp enrolment is not configured.'},{status:503});
+      const online = publicPaymentsReady() && (await paymentConfig())?.mode === 'live';
+      const order = await pendingOrder(user, {...course, price:course.price}, online ? 'live' : 'whatsapp');
+      return Response.json({url:chatLink(number,order,origin),orderId:order.id});
+    }
     const config = await paymentConfig();
     if (!config || config.mode !== (testing ? 'test' : 'live') || (!testing && !publicPaymentsReady())) {
-      return Response.json({ error: 'Enrolment is not open yet. Ask the academy about the next opening.' }, { status: 503 });
+      return Response.json({ error: 'Secure payment is unavailable.' }, { status: 503 });
     }
-
-    const id = crypto.randomUUID();
     const email = user.email.toLowerCase();
-    await db().prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    const existing = payload.orderId ? await ownedOrder(payload.orderId,user.userId) : null;
+    if (payload.orderId && (!existing || existing.course_id !== course.id || existing.email !== email || existing.amount !== course.price || existing.status !== 'pending' || existing.mode !== 'live' || testing)) {
+      return Response.json({error:'Reopen the course to check its current price and availability.'}, {status:409});
+    }
+    const id = existing?.id || crypto.randomUUID();
+    let attempt = id;
+    if (existing?.session_id) {
+      const previous = await stripe('checkout/sessions/'+encodeURIComponent(existing.session_id),config.secret);
+      if (previous.status === 'open' && previous.url) return Response.json({url:previous.url});
+      if (previous.status !== 'expired') return Response.json({error:'Payment is being verified. Check My learning.'},{status:409});
+      attempt = id + '-' + existing.session_id;
+    }
+    if (!existing) await db().prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)')
       .bind(id, user.userId, email, course.id, course.title, course.price, 'gbp', 'pending', config.mode, new Date().toISOString()).run();
     const form = new URLSearchParams({
       mode: 'payment', customer_email: email, 'line_items[0][price_data][currency]': 'gbp',
@@ -43,9 +62,9 @@ export async function POST(request: Request) {
       'line_items[0][price_data][product_data][name]': course.title, 'line_items[0][quantity]': '1',
       'metadata[orderId]': id, 'metadata[courseId]': course.id,
       success_url: origin + '/payment-result?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: origin + '/courses/' + encodeURIComponent(course.id) + '#enrol',
+      cancel_url: existing ? origin+'/orders/'+id : origin + '/courses/' + encodeURIComponent(course.id) + '#enrol',
     });
-    const session = await stripe('checkout/sessions', config.secret, form, id);
+    const session = await stripe('checkout/sessions', config.secret, form, attempt);
     await db().prepare('UPDATE orders SET session_id=? WHERE id=?').bind(session.id, id).run();
     return Response.json({ url: session.url });
   } catch {

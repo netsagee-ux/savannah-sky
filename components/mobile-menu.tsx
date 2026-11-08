@@ -6,10 +6,9 @@ import Brand from './brand';
 
 const links = [
   ['/courses', 'Courses'], ['/about', 'Meet Carla'], ['/faq', 'FAQs'], ['/contact', 'Contact'],
-  ['/dashboard', 'My learning'], ['/sign-in', 'Sign in'], ['/sign-up', 'Create account'],
 ];
 
-export default function MobileMenu() {
+export default function MobileMenu({signedIn}: {signedIn: boolean}) {
   const drawer = useRef<HTMLDialogElement>(null);
   return (
     <>
@@ -19,7 +18,7 @@ export default function MobileMenu() {
           <div className="drawer-bar"><Brand /><button className="menu-close" aria-label="Close menu" onClick={() => drawer.current?.close()}><X /></button></div>
           <nav aria-label="Mobile navigation">{links.map(([href, label]) =>
             <a href={href} key={href} onClick={() => drawer.current?.close()}>{label}<ArrowUpRight size={18} /></a>
-          )}</nav>
+          )}</nav><a className="button drawer-account" href={signedIn ? "/dashboard" : "/sign-in"}>{signedIn ? "My learning" : "Sign in"} <ArrowUpRight size={17}/></a>
         </div>
       </dialog>
     </>

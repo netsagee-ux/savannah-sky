@@ -1,55 +1,3 @@
-/* Original salon sets frame the type like samples on a nail artist's table. */
-.atelier-cover {
-  isolation: isolate; overflow: hidden;
-  background:
-    radial-gradient(ellipse at 100% 80%, #e7dfef 0, #e7dfef00 47%),
-    radial-gradient(ellipse at 0% 85%, #dfe6cb 0, #dfe6cb00 45%),
-    linear-gradient(#f5f5eb, #f9f8f0 48%, #f5f3e9);
-}
-.atelier-stage {
-  max-width: 1560px; margin: auto; padding: clamp(40px, 4vw, 64px) clamp(24px, 4vw, 65px) clamp(65px, 6vw, 100px);
-  position: relative; min-height: clamp(490px, 40.5vw, 660px);
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.08fr) minmax(0, 1fr);
-  align-items: center; gap: clamp(8px, 1vw, 18px);
-}
-.atelier-heading { position: relative; grid-column: 2; grid-row: 1; z-index: 2; text-align: center; }
-.atelier-heading h1 {
-  font: 540 clamp(3.6rem, 7.05vw, 7.1rem)/.94 var(--sans);
-  letter-spacing: -.049em; margin: 25px 0 20px; color: #143c32;
-}
-.academy .atelier-heading h1 em {
-  display: inline-block; font-size: 1.2em; line-height: .88; letter-spacing: -.05em;
-  color: #67457e; padding-right: .06em;
-}
-.academy .atelier-heading p { max-width: 36ch; margin: 0 auto; font-size: clamp(1rem, 1.2vw, 1.15rem); color: #354d43; line-height: 1.52; }
-.atelier-actions { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 14px 25px; margin-top: 28px; }
-.atelier-actions .studio-button { padding: 15px 19px 15px 24px; }
-.meet-link { display: inline-flex; align-items: center; gap: 8px; color: var(--forest); font-weight: 600; font-size: .91rem; min-height: 44px; }
-.meet-link img { border-radius: 50%; width: 33px; height: 33px; object-position: 50% 35%; }
-.meet-link:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
-.sample { margin: 0; position: relative; min-width: 0; grid-row: 1; width: 100%; z-index: 1; }
-.sample-sculpted { grid-column: 1; justify-self: start; max-width: 320px; transform: translateY(12px) rotate(-10deg); }
-.sample-floral { grid-column: 3; justify-self: end; max-width: 286px; transform: translateY(-6px) rotate(10deg); }
-.sample-button {
-  border: 0; padding: 0; width: 100%; display: block; background: transparent; color: var(--ink);
-  font-family: var(--sans); text-align: center; border-radius: 48% 48% 22px 22px;
-}
-.sample-frame {
-  display: block; padding: 2px; background: #fbfff2;
-  border-radius: 49% 49% 25px 25px / 39% 39% 25px 25px;
-  box-shadow: 0 16px 29px -13px #263a2645, 0 2px 4px #27413618;
-  transition: background .25s, transform .3s;
-}
-.sample-frame img { width: 100%; aspect-ratio: .83; height: auto; object-fit: cover; object-position: 50% 49%; border-radius: inherit; }
-.sample-floral .sample-frame { border-radius: 48% 48% 48% 48% / 28% 28% 28% 28%; background: #f6edf9; }
-.sample-floral .sample-frame img { aspect-ratio: .78; object-position: 50% 54%; }
-.sample-caption {
-  margin: 11px auto 0; display: inline-flex; align-items: center; gap: 10px; padding: 6px 12px;
-  color: #33453c; font: 500 .8rem/1.3 var(--sans); border-radius: 99px;
-}
-.sample-caption svg { color: #53675e; }
-.sample-button:hover .sample-frame, .sample-button:focus-visible .sample-frame { background: #ccb0e4; transform: translateY(-3px); }
-.sample-button:hover .sample-caption { background: #fafbf1; }
 .technique-band { display: flex; align-items: stretch; overflow: hidden; background: #193e34; color: #e8f1ce; }
 .technique-window { min-width: 0; flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, black 3%, black 97%, transparent); }
 .technique-track { display: flex; width: max-content; }
@@ -89,42 +37,9 @@
 .academy .home-questions details { background: #edf1e5; border: 0; border-radius: 14px; padding: 3px 18px; margin-bottom: 8px; }
 .home-questions details:hover { background: #e5eadb; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .sample-sculpted { animation: drift-french 8s ease-in-out infinite; }
-  .sample-floral { animation: drift-petal 9s ease-in-out infinite; }
-  .technique-track { animation: studio-ribbon 25s linear infinite; }
-  .sample:hover, .sample:focus-within { animation-play-state: paused; }
-  .technique-window:hover .technique-track { animation-play-state: paused; }
-}
-@keyframes drift-french {
-  0%, 100% { transform: translateY(12px) rotate(-10deg); }
-  50% { transform: translateY(2px) rotate(-8deg); }
-}
-@keyframes drift-petal {
-  0%, 100% { transform: translateY(-6px) rotate(10deg); }
-  50% { transform: translateY(3px) rotate(8deg); }
-}
 @keyframes studio-ribbon { to { transform: translateX(-25%); } }
 
-@media (min-width: 751px) and (max-width: 1000px) {
-  .atelier-stage { grid-template-columns: 1fr 2.45fr 1fr; min-height: 455px; }
-  .atelier-heading h1 { font-size: 7vw; }
-}
 @media (max-width: 750px) {
-  .atelier-stage { grid-template-columns: 1fr 1fr; column-gap: 12px; row-gap: 24px; min-height: auto; padding: 28px var(--gutter) 20px; }
-  .atelier-heading { grid-column: 1/-1; grid-row: 1; }
-  .atelier-heading h1 { font-size: clamp(3.4rem, 12.5vw, 5.6rem); margin: 15px 0 14px; }
-  .atelier-heading .studio-kicker { font-size: .65rem; }
-  .academy .atelier-heading p { max-width: 35ch; font-size: 1rem; }
-  .atelier-actions { margin-top: 16px; gap: 10px 17px; }
-  .atelier-actions .studio-button { padding: 12px 16px; min-height: 44px; }
-  .sample { grid-row: 2; width: min(100%, 210px); }
-  .sample-sculpted { justify-self: end; }
-  .sample-floral { grid-column: 2; justify-self: start; }
-  .sample-frame { padding: 4px; }
-  .sample-frame img, .sample-floral .sample-frame img { aspect-ratio: 1.15; }
-  .sample-floral .sample-frame { border-radius: 45% 45% 36% 36% / 42% 42% 32% 32%; }
-  .sample-caption { margin-top: 3px; padding: 5px 8px; font-size: .72rem; gap: 5px; }
   .technique-repeat li { font-size: 1.1rem; gap: 8px; padding: 12px 21px; }
   .technique-repeat svg { width: 22px; height: 22px; }
   .carla-pictures { width: min(100%, 480px); }
@@ -136,18 +51,9 @@
   .home-questions h2 em::before { content: " "; }
 }
 
-@media (max-width: 380px) {
-  .atelier-heading h1 { font-size: clamp(2.85rem, 13.2vw, 3.15rem); }
-  .atelier-actions { gap: 9px; }
-  .atelier-actions .studio-button { font-size: .83rem; gap: 7px; padding-inline: 12px; }
-  .meet-link { font-size: .83rem; gap: 5px; }
-  .meet-link img { width: 28px; height: 28px; }
-}
 .academy:has(.atelier-cover) .academy-header { background: #f5f5eb; }
 .academy:has(.atelier-cover) .header-inner { min-height: 74px; }
 .academy:has(.atelier-cover) .studio-nav a:hover { background: #e7e4da; }
-.atelier-heading .studio-kicker { font-size: .7rem; font-weight: 600; letter-spacing: .18em; }
-.meet-link { font-weight: 500; }
 .home-space { padding-block: clamp(48px, 6.5vw, 103px); }
 .edit-head { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin-bottom: clamp(20px, 2.6vw, 38px); }
 .academy :is(.edit-head, .study-copy, .kit-section, .home-contact, .home-questions, .carla-note) h2 { font: 510 clamp(2.65rem, 4.75vw, 5.35rem)/1.02 var(--sans); letter-spacing: -.052em; margin: 12px 0; text-wrap: balance; }
@@ -210,7 +116,6 @@
 }
 @media (max-width: 750px) {
   .academy:has(.atelier-cover) .header-inner { min-height: 64px; }
-  .atelier-stage { row-gap: 20px; padding-bottom: 27px; }
   .edit-head { align-items: flex-start; flex-wrap: wrap; gap: 2px 15px; }
   .edit-head .studio-text-link { min-height: 36px; }
   .atelier-collection .catalog-tools { gap: 6px; margin-bottom: 18px; }
@@ -233,3 +138,40 @@
   .home-contact-inner { grid-template-columns: 1fr; gap: 20px; }
   .home-contact img { max-height: 210px; }
 }
+
+.atelier-cover { background: #f5f5eb; color: #173c32; overflow: clip; }
+.atelier-stage { display: grid; grid-template-columns: minmax(0,.75fr) minmax(0,1fr); max-width: 1720px; margin: 0 auto; padding: 19px clamp(18px,2.6vw,48px) clamp(22px,2.6vw,48px) max(var(--gutter),calc((100vw - 1540px)/2 + var(--gutter))); align-items: stretch; gap: clamp(20px,3.5vw,70px); }
+.atelier-heading { align-self: center; padding-block: 38px; }
+.atelier-heading .studio-kicker { letter-spacing: .16em; }
+.atelier-heading h1 { margin: clamp(19px,2.4vw,40px) 0 22px; font: 540 clamp(3.3rem,6.4vw,7.6rem)/.94 var(--sans); letter-spacing: -.052em; }
+.academy .atelier-heading h1 em { display: inline-block; color: #76516d; font: italic 500 1.19em/.99 var(--script); letter-spacing: -.055em; }
+.academy .atelier-heading p { max-width: 34ch; font-size: clamp(1rem,1.25vw,1.24rem); }
+.atelier-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 17px; }
+.hero-gallery { position: relative; isolation: isolate; min-width: 0; height: clamp(440px, 42vw, 680px); background: #b69b94; border-radius: 4px; overflow: hidden; }
+.hero-plates, .hero-plates img, .hero-gallery::after { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hero-plates img { object-fit: cover; opacity: 0; transition: opacity 1.05s ease; }
+.hero-plates img.current { opacity: 1; }
+.hero-gallery::after { content: ''; pointer-events: none; background: linear-gradient(transparent 58%,#21181f8a 100%); }
+.plate-footer { position: absolute; z-index: 1; inset: auto clamp(18px,2.4vw,38px) clamp(18px,2.3vw,36px); display: flex; justify-content: space-between; align-items: end; gap: 12px; color: #fffaf3; }
+.academy .plate-footer h2 { font: italic 500 clamp(2rem,3.4vw,4.2rem)/1 var(--script); color: inherit; margin: 0; text-shadow: 0 2px 12px #26161c55; }
+.plate-controls { display: flex; gap: 7px; }
+.gallery-expand, .plate-controls button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid #ffffff73; border-radius: 50%; color: #fffdf8; background: #30232b95; }
+.gallery-expand { position: absolute; top: 17px; right: 17px; z-index: 1; }
+.plate-controls button:hover, .gallery-expand:hover { background: #4e3549; }
+@media (prefers-reduced-motion: no-preference) {
+  .technique-track { animation: studio-ribbon 32s linear infinite; }
+  .technique-window:hover .technique-track { animation-play-state: paused; }
+  .hero-plates img.current { animation: polish-closeup 9s ease-in-out infinite alternate; }
+  @keyframes polish-closeup { from { transform: scale(1); } to { transform: scale(1.045); } }
+}
+@media (max-width:750px) {
+  .atelier-stage { grid-template-columns: 1fr; padding: 0 0 15px; gap: 8px; }
+  .atelier-heading { padding: 30px var(--gutter) 21px; }
+  .atelier-heading h1 { font-size: clamp(3.1rem,11.3vw,5.3rem); margin: 16px 0 12px; }
+  .atelier-heading h1 br { display: none; }
+  .atelier-heading h1 em { display: block; }
+  .academy .atelier-heading p { margin-bottom: 16px; }
+  .hero-gallery { width: calc(100% - 24px); margin: auto; height: clamp(275px,82vw,485px); }
+}
+
+@media (max-width: 355px) { .academy .plate-footer h2 { font-size: 1.59rem; } }

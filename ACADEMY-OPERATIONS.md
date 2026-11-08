@@ -1,52 +1,24 @@
 # Savannah Sky Academy operations
 
-## What is implemented
-- Published/draft courses and prices in GBP; searchable public catalogue.
-- Create/edit lessons, order them, upload MP4/WebM (25 MiB maximum), add HTTPS training and resource links, optional three-choice knowledge checks.
-- Server-authorized student enrollment, protected uploaded video streaming, saved progress, and completion records.
-- Owner admin: manual access activation/revocation, student progress, enquiries, encrypted Stripe configuration and order reconciliation.
-- Stripe hosted Checkout; signed webhook verification; server-retrieved session verification; transactional, idempotent live enrollment; student purchase history.
+## Prepare a course
 
-## Payment setup and launch gate
-The deployed site is owner-private. Live checkout remains disabled: Stripe and students cannot reach a private academy without platform authorization. Do not set PUBLIC_PAYMENTS_READY until public access has been explicitly authorized and webhook reachability tested.
+1. Use the academy administrator’s verified Clerk account to open `/admin`.
+2. In **Courses**, create a draft with its final GBP price, level, description, requirements, duration and access terms. Add a public cover photograph if available.
+3. In **Lessons**, choose that course and upload the original MP4 or WebM. Set the teaching order and add lesson notes or a knowledge check. A private Vercel Blob store supports direct uploads up to 1 GiB per lesson. The R2 form accepts video files up to 3 MiB. Thumbnails accept JPG, PNG and WebP up to 3 MiB.
+4. Preview the lesson from the admin lesson list. Upload original recordings for programmes that previously used links to an external video host.
+5. In **Payments**, enter the academy’s business WhatsApp number with its country code. Publish the priced course when its lessons are ready.
 
-1. In Admin → Payments, enter your own Stripe test secret key and the signing secret for `/api/stripe/webhook`. Keys are encrypted with the runtime APP_ENCRYPTION_KEY using AES-GCM, never returned by APIs or committed to source. Preserve this encryption key across deployments.
-2. Register `checkout.session.completed` and `checkout.session.async_payment_succeeded` in Stripe. The private preview cannot receive external callbacks; a returned test checkout can still be verified by the return page or admin reconciliation.
-3. Add an actual course priced at least £0.50. Admin test checkout supports draft courses. Use Stripe test cards; test transactions do not unlock real courses.
-4. After owner approval to change the site's audience, verify public webhook delivery, then connect matching live keys. Have an engineer set runtime PUBLIC_PAYMENTS_READY=true and deploy. Run an authorized small real payment and refund before launch. Verify its order, enrollment, student login, protected video, quiz, and completion record.
-5. Reconcile pending orders only via the server's Stripe verification. Never grant access solely from a customer-supplied redirect or screenshot.
+## Process an order
 
-Refunds/disputes are managed in Stripe; review/revoke access in Students as appropriate. They are not automatically synchronized. External Stripe Payment Links remain a separate manual-enrollment option; they do not feed the automatic order system. External course/video links are governed by the external host's privacy controls.
+A signed-in student chooses **Enrol via WhatsApp**. Their chat contains the course, price, order reference and a link back to their personal order page. The student sends the prepared message. Opening a chat creates a pending order.
 
-## Authentication and ownership
-Sign-in uses ChatGPT accounts. ADMIN_EMAIL currently designates the site's owner. Before a business handover, arrange the actual academy administrator and explicitly authorized site audience. This version does not implement standalone email/password registration, tax calculation, marketing emails, or accreditation. Completion records are not accreditation certificates.
+- **Payment arranged in chat.** Match the reference, amount and student in **Payments** to the funds actually received. Select **Confirm received payment** on that order. The order and enrolment update together.
+- **Card payment.** With live Stripe configured and enabled, the student can open **Pay securely** on their order page. The server verifies the order, amount, currency, buyer email and completed Stripe session before activating access. Configure the two Checkout events listed in VERCEL-SETUP.md. Admin can reconcile delayed Stripe notifications from **Payments**.
+- **Student confirmation.** The private order page displays payment status. Confirmed courses appear in **My learning**, where the student can watch lessons, save progress and open their completion record.
+- **Refunds.** Process refunds in Stripe or through the agreed payment method. In **Students**, revoke the corresponding course access when appropriate.
 
-## Validation in this change
-- TypeScript typecheck.
-- Security tests for HTTPS links, signed/tampered/expired webhook payloads, and strict paid session matching.
-- Fresh SQLite migration replay and duplicate fulfillment/revocation transaction checks.
-- Production compilation and Sites deployment status.
+## Private playback
 
-Real Stripe transaction testing and browser end-to-end verification remain required before accepting students; no live Stripe account or usable browser preview was available in this session.
+Keep course recordings in private storage. A playback URL is signed for a specific lesson and student account and expires after two hours. The server checks the signature, signed-in identity and current enrolment for every stream and seek request. Revoking access blocks subsequent requests. Uploaded thumbnails are public and should contain only material suitable for the catalogue.
 
-## Private video access and thumbnails
-Videos uploaded in Admin → Lessons remain in the private R2 bucket. Each playback request requires a signed-in enrolled user or the configured administrator. The video-access API issues an HMAC-signed playback URL bound to that user and lesson, valid for two hours. Every byte-range request checks both the signature and current enrollment; revoking enrollment invalidates access immediately even if the URL has not expired. Links do not grant access to another account. This is access control, not DRM: an authorized viewer can still record the screen.
-
-A thumbnail is uploaded separately (JPG/PNG/WebP, up to 3 MiB); bytes are checked before accepting it. Published course thumbnails may be viewed before purchase, but raw video storage keys are never included in the public course catalogue. Course and lesson thumbnails stay separate from protected video bytes. Uploaded lesson videos are limited to 25 MiB per file in this version; R2 does not provide adaptive video transcoding. For longer recordings, split the recording into lessons or arrange a dedicated streaming integration before launch. Existing external video links retain their external provider's access rules; use uploaded video for in-site authorization.
-
-## Separate sign-in areas
-- `/login`: student entry, using the platform's ChatGPT sign-in; `/dashboard`: enrolled courses, next unfinished lesson, last 100 orders and account details.
-- `/admin/login`: administrator entry; `/admin`: separate management shell without the marketing header/footer. Both admin pages and every management API retain server authorization.
-
-## Performance work
-Supplied image originals are preserved; resized WebP variants are used on the website. Primary variants total 397,772 bytes versus 1,549,562 original bytes (74.3% smaller, not a Lighthouse score). Fonts are self-hosted subsets (83,644 bytes combined); CSS no longer depends on a Google Fonts import. The main image is prioritized, below-fold images are lazy-loaded, and no video bytes load before the enrolled student presses play. An actual 95+ mobile/desktop performance score has NOT been verified: this private site cannot be assessed as the intended page by anonymous PageSpeed checks, and the required browser-control capability is unavailable. Measure with an authenticated browser session before public launch.
-
-## Course-level delivery and identity update
-Admin → Courses now includes a private HTTPS course link and a separate public thumbnail upload. Catalog queries explicitly exclude course_url. The access endpoint checks sign-in and current enrolment on every request and responds with a non-cacheable redirect. Enrolled users can open their purchased course from course details or My courses. Course thumbnails appear on the home directory, catalogue, detail page and student account. Existing lesson videos and thumbnails are preserved. External destinations retain their own access controls; copied destination links cannot be revoked by this academy.
-
-Validated with type checking, eight security tests including unpaid/revoked access checks, and fresh migration replay. Browser visual QA was unavailable because the required browser-control skill was not installed. Live Stripe payments remain gated by existing payment configuration and public launch requirements.
-
-## Minimal interface update
-Removed the announcement bar, repeated academy labels, oversized wordmark and decorative rules. Added a transparent logo, system UI typography, a single-row mobile header, rounded controls, subtle repeating image motion and a global pause control. Added administrator-only review management using the existing settings table; only published real reviews appear on the home page, with a seamless ticker when two or more reviews exist. No invented testimonials were seeded.
-
-This update could not be published in the current environment: the configured network proxy was unavailable and automatic approval review rejected the required escalated Sites workflow because it executes scripts in /root/.codex. The deployed site therefore still contains the prior version until publishing is authorized and available.
+Card test payments do not create paid enrolments. Store production secrets in the deployment environment or the encrypted admin payment settings. See VERCEL-SETUP.md for the runtime configuration.

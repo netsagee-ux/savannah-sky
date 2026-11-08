@@ -19,7 +19,6 @@ export default async function Courses() {
         image={{ src: '/nail-floral-960.webp', alt: 'A close look at a handmade floral set by Savannah Sky' }} />
       <section className="studio-wrap directory" aria-label="Browse courses">
         <Catalog courses={courses} />
-        {courses[0]?.preview && <p className="catalog-notice">These programmes are available to preview. Enrolment and pricing will be confirmed when each course opens.</p>}
       </section>
       <CTA />
     </>

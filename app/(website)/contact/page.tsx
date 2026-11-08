@@ -9,7 +9,7 @@ export default async function Contact({ searchParams }: { searchParams: Promise<
   const title = typeof course === 'string' ? course.trim().slice(0, 160) : '';
   const canSave = Boolean(process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN);
   return <>
-    <Intro kicker="Student support" title="Talk to Carla."
+    <Intro kicker="Student support" title="Student support."
       image={{ src: '/salon-reception-960.webp', alt: 'The reception desk at Savannah Sky Salon' }} />
     <section id="ask" className="studio-wrap enquiry-layout" aria-labelledby="ask-title">
       <div className="enquiry-intro"><h2 id="ask-title">{title ? 'Ask about ' + title : 'What would you like to learn?'}</h2>

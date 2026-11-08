@@ -1,3 +1,4 @@
+import {getChatGPTUser} from '@/app/chatgpt-auth';
 import { ArrowUpRight } from 'lucide-react';
 import Brand from './brand';
 import { NailTool } from './academy-icons';
@@ -7,7 +8,8 @@ const pages = [
   ['/courses', 'Courses'], ['/about', 'Meet Carla'], ['/faq', 'FAQs'], ['/contact', 'Contact'],
 ];
 
-export function Header() {
+export async function Header() {
+  const signedIn = Boolean(await getChatGPTUser());
   return (
     <header className="academy-header">
       <div className="header-inner">
@@ -16,8 +18,8 @@ export function Header() {
           {pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}
         </nav>
         <div className="studio-tools">
-          <a className="student-link" href="/dashboard"><NailTool name="swatches" size={20} /> My learning</a>
-          <MobileMenu />
+          <a className="student-link" href={signedIn ? "/dashboard" : "/sign-in"}><NailTool name="swatches" size={20} /> {signedIn ? "My learning" : "Sign in"}</a>
+          <MobileMenu signedIn={signedIn} />
         </div>
       </div>
     </header>
@@ -34,7 +36,7 @@ export function Footer() {
             <p>Where nail techs come to grow, not just to learn.</p>
           </div>
           <div><h2>The academy</h2>{pages.map(([href, label]) => <a href={href} key={href}>{label}</a>)}</div>
-          <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/sign-in">Sign in</a><a href="/sign-up">Create account</a></div>
+          <div><h2>Students</h2><a href="/dashboard">My learning</a></div>
           <div><h2>Follow the salon</h2>
             <a href="https://www.instagram.com/savannahskyaromasandbeauty/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>
             <a href="https://www.facebook.com/Savannahskyaromas/" target="_blank" rel="noopener noreferrer">Facebook <ArrowUpRight size={14} /></a>

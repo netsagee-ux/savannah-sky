@@ -12,4 +12,4 @@ export async function getChatGPTUser():Promise<ChatGPTUser|null>{
 export async function requireChatGPTUser(returnTo:string){const user=await getChatGPTUser();if(user)return user;redirect(chatGPTSignInPath(returnTo));}
 export function chatGPTSignInPath(returnTo:string){return '/sign-in?redirect_url='+encodeURIComponent(safeReturn(returnTo));}
 export function chatGPTSignOutPath(){return '/sign-out';}
-function safeReturn(value:string){try{const u=new URL(value,'https://app.local');return u.origin==='https://app.local'&&value.startsWith('/')&&!value.startsWith('//')?u.pathname+u.search:'/dashboard';}catch{return '/dashboard';}}
+function safeReturn(value:string){try{const u=new URL(value,'https://app.local');return u.origin==='https://app.local'&&value.startsWith('/')&&!value.startsWith('//')?u.pathname+u.search+u.hash:'/dashboard';}catch{return '/dashboard';}}
