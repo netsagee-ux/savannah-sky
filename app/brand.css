@@ -1,0 +1,26 @@
+/* Salon colours shared by the storefront, student area and management screens. */
+:root {
+  --brand-ivory: #fffaf5;
+  --brand-pearl: #fffdfb;
+  --brand-blush: #f5e5de;
+  --brand-nude: #ead0c8;
+  --brand-rosewood: #88505b;
+  --brand-wine: #63253a;
+  --brand-merlot: #451b2a;
+  --brand-espresso: #322326;
+  --brand-taupe: #695653;
+  --brand-champagne: #e7c9a6;
+  --brand-line: #d9c5be;
+  --brand-outline: #9a7774;
+  --brand-error: #933b39;
+  --ink: var(--brand-espresso);
+  --muted: var(--brand-taupe);
+  --paper: var(--brand-pearl);
+  --accent: var(--brand-wine);
+  --pink: var(--brand-nude);
+  --pale: var(--brand-blush);
+  --gold: var(--brand-champagne);
+  --line: var(--brand-line);
+  --wine: var(--brand-wine);
+}
+::selection { background: var(--brand-nude); color: var(--brand-espresso); }

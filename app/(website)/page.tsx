@@ -1,22 +1,119 @@
-import StudentStory from '@/components/student-story';
-import {Play,BookOpen,LockKeyhole,ArrowUpRight} from 'lucide-react';
-import BrandGallery from '@/components/brand-gallery';
-import {CourseCard} from '@/components/ui';
+import { ArrowRight, ArrowUpRight, BookOpen, Check, MonitorPlay, NotebookPen, Plus, UserRound } from 'lucide-react';
+import { NailTool, type ToolName } from '@/components/academy-icons';
+import Catalog from '@/components/catalog';
+import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
-import {previews,type Course} from '@/lib/data';
-import {catalog} from '@/lib/server';
-export const dynamic='force-dynamic';
-const questions=[['Where do I begin?','Explore the course previews and choose the technique you want to develop. Each course page includes its level and outline.'],['Where will I find my lessons?','Once your purchase is confirmed, your course appears in My learning. Sign in to return to your lessons and saved progress.'],['Can I learn on my phone?','Yes. Your learning space works on mobile, tablet and desktop. An internet connection is needed for online lessons.'],['When can I enrol?','Courses open when their lesson content and secure checkout are ready. Until then, you can explore the previews.']];
-export default async function Home(){let courses:Course[]=previews;let unavailable=false;try{const real=await catalog();if(real.length)courses=real as Course[];}catch{unavailable=true;}
-return <div className="editorial-home"><section className="growth-hero"><div className="growth-copy"><span className="growth-eyebrow">SAVANNAH SKY TRAINING ACADEMY</span><h1>Where nail techs<br/>come to grow,<br/><span>not just to learn.</span></h1><p>Learn how to do nails in a friendly, supportive place. Ask questions, practise and build your confidence. Whether you’re just starting or already working as a nail tech, you’re welcome here.</p><div className="growth-actions"><a className="button" href="/courses">Browse courses <ArrowUpRight size={18}/></a><a href="/about">Meet Carla</a></div><div className="growth-note"><span>What matters to us</span><p>Good training starts with kindness.<br/>Confidence grows from there.</p></div></div><div className="growth-art"><img className="growth-main" src="/nail-sculpted-960.webp" srcSet="/nail-sculpted-480.webp 480w, /nail-sculpted-960.webp 960w" sizes="(max-width:650px) 60vw, 45vw" width={960} height={960} fetchPriority="high" decoding="async" alt="French manicure with sculpted gold details by Savannah Sky"/><div className="growth-inset"><img src="/nail-floral-480.webp" width={480} height={480} alt="Floral nail artistry by Savannah Sky"/><span>Room to try. Space to grow.</span></div><span className="growth-caption">YOUR CRAFT. YOUR CONFIDENCE. YOUR COMMUNITY.</span></div></section><div className="growth-values">Kindness <span>·</span> Confidence <span>·</span> Community <span>·</span> Equality <span>·</span> Continuous growth</div>
-<section className="editorial-benefits editorial-section"><span className="editorial-label">You belong here</span><h2>More than a course.</h2><div className="editorial-benefit-grid">{[[Play,'Space to ask','No question is too small. Learning should feel welcoming, never intimidating.'],[BookOpen,'Confidence to try','Make mistakes, practise again and recognise your progress. Everyone starts somewhere.'],[LockKeyhole,'Room for everyone','Beginners and experienced nail techs both bring something valuable to the table.']].map(([Icon,title,copy]:any)=><article key={title}><Icon size={27} strokeWidth={1}/><h3>{title}</h3><p>{copy}</p></article>)}</div></section>
-<section className="editorial-manifesto editorial-section"><span className="editorial-label">The heart of Savannah Sky</span><h2>Learn together.<br/>Grow together.<br/>Lift each other up.</h2><div><p>We take our training seriously, and we want you to feel comfortable while you learn. We share what we know, celebrate each other’s progress and treat everyone with kindness and respect. There’s no competition here, and nobody should feel left behind.</p><a className="soft-link" href="/about">Discover the academy <ArrowUpRight size={16}/></a></div></section>
-<section className="editorial-gallery" aria-label="Nail artistry by Savannah Sky"><BrandGallery/></section>
-<section className="editorial-story editorial-section"><div><span className="editorial-label">A message from our founder</span><h2>Your starting point<br/>isn’t your whole story.</h2></div><div><p>I left school without a single GCSE. Today, I own a salon and I’m building an academy. I know how much it matters to have someone believe in you. I want every student who comes here to feel that support.</p><a className="button" href="/courses">Explore our courses <ArrowUpRight size={16}/></a></div><figure><img src="/nail-sculpted-960.webp" width={960} height={960} loading="lazy" alt="French nails finished with sculpted gold detailing"/><figcaption>Nail artistry, made with care</figcaption></figure></section>
-<section id="collection" className="editorial-courses editorial-section"><div className="editorial-centered"><span className="editorial-label">Our courses</span><h2>Your next step.<br/>At your own pace.</h2><p>Have a look at what each course covers and choose one that suits your experience.</p></div>{unavailable&&<p className="notice">Course previews are available while we prepare the academy.</p>}<div className="course-grid">{courses.slice(0,3).map((c,i)=><CourseCard course={c} index={i} key={c.id}/>)}</div><div className="editorial-centered"><a className="button outline" href="/courses">View all courses <ArrowUpRight size={16}/></a></div></section>
-<section className="editorial-banner"><img src="/salon-lounge-1440.webp" srcSet="/salon-lounge-480.webp 480w, /salon-lounge-960.webp 960w, /salon-lounge-1440.webp 1440w" sizes="100vw" width={1440} height={960} loading="lazy" alt="The Savannah Sky salon lounge"/><div><span className="editorial-label">Make it your own</span><h2>You have more<br/>in you than you know.</h2></div></section>
-<section className="editorial-academy editorial-section"><div><span className="editorial-label">Behind the academy</span><h2>A little about Carla</h2><p>My own experiences have shaped the way I teach. I love what I do, and I want to help you see what you’re capable of too.</p><a className="soft-link" href="/about">Read my story <ArrowUpRight size={16}/></a></div><img src="/academy-portrait-960.webp" width={960} height={1440} loading="lazy" alt="The educator behind Savannah Sky in the salon"/></section>
-<section className="founder-quote"><span className="eyebrow">WORDS WE CARRY WITH US</span><blockquote>“What you did yesterday will be your past, but it does not define you.”</blockquote><p>A belief at the heart of Savannah Sky Training Academy.</p></section><StudentStory/><Reviews/>
-<section className="editorial-faq editorial-section"><div className="editorial-centered"><span className="editorial-label">Good to know</span><h2>Your questions answered</h2></div><div>{questions.map(([q,a])=><details key={q}><summary>{q}<span aria-hidden="true">+</span></summary><p>{a}</p></details>)}</div><a className="soft-link" href="/faq">Read our FAQs <ArrowUpRight size={16}/></a></section>
-<section className="editorial-join editorial-section"><span className="editorial-label">Ready to get started?</span><h2>We’d love to welcome you.</h2><a className="button" href="/courses">Browse courses <ArrowUpRight size={16}/></a></section>
-<div className="editorial-photo-strip" aria-hidden="true">{['floral','sculpted','leopard','red'].map(name=><img key={name} src={'/nail-'+name+'-480.webp'} width={480} height={480} alt="" loading="lazy"/>)}</div></div>}
+import StudentStory from '@/components/student-story';
+import { previews, type Course } from '@/lib/data';
+import { catalog } from '@/lib/server';
+import './atelier-home.css';
+
+export const dynamic = 'force-dynamic';
+
+const techniques: { name: string; tool: ToolName }[] = [
+  { name: 'Gel polish', tool: 'polish' }, { name: 'Builder gel', tool: 'builder' },
+  { name: 'Fine-line art', tool: 'liner' }, { name: 'French tips', tool: 'swatches' },
+];
+
+const questions = [
+  ['Can I learn on my phone?', 'Yes. Open My learning on your phone, tablet or computer. You’ll need an internet connection to stream lessons.'],
+  ['How long will I have access?', 'Access and support vary by course. Check the course details or ask Carla before you enrol.'],
+  ['Will I receive a certificate?', 'Finishing all published lessons and knowledge checks gives you a completion record. Ask the academy about accreditation or insurance eligibility for the specific course.'],
+];
+
+export default async function Home() {
+  let courses: Course[] = previews;
+  try {
+    const published = await catalog();
+    if (published.length) courses = published as Course[];
+  } catch { /* Keep the editorial catalogue available during an outage. */ }
+
+  return (
+    <>
+      <section className="campaign-cover" aria-labelledby="cover-title">
+        <div className="campaign-copy">
+          <span className="campaign-kicker">Online nail academy</span>
+          <h1 id="cover-title">Learn the art <br /><em>of nails.</em></h1>
+          <p>Learn gel polish, builder gel and nail art at your own pace with Carla.</p>
+          <a className="studio-button campaign-button" href="#collection">Explore courses <ArrowRight size={18} aria-hidden="true" /></a>
+        </div>
+        <div className="campaign-visual">
+          <img src="/oxblood-campaign-1024.webp"
+            srcSet="/oxblood-campaign-640.webp 640w, /oxblood-campaign-1024.webp 1024w, /oxblood-campaign-1536.webp 1536w"
+            sizes="(max-width: 740px) 100vw, 57vw" width={1536} height={1024} fetchPriority="high"
+            alt="A glossy oxblood manicure resting on curved blush stone" />
+          <a className="campaign-gallery-link" href="#salon-work">View salon work <ArrowUpRight size={15} aria-hidden="true" /></a>
+        </div>
+      </section>
+
+      <section id="collection" className="studio-wrap atelier-collection home-space" aria-labelledby="collection-title">
+        <h2 id="collection-title">Find your <em>course.</em></h2>
+        <Catalog courses={courses} featured />
+        <a className="studio-text-link course-directory-link" href="/courses">View all courses <ArrowRight size={16} /></a>
+      </section>
+
+      <NailStudy />
+
+      <div className="technique-band"><div className="technique-window" aria-label="Nail techniques">
+          <div className="technique-track">{[0, 1, 2, 3].map(copy =>
+            <ul className="technique-repeat" key={copy} aria-hidden={copy !== 0 || undefined}>
+              {techniques.map(item => <li key={item.name}><NailTool name={item.tool} size={24} />{item.name}</li>)}
+            </ul>
+          )}</div>
+        </div></div>
+
+      <section id="educator" className="carla-studio" aria-labelledby="carla-title">
+        <div className="studio-wrap carla-layout">
+          <div className="carla-pictures">
+            <img className="educator-photo" src="/academy-portrait-960.webp" srcSet="/academy-portrait-480.webp 480w, /academy-portrait-960.webp 960w"
+              sizes="(max-width: 750px) 90vw, 43vw" width={960} height={1440} loading="lazy" alt="Carla at her teaching desk at Savannah Sky Salon" />
+            <img className="studio-glimpse" src="/salon-lounge-480.webp" width={480} height={640} loading="lazy" alt="A corner of Savannah Sky Salon" />
+          </div>
+          <div className="carla-note"><span className="studio-kicker">Meet your educator</span><h2 id="carla-title">At the table<br /><em>with Carla.</em></h2>
+            <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. I want you to feel you can pull up a chair, ask a question and try again.</p>
+            <a className="studio-button light-button" href="/about">Read my story <ArrowUpRight size={17} /></a>
+          </div>
+        </div>
+      </section>
+
+      <section className="studio-wrap kit-section home-space" aria-labelledby="kit-title">
+        <div><span className="studio-kicker">Before your first class</span><h2 id="kit-title">Set up your <em>desk.</em></h2><p>A little preparation gives you room to concentrate on the technique.</p></div>
+        <div className="kit-list">
+          <p><Check aria-hidden="true" /><span><strong>Check your kit list</strong>Read the equipment and experience requirements on your chosen course before buying supplies.</span></p>
+          <p><Check aria-hidden="true" /><span><strong>Give yourself a clear view</strong>Set your screen beside your practice space so you can pause a close-up and try it yourself.</span></p>
+          <p><Check aria-hidden="true" /><span><strong>Keep your questions nearby</strong>Make a note of anything you want to ask Carla as you practise.</span></p>
+        </div>
+      </section>
+
+      <StudentStory />
+      <Reviews />
+
+      <section className="studio-wrap enrol-guide home-space" aria-labelledby="enrol-title">
+        <div className="edit-head"><div><span className="studio-kicker">Enrolment</span><h2 id="enrol-title">From course to <em>first lesson.</em></h2></div></div>
+        <ol className="enrol-steps">
+          <li><BookOpen /><h3>Choose a course</h3><p>Check the level, price and lesson plan.</p></li>
+          <li><UserRound /><h3>Sign in and pay</h3><p>Sign in and open your WhatsApp order to arrange payment.</p></li>
+          <li><MonitorPlay /><h3>Open your lessons</h3><p>Once payment is confirmed, your course appears in My learning.</p></li>
+        </ol>
+      </section>
+
+      <section className="returning-students" aria-labelledby="returning-title"><div className="studio-wrap returning-inner">
+        <NotebookPen size={32} strokeWidth={1.4} /><div><h2 id="returning-title">Already a student?</h2><p>Pick up your next lesson or find your purchase history.</p></div>
+        <a className="studio-text-link" href="/dashboard">My learning <ArrowUpRight size={16} /></a>
+      </div></section>
+
+      <section className="studio-wrap home-questions home-space" aria-labelledby="questions-title">
+        <div><h2 id="questions-title">Course <em>questions.</em></h2><a className="studio-text-link" href="/faq">Read all FAQs <ArrowRight size={16} /></a></div>
+        <div className="question-list">{questions.map(([question, answer]) =>
+          <details key={question}><summary>{question}<Plus size={17} /></summary><p>{answer}</p></details>
+        )}</div>
+      </section>
+
+      <section className="home-contact" aria-labelledby="support-title"><div className="studio-wrap home-contact-inner">
+        <img src="/salon-reception-480.webp" alt="Reception at Savannah Sky Salon" width={480} height={640} loading="lazy" />
+        <div><span className="studio-kicker">Course advice</span><h2 id="support-title">Which course <em>fits you?</em></h2><p>Compare course levels, techniques and lesson plans.</p>
+          <a className="studio-button" href="/courses">Find my course <ArrowUpRight size={17} /></a></div>
+      </div></section>
+    </>
+  );
+}

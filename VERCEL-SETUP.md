@@ -13,9 +13,11 @@ Required production services:
 
 After connecting the production database, run `node --env-file=.env.local scripts/migrate-vercel.mjs`. This applies schema migrations transactionally and records each one. Existing production content must be exported and imported separately; migrations do not copy existing student records or purchases.
 
-Connect Stripe through the existing admin payment settings and configure the `/api/stripe/webhook` endpoint. Do not enable live checkout until verified. Existing profiles/progress/order ownership must be mapped from old platform user IDs to Clerk IDs during data migration; enrolments match verified email addresses.
+Connect Stripe through the existing admin payment settings and configure the `/api/stripe/webhook` endpoint. Do not enable live checkout until verified. Existing profiles/progress/order ownership must be mapped from old platform user IDs to Clerk IDs during data migration; paid enrolments follow the verified buyer account, and manually assigned legacy enrolments match verified email addresses.
 
-Vercel's function request limit prevents the original 25 MB video upload. This version limits uploads to 3 MB per asset; large videos should use the existing hosted course/video link fields until direct-to-storage upload is implemented. Keep a lesson's total upload under 4 MB.
+In Admin → Payments, save the academy business WhatsApp number including its country code. Alternatively set `ACADEMY_WHATSAPP_NUMBER` in the deployment environment. The stored admin setting takes precedence.
+
+Admin → Lessons sends MP4 and WebM recordings up to 1 GiB directly to the connected private Vercel Blob store. Set `BLOB_READ_WRITE_TOKEN` or supply Vercel’s Blob store ID and OIDC credentials. R2 fallback accepts up to 3 MiB per recording through the form. Thumbnails are limited to 3 MiB. Replace legacy externally hosted course material with a privately uploaded recording before opening enrolment.
 
 Production release gates: Next build passes; deployment homepage responds successfully; configured login works; admin is denied to other accounts; course thumbnails load; unpaid users cannot access course links; a verified Stripe payment grants exactly one enrolment; revocation removes access.
 

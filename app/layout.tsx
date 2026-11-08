@@ -1,4 +1,26 @@
-import {ClerkProvider} from '@clerk/nextjs';
-import type {Metadata} from 'next';import './globals.css';import './refinement.css';import './editorial.css';import './cover.css';import './minimal.css';import './premium-hero.css';import './growth.css';
-export const metadata:Metadata={title:{default:'Savannah Sky | Nail Education',template:'%s | Savannah Sky'},description:'Where nail techs come to grow, not just to learn. Discover Savannah Sky Training Academy: nail education built on kindness, confidence, community and continuous growth.',icons:{icon:'/favicon.svg'}};
-export default function Layout({children}:{children:React.ReactNode}){return <html lang="en"><head><link rel="preload" href="/fonts/inter-400.woff" as="font" type="font/woff" crossOrigin="anonymous"/></head><body><a href="#main" className="skip">Skip to content</a>{process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?<ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">{children}</ClerkProvider>:children}</body></html>}
+import { ClerkProvider } from '@clerk/nextjs';
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import './refinement.css';
+import './brand.css';
+
+export const viewport: Viewport = { themeColor: '#fffaf5' };
+
+export const metadata: Metadata = {
+  title: { default: 'Savannah Sky | Nail Education', template: '%s | Savannah Sky' },
+  description: 'Where nail techs come to grow, not just to learn. Discover online nail courses and meet Carla, the founder of Savannah Sky Training Academy.',
+  icons: { icon: '/favicon.svg' },
+};
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en-GB">
+      <body>
+        <a href="#main" className="skip">Skip to content</a>
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+          ? <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">{children}</ClerkProvider>
+          : children}
+      </body>
+    </html>
+  );
+}

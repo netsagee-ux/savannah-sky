@@ -1,12 +1,27 @@
 'use client';
-import {useState} from 'react';
-export default function CheckoutButton({courseId}:{courseId:string}){
- const [busy,setBusy]=useState(false),[error,setError]=useState('');
- async function buy(){setBusy(true);setError('');try{
- const r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({courseId})});
- if(r.status===401){window.location.assign('/sign-in?redirect_url='+encodeURIComponent('/courses/'+courseId));return;}
- const d=await r.json() as {error?:string;url?:string};if(!r.ok||!d.url)throw Error(d.error||'Checkout is unavailable. Please try again.');
- const url=new URL(d.url);if(url.protocol!=='https:'||url.hostname!=='checkout.stripe.com')throw Error('Unable to open secure checkout.');window.location.assign(url.href);
- }catch(e){setError((e as Error).message);setBusy(false);}}
- return <><button className="button" disabled={busy} onClick={buy}>{busy?'Opening Stripe…':'Buy course'}</button>{error&&<p role="alert">{error}</p>}</>;
+import { useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+
+export default function CheckoutButton({courseId, orderId}: {courseId: string; orderId?: string}) {
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState('');
+  async function start() {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/checkout', {method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({courseId, orderId, handoff:!orderId})});
+      if (response.status === 401) {
+        const back = orderId ? '/orders/'+encodeURIComponent(orderId) : '/courses/'+encodeURIComponent(courseId)+'#enrol';
+        window.location.assign('/sign-in?redirect_url='+encodeURIComponent(back)); return;
+      }
+      const data = await response.json() as {url?:string; error?:string; enrolled?:boolean; orderId?:string};
+      if (data.enrolled) {window.location.assign('/dashboard');return;}
+      if (!response.ok || !data.url) throw Error(data.error || 'Please try again.');
+      const next = new URL(data.url);
+      if (next.protocol !== 'https:' || next.hostname !== (orderId ? 'checkout.stripe.com' : 'wa.me')) throw Error('The payment link could not be opened.');
+      if (!orderId && data.orderId) {window.location.assign('/orders/'+encodeURIComponent(data.orderId)+'?handoff=1');return;}
+      window.location.assign(next.href);
+    } catch (e) {setError(e instanceof Error ? e.message : 'Please try again.');setBusy(false);}
+  }
+  return <><button type="button" className="button" disabled={busy} onClick={start}>{busy ? 'Opening…' : orderId ? 'Pay securely' : 'Enrol via WhatsApp'} <ArrowUpRight size={17}/></button>{error && <p role="alert">{error}</p>}</>;
 }

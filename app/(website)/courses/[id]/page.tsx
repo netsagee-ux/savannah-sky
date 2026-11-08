@@ -1,1 +1,62 @@
-import CheckoutButton from '@/components/checkout-button';import {paymentConfig,publicPaymentsReady} from '@/lib/payments';import {notFound} from 'next/navigation';import {Check,BookOpen,Play,LockKeyhole} from 'lucide-react';import {previews,type Course} from '@/lib/data';import {db,enrolled} from '@/lib/server';export const dynamic='force-dynamic';export default async function Detail({params}:{params:Promise<{id:string}>}){const {id}=await params;let hasCourseLink=false;let access=false;try{access=await enrolled(id)}catch{}let c:Course|undefined=previews.find(x=>x.id===id);let lessons:any[]=[];try{const real=await db().prepare('SELECT * FROM courses WHERE id = ? AND (published = 1 OR ? = 1)').bind(id,access?1:0).first();if(real){hasCourseLink=access&&!!real.course_url;c=real as Course;lessons=(await db().prepare('SELECT id,title,position,thumbnail_key FROM lessons WHERE course_id = ? ORDER BY position').bind(id).all()).results;}}catch{}if(!c)notFound();let checkoutReady=false;try{const config=await paymentConfig();checkoutReady=!!config&&config.mode==='live'&&publicPaymentsReady()&&!!c.price&&c.price>=50}catch{}return <section className="section"><a className="underlink" href="/courses">All courses</a><div className="detail-grid"><div><span className="eyebrow">{c.level} · ONLINE EDUCATION</span><h1>{c.title}</h1><p className="lead">{c.description}</p><img className="detail-img" src={c.thumbnail_key?'/api/course-thumbnail/'+c.id:'/nail-sculpted-960.webp'} sizes="(max-width: 650px) 90vw, 50vw" decoding="async" alt="Nail artistry by Savannah Sky"/><h2>What’s in the course?</h2><p>There’s no pressure to get everything right first time. Work through the lessons, revisit the techniques and use the knowledge checks to see what’s becoming familiar. Your progress matters.</p>{c.outcomes&&<div className="course-information"><h3>What you’ll learn</h3><ul>{c.outcomes.split('\n').filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}</ul></div>}{c.requirements&&<div className="course-information"><h3>Before you begin</h3><p>{c.requirements}</p></div>}{c.access_policy&&<div className="course-information"><h3>Access & support</h3><p>{c.access_policy}</p></div>}<h3>Lesson plan</h3>{lessons.length?lessons.map((l,i)=><a className="lesson-row" href={access?'/learn/'+l.id:'/login'} key={l.id}>{l.thumbnail_key&&<img className="lesson-thumbnail" src={'/api/thumbnail/'+l.id} alt={l.title+' thumbnail'} loading="lazy" width={160} height={90}/>}<span>0{i+1}</span><strong>{l.title}</strong>{access?<Play size={18}/>:<LockKeyhole size={18}/>}</a>):<div className="notice">The final lesson plan and training videos will be added by the academy before enrolment opens.</div>}</div><aside className="purchase"><span className="eyebrow">COURSE DETAILS</span><h2>{c.price!=null?'£'+(c.price/100).toFixed(2):'Coming soon'}</h2><p>{c.preview?'Programme preview — enrolment coming soon.':'Your lessons and saved progress are available in My learning.'}</p>{c.duration&&<div className="course-duration"><span className="eyebrow">DURATION</span><p>{c.duration}</p></div>}<ul className="checks">{['Organised video lessons','Knowledge checks','Your own learning dashboard','Completion record'].map(s=><li key={s}><Check size={17}/>{s}</li>)}</ul>{hasCourseLink?<a className="button" href={'/api/course-access/'+c.id} target="_blank" rel="noopener noreferrer">Open purchased course</a>:access?<a className="button" href={lessons[0]?'/learn/'+lessons[0].id:'/dashboard'}>Go to your learning</a>:checkoutReady?<CheckoutButton courseId={c.id}/>:<button className="button" disabled>Sales opening soon</button>}<p className="quiet">{checkoutReady?'Secure payment with Stripe. Your course unlocks after payment is verified.':'This course is not open for purchase yet.'}</p></aside></div></section>}
+import { notFound } from 'next/navigation';
+import { ArrowLeft, ArrowUpRight, LockKeyhole, Play } from 'lucide-react';
+import CheckoutButton from '@/components/checkout-button';
+import { courseImage } from '@/components/ui';
+import { previews, type Course } from '@/lib/data';
+import { academyWhatsApp } from '@/lib/course-orders';
+import { hasCourseDelivery, hasCoursePrice } from '@/lib/payments';
+import { db, enrolled } from '@/lib/server';
+
+export const dynamic = 'force-dynamic';
+
+type CourseDetail = Course & { course_url?: string | null };
+type Lesson = { id: string; title: string; thumbnail_key: string | null };
+
+export default async function Detail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  let access = false;
+  try { access = await enrolled(id); } catch { /* Public course information remains available. */ }
+  let course: CourseDetail | undefined = previews.find(item => item.id === id);
+  let lessons: Lesson[] = [];
+  let checkoutReady = false;
+  try {
+    const published = await db().prepare('SELECT * FROM courses WHERE id=? AND (published=1 OR ?=1)').bind(id, access ? 1 : 0).first<CourseDetail>();
+    if (published) {
+      course = published;
+      lessons = (await db().prepare('SELECT id,title,thumbnail_key FROM lessons WHERE course_id=? ORDER BY position,id').bind(id).all<Lesson>()).results;
+      if (!access && published.published && hasCoursePrice(published.price)
+          && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+        checkoutReady = Boolean(await academyWhatsApp()) && await hasCourseDelivery(published);
+      }
+    }
+  } catch { /* Offer an enquiry when a checkout dependency is unavailable. */ }
+  if (!course) notFound();
+
+  return <section className="studio-wrap course-spread">
+    <a className="studio-text-link" href="/courses"><ArrowLeft size={16} />All courses</a>
+    <div className="course-spread-grid">
+      <header className="course-heading"><span className="studio-kicker">{course.level} · Online course</span>
+        <h1>{course.title}</h1><p>{course.description}</p></header>
+      <aside id="enrol" className="enrol-card" aria-label="Course enrolment">
+        <span className="studio-kicker">{access ? 'Your course' : 'Enrolment'}</span>
+        <h2>{access ? 'Ready to learn.' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'Course outline'}</h2>
+        {course.duration && <p>{course.duration}</p>}
+        <p>{access ? 'Open your training or return to your student dashboard.' : checkoutReady ? 'Start your order in WhatsApp. Your lessons unlock in this account after payment is verified.' : 'This outline is available to browse. Enrolment is currently closed.'}</p>
+        {access ? <a className="button" href={lessons[0] ? '/learn/' + encodeURIComponent(lessons[0].id) : '/dashboard'}>Go to your learning</a>
+          : checkoutReady ? <CheckoutButton courseId={id} /> : <a className="button" href="/courses">Browse courses <ArrowUpRight size={16} /></a>}
+        {checkoutReady && <small><LockKeyhole size={13} /> Private student access</small>}
+      </aside>
+      <div className="course-syllabus">
+        <img className="course-cover-img" src={courseImage(course)} width={960} height={560} alt="Nail work from Savannah Sky" />
+        {course.outcomes && <div><h2>What you’ll learn</h2><ul>{course.outcomes.split('\n').filter(Boolean).map((line,i) => <li key={i}>{line}</li>)}</ul></div>}
+        {course.requirements && <div><h2>Before you begin</h2><p>{course.requirements}</p></div>}
+        {course.access_policy && <div><h2>Access &amp; support</h2><p>{course.access_policy}</p></div>}
+        <div><h2>Lesson plan</h2>{lessons.length ? lessons.map((lesson,i) => {
+          const content = <>{lesson.thumbnail_key && <img className="lesson-thumbnail" src={'/api/thumbnail/' + lesson.id} alt="" loading="lazy" width={96} height={54} />}
+            <span>{i+1}</span><strong>{lesson.title}</strong>{access ? <Play size={16} /> : <LockKeyhole size={16} />}</>;
+          return access ? <a className="lesson-row" key={lesson.id} href={'/learn/' + lesson.id}>{content}</a> : <div className="lesson-row" key={lesson.id}>{content}</div>;
+        }) : <p>Lesson details will appear here when published.</p>}</div>
+      </div>
+    </div>
+  </section>;
+}
