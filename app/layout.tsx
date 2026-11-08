@@ -1,7 +1,10 @@
 import { ClerkProvider } from '@clerk/nextjs';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './refinement.css';
+import './brand.css';
+
+export const viewport: Viewport = { themeColor: '#fffaf5' };
 
 export const metadata: Metadata = {
   title: { default: 'Savannah Sky | Nail Education', template: '%s | Savannah Sky' },
