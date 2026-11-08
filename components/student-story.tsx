@@ -11,7 +11,7 @@ export default function StudentStory() {
   return (
     <section className="testimony" aria-labelledby="brogan-story">
       <div className="studio-wrap testimony-inner">
-        <h2 className="studio-kicker" id="brogan-story">A student’s story</h2>
+        <h2 className="studio-kicker" id="brogan-story"><span />A student’s story</h2>
         <figure><blockquote>“She wants you to succeed, not just as a nail technician, but as a person, and that really shines through in the way she teaches.”</blockquote><figcaption>Brogan <span>·</span> Polished by Brogan</figcaption></figure>
         <details><summary>Read Brogan’s full story<span aria-hidden="true">+</span></summary><div className="student-story-full">{paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}</div></details>
       </div>

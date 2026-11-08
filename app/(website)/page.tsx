@@ -1,14 +1,20 @@
 import { ArrowRight, ArrowUpRight, Plus } from 'lucide-react';
+import { NailTool, Petal, type ToolName } from '@/components/academy-icons';
 import BrandGallery from '@/components/brand-gallery';
 import { MotionControl } from '@/components/motion';
 import Reviews from '@/components/reviews';
 import StudentStory from '@/components/student-story';
-import { CourseCard } from '@/components/ui';
+import { CourseRow } from '@/components/ui';
 import { previews, type Course } from '@/lib/data';
 import { catalog } from '@/lib/server';
-import './studio-home.css';
+import './atelier-home.css';
 
 export const dynamic = 'force-dynamic';
+
+const techniques: { name: string; tool: ToolName }[] = [
+  { name: 'Gel polish', tool: 'polish' }, { name: 'Builder gel', tool: 'builder' },
+  { name: 'Fine-line art', tool: 'liner' }, { name: 'French tips', tool: 'swatches' },
+];
 
 const questions = [
   ['Where should I start?', 'If this is your first set, look for a beginner course. If you already work with gel, check the course outline for the technique you want to practise next.'],
@@ -25,53 +31,62 @@ export default async function Home() {
 
   return (
     <>
-      <section className="campaign" aria-labelledby="cover-title">
-        <div className="campaign-scene">
-          <img className="campaign-portrait" src="/academy-portrait-960.webp"
-            srcSet="/academy-portrait-480.webp 480w, /academy-portrait-960.webp 960w, /academy-portrait-1440.webp 1440w"
-            sizes="(max-width: 700px) 100vw, 65vw" width={1024} height={1536} fetchPriority="high"
-            alt="Carla at her nail desk in Savannah Sky Salon" />
-        </div>
-        <div className="studio-wrap campaign-inner">
-          <div className="campaign-copy">
-            <span className="studio-kicker">Savannah Sky Training Academy</span>
-            <h1 id="cover-title">Nail education,<br /><em>with Carla.</em></h1>
-            <p>Where nail techs come to grow, not just to learn.</p>
-            <div className="campaign-actions">
-              <a className="studio-button" href="/courses">Explore courses <ArrowRight size={17} /></a>
-              <a className="campaign-link" href="/contact">Ask about training <ArrowUpRight size={15} /></a>
+      <section className="atelier-cover" aria-labelledby="cover-title">
+        <div className="atelier-stage">
+          <div className="atelier-heading">
+            <span className="studio-kicker"><span />Savannah Sky Training Academy</span>
+            <h1 id="cover-title">Nail artistry,<br /><em>up close.</em></h1>
+            <p>Online nail training with Carla. From your first gel set to the fine lines that make it yours.</p>
+            <div className="atelier-actions">
+              <a className="studio-button" href="/courses">Explore courses <ArrowUpRight size={18} /></a>
+              <a className="meet-link" href="/about"><img src="/academy-portrait-480.webp" width={36} height={36} alt="" />Meet Carla</a>
             </div>
           </div>
+          <BrandGallery />
+          <Petal className="cover-flower" />
         </div>
-        <div className="campaign-motion"><MotionControl /></div>
       </section>
 
-      <section id="collection" className="studio-wrap home-collection" aria-labelledby="collection-title">
-        <div className="collection-heading">
-          <div><span className="studio-kicker">Learn at your own pace</span><h2 id="collection-title">The courses<span>.</span></h2></div>
-          <a className="studio-text-link" href="/courses">View all courses <ArrowRight size={17} /></a>
+      <div className="technique-band">
+        <div className="technique-window" aria-label="Techniques taught at the academy">
+          <div className="technique-track">{[0, 1, 2, 3].map(copy =>
+            <ul className="technique-repeat" key={copy} aria-hidden={copy !== 0 || undefined}>
+              {techniques.map(item => <li key={item.name}><NailTool name={item.tool} size={26} />{item.name}</li>)}
+            </ul>
+          )}</div>
         </div>
-        <div className="course-grid">{courses.slice(0, 3).map((course, index) => <CourseCard course={course} index={index} key={course.id} />)}</div>
+        <MotionControl />
+      </div>
+
+      <section id="collection" className="studio-wrap syllabus">
+        <div className="syllabus-intro"><span className="studio-kicker"><span />Online courses</span>
+          <h2>Choose your<br /><em>technique.</em></h2>
+          <a className="studio-text-link" href="/courses">All courses <ArrowRight size={17} /></a>
+        </div>
+        <div className="syllabus-list">{courses.slice(0, 3).map((course, index) => <CourseRow course={course} index={index} key={course.id} />)}</div>
       </section>
 
-      <section className="studio-story" aria-labelledby="carla-title">
-        <div className="studio-wrap story-grid">
-          <img src="/salon-lounge-960.webp" srcSet="/salon-lounge-480.webp 480w, /salon-lounge-960.webp 960w"
-            sizes="(max-width: 700px) 90vw, 43vw" width={960} height={1280} loading="lazy" alt="Blush armchairs beside the illuminated arch mirror at Savannah Sky Salon" />
-          <div className="story-copy"><span className="studio-kicker">From Carla, your educator</span>
-            <h2 id="carla-title">“What you did yesterday will be your past, but it does not <em>define you.</em>”</h2>
-            <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. There’s a seat at my table for you, wherever you’re starting from.</p>
-            <a className="studio-text-link" href="/about">Meet Carla <ArrowRight size={17} /></a>
+      <section className="carla-studio" aria-labelledby="carla-title">
+        <div className="studio-wrap carla-layout">
+          <div className="carla-pictures">
+            <img className="educator-photo" src="/academy-portrait-960.webp"
+              srcSet="/academy-portrait-480.webp 480w, /academy-portrait-960.webp 960w"
+              sizes="(max-width: 750px) 80vw, 39vw" width={960} height={1440} loading="lazy" alt="Carla at her own nail desk in Savannah Sky Salon" />
+            <figure className="salon-snapshot"><img src="/salon-lounge-480.webp" alt="The pink lounge and illuminated mirror at the salon" width={480} height={640} loading="lazy" /><figcaption>Savannah Sky Salon</figcaption></figure>
+          </div>
+          <div className="carla-note"><span className="studio-kicker"><span />Meet your educator</span>
+            <h2 id="carla-title">At the table<br /><em>with Carla.</em></h2>
+            <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. I want you to feel you can pull up a chair, ask a question and try again.</p>
+            <a className="studio-button light-button" href="/about">Read my story <ArrowUpRight size={18} /></a>
           </div>
         </div>
       </section>
 
-      <BrandGallery />
       <StudentStory />
       <Reviews />
 
       <section className="studio-wrap home-questions">
-        <div><span className="studio-kicker">Student support</span><h2>Before you <em>begin.</em></h2>
+        <div><span className="studio-kicker"><span />Student support</span><h2>Before you<br /><em>begin.</em></h2>
           <a className="studio-text-link" href="/faq">All course FAQs <ArrowRight size={17} /></a></div>
         <div className="question-list">{questions.map(([question, answer]) =>
           <details key={question}><summary>{question}<Plus size={18} /></summary><p>{answer}</p></details>
