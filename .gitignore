@@ -44,3 +44,7 @@ next-env.d.ts
 /.codex/
 /outputs/
 /work/
+
+# Master recordings stay outside the public source repository.
+/academy-media/
+/public/academy-media-recipient.json
