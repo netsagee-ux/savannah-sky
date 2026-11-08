@@ -26,16 +26,19 @@ export default function BrandGallery() {
 
   return (
     <>
-      {looks.slice(0, 2).map((sample, index) =>
-        <figure className={'sample sample-' + sample.file} key={sample.file}>
-          <button className="sample-button" type="button" aria-label={'Open nail gallery: ' + sample.title} aria-haspopup="dialog" onClick={() => open(index)}>
-            <span className="sample-frame"><img src={'/nail-' + sample.file + '-480.webp'}
-              srcSet={'/nail-' + sample.file + '-480.webp 480w, /nail-' + sample.file + '-960.webp 960w'}
-              sizes="(max-width:700px) 43vw, 25vw" width={480} height={600} alt={sample.alt} decoding="async" /></span>
-            <span className="sample-caption">{sample.title}<Maximize2 size={13} /></span>
-          </button>
-        </figure>
-      )}
+      <section className="work-section studio-wrap" aria-labelledby="work-title">
+        <div className="collection-heading"><div><span className="studio-kicker">Savannah Sky Salon</span><h2 id="work-title">At the nail <em>desk.</em></h2></div></div>
+        <div className="work-grid">
+          {looks.map((sample, index) =>
+            <button className="work-item" key={sample.file} type="button" aria-label={'Open nail gallery: ' + sample.title} aria-haspopup="dialog" onClick={() => open(index)}>
+              <span className="work-photo"><img src={'/nail-' + sample.file + '-480.webp'}
+                srcSet={'/nail-' + sample.file + '-480.webp 480w, /nail-' + sample.file + '-960.webp 960w'}
+                sizes="(max-width:700px) 44vw, 24vw" width={480} height={600} alt={sample.alt} loading="lazy" /></span>
+              <span className="work-caption">{sample.title}<Maximize2 size={14} /></span>
+            </button>
+          )}
+        </div>
+      </section>
       <dialog ref={dialog} className="portfolio-dialog" aria-labelledby="look-name" onClick={event => {
         if (event.target === dialog.current) dialog.current?.close();
       }} onKeyDown={event => {

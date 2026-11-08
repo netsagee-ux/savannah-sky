@@ -30,17 +30,6 @@ const courseTools: Record<string, ToolName> = {
   'gel-foundations': 'polish', 'builder-gel': 'builder', 'nail-art': 'liner',
 };
 
-export function CourseRow({ course, index }: { course: Course; index: number }) {
-  return (
-    <a className="syllabus-row" href={'/courses/' + course.id}>
-      <span className={'tool-tile tile-' + index % 3}><NailTool name={courseTools[course.id] ?? 'swatches'} size={37} /></span>
-      <div className="row-name"><span>{course.level} · {course.preview ? 'Course preview' : 'Online course'}</span><h3>{course.title}</h3></div>
-      <img className="row-photo" width={200} height={78} loading="lazy" src={courseImage(course, index, 480)} alt="" />
-      <span className="row-arrow" aria-hidden="true"><ArrowRight size={20} /></span>
-    </a>
-  );
-}
-
 export function CourseCard({ course, index = 0 }: { course: Course; index?: number }) {
   const hasThumbnail = Boolean(course.thumbnail_key || course.thumbnail_id);
   return (
