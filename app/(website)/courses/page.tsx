@@ -10,7 +10,7 @@ export default async function Courses() {
   let courses = previews;
   try {
     const published = await catalog();
-    if (published.length) courses = published as Course[];
+    courses = published as Course[];
   } catch { /* Show the academy's editorial previews when the catalogue is unavailable. */ }
   return (
     <>

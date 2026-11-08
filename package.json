@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/practice-import-key.mjs && next build --webpack",
+    "build": "next build --webpack && node scripts/academy-contact.mjs",
     "start": "next start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

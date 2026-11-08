@@ -14,10 +14,13 @@ export function hasCoursePrice(price: number | null): price is number {
 
 export async function hasCourseDelivery(course: { id: string; course_url?: string | null }) {
  if (!process.env.APP_ENCRYPTION_KEY) return false;
- const lesson = await db().prepare(
-  "SELECT video_key FROM lessons WHERE course_id=? AND NULLIF(TRIM(video_key),'') IS NOT NULL ORDER BY position,id LIMIT 1"
- ).bind(course.id).first<{video_key:string}>();
- return Boolean(lesson && (await bucket().head(lesson.video_key))?.size);
+ const videos=await db().prepare(
+  "SELECT video_key FROM lessons WHERE course_id=? AND NULLIF(TRIM(video_key),'') IS NOT NULL ORDER BY position,id"
+ ).bind(course.id).all<{video_key:string}>();
+ for(const lesson of videos.results) {
+  if((await bucket().head(lesson.video_key))?.size) return true;
+ }
+ return false;
 }
 
 export async function fulfill(session: {id: string}) {

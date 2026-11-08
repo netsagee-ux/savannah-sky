@@ -2,7 +2,7 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { admin, db, enrolled } from '@/lib/server';
 import { hasCourseDelivery, hasCoursePrice, paymentConfig, publicPaymentsReady, stripe } from '@/lib/payments';
 
-import { academyWhatsApp, chatLink, guestBuyer, GuestOrderLimit, ownedOrder, pendingOrder } from '@/lib/course-orders';
+import { academyWhatsApp, chatLink, guestBuyer, internationalNumber, GuestOrderLimit, ownedOrder, pendingOrder } from '@/lib/course-orders';
 
 type OrderCourse = { id: string; title: string; price: number | null; course_url: string | null };
 
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const user = await getChatGPTUser();
 
   try {
-    const payload = await request.json() as { courseId?: unknown; test?: unknown; handoff?: boolean; orderId?: string; email?: unknown; intent?: unknown } | null;
+    const payload = await request.json() as { courseId?: unknown; test?: unknown; handoff?: boolean; orderId?: string; email?: unknown; intent?: unknown; callback?: unknown } | null;
     if (typeof payload?.courseId !== 'string' || !payload.courseId) {
       return Response.json({ error: 'Choose a course before checking out.' }, { status: 400 });
     }
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const testing = test === true && await admin();
     const course = await db().prepare('SELECT id,title,price,course_url FROM courses WHERE id=? AND (published=1 OR ?=1)')
       .bind(courseId, testing ? 1 : 0).first<OrderCourse>();
-    if (!course || !hasCoursePrice(course.price)) {
+    if (!course || (!payload.handoff && !hasCoursePrice(course.price))) {
       return Response.json({ error: 'This course is not available for online payment.' }, { status: 409 });
     }
     if (!testing && user && await enrolled(course.id)) {
@@ -40,8 +40,11 @@ export async function POST(request: Request) {
     }
     if (!testing && payload.handoff) {
       const number = await academyWhatsApp();
-      if (!number) return Response.json({error:'WhatsApp enrolment is not configured.'},{status:503});
-      const order = await pendingOrder(buyer, {...course, price:course.price}, 'whatsapp');
+      const needsCallback = !number;
+      const phone = typeof payload.callback === 'string' ? internationalNumber(payload.callback) : '';
+      if (needsCallback && !phone) return Response.json({error:'Enter your WhatsApp number with its country code so the academy can send payment details.', callbackRequired:true},{status:400});
+      const order = await pendingOrder(buyer, {...course, price:hasCoursePrice(course.price)?course.price:0}, 'whatsapp', needsCallback ? phone : '');
+      if (needsCallback) return Response.json({callbackSaved:true,orderId:order.id});
       if (order.mode === 'live') return Response.json({existingCardOrder:order.id});
       return Response.json({url:chatLink(number,order,origin),orderId:order.id,guest:!user});
     }

@@ -105,7 +105,7 @@ test('course checkout checks availability, charges the listed price and grants a
 
   globalThis.academyCheckoutIdentity = { user: {userId:'manual-student',email:'manual@example.com',sessionId:'mobile'} };
   process.env.PUBLIC_PAYMENTS_READY = 'false';
-  assert.equal((await checkout({handoff:true})).status,503);
+  assert.equal((await (await checkout({handoff:true})).json()).callbackRequired,true);
   await db.prepare("INSERT INTO settings VALUES('academy_whatsapp','+44 7700 900123')").run();
   const manual = await (await checkout({handoff:true})).json();
   const privateEntry = await import(await compile('app/(website)/orders/[id]/learn/route.ts', {

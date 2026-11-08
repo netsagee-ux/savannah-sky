@@ -26,7 +26,7 @@ export default async function Home() {
   let courses: Course[] = previews;
   try {
     const published = await catalog();
-    if (published.length) courses = published as Course[];
+    courses = published as Course[];
   } catch { /* Keep the editorial catalogue available during an outage. */ }
 
   return (

@@ -1,5 +1,6 @@
+import {timingSafeEqual} from 'node:crypto';
 import { db } from './server';
-import { sendOrderReceipt } from './order-receipt';
+import { activationPassword, sendOrderReceipt } from './order-receipt';
 
 export function internationalNumber(value: string) {
   const number = value.trim().replace(/[\s()-]/g, '').replace(/^\+/, '');
@@ -33,9 +34,11 @@ export function guestBuyer(email: unknown, intent: unknown): Buyer | null {
 
 // Only a verified Clerk identity reaches this function. Insert before updating the
 // owner in the same write transaction so reopening a link cannot restore revoked access.
-export async function claimPaidOrders(buyer: Buyer, id?: string) {
+export async function claimPaidOrders(buyer: Buyer, id?: string, password?: string) {
+  const approved = id && password ? await verifyCoursePassword(id, buyer.email, password) : false;
   const database = db();
-  const where = "user_id LIKE 'guest/%' AND mode='whatsapp' AND status='paid' AND email=?" + (id ? ' AND id=?' : '');
+  const where = "user_id LIKE 'guest/%' AND mode='whatsapp' AND status='paid' AND email=?" + (id ? ' AND id=?' : '') +
+    (approved ? '' : " AND NOT EXISTS (SELECT 1 FROM settings s WHERE s.id='order_activation:'||orders.id)");
   const args = id ? [buyer.email.toLowerCase(), id] : [buyer.email.toLowerCase()];
   if (!await database.prepare('SELECT id FROM orders WHERE ' + where + ' LIMIT 1').bind(...args).first()) return;
   // An earlier release used email-keyed grants. Migrate former owners of the
@@ -59,7 +62,7 @@ export async function claimPaidOrders(buyer: Buyer, id?: string) {
 export async function studentOrder(id: string, buyer: Buyer) {
   await claimPaidOrders(buyer, id);
   return db().prepare(`SELECT id,user_id,email,course_id,title,amount,mode,status,session_id FROM orders WHERE id=? AND
-    (user_id=? OR (user_id LIKE 'guest/%' AND mode='whatsapp' AND status='pending' AND email=?))`)
+    (user_id=? OR (user_id LIKE 'guest/%' AND mode='whatsapp' AND status IN ('requested','pending','paid') AND email=?))`)
     .bind(id, buyer.userId, buyer.email.toLowerCase()).first<AcademyOrder>();
 }
 
@@ -67,26 +70,54 @@ export class GuestOrderLimit extends Error {}
 
 export function chatLink(number: string, order: AcademyOrder, origin: string) {
   if (!internationalNumber(number)) throw Error('Set the academy WhatsApp number first.');
-  const message = 'Hello Savannah Sky. I’d like to enrol in ' + order.title + ' (£' + (order.amount / 100).toFixed(2)
-    + '). My order reference is ' + order.id + '.\nMy order: ' + origin + '/orders/' + encodeURIComponent(order.id);
+  const fee = order.amount > 0 ? ' (£' + (order.amount / 100).toFixed(2) + ').' : '. Please send me the course fee and payment details.';
+  const message = 'Hello Savannah Sky. I’d like to enrol in ' + order.title + fee +
+    ' My order reference is ' + order.id + '.\nMy order: ' + origin + '/orders/' + encodeURIComponent(order.id);
   return 'https://wa.me/' + internationalNumber(number) + '?text=' + encodeURIComponent(message);
 }
 
-export async function pendingOrder(user: {userId: string; email: string}, course: {id: string; title: string; price: number}, mode: 'live' | 'whatsapp') {
+export async function pendingOrder(user: Buyer, course: {id: string; title: string; price: number}, mode: 'live' | 'whatsapp', callback = '') {
+  const database = db();
   const email = user.email.toLowerCase();
-  const match = "user_id=? AND email=? AND course_id=? AND amount=? AND mode IN ('whatsapp','live') AND status='pending'";
-  const matchArgs = [user.userId,email,course.id,course.price];
-  // The existence check is inside the write so repeated clicks and concurrent tabs use one order.
   const guest = user.userId.startsWith('guest/');
-  // Bound anonymous outstanding orders for an address while allowing a retry of the same intent.
+  if(callback || !course.price) {
+    const previous=await database.prepare(`SELECT o.* FROM orders o
+      WHERE o.user_id=? AND o.email=? AND o.course_id=? AND o.mode='whatsapp' AND o.status IN ('requested','pending') AND (o.amount=? OR ?=0)
+      ORDER BY o.created_at DESC LIMIT 1`).bind(user.userId,email,course.id,course.price,course.price).first<AcademyOrder>();
+    if(previous)return previous;
+  }
+  const status = course.price > 0 ? 'pending' : 'requested';
+  const match = "user_id=? AND email=? AND course_id=? AND amount=? AND mode IN ('whatsapp','live') AND status=?";
+  const args = [user.userId,email,course.id,course.price,status];
   const quota = guest ? " AND (SELECT COUNT(*) FROM orders WHERE email=? AND user_id LIKE 'guest/%' AND created_at>=?) < 6" : '';
   const quotaArgs = guest ? [email, new Date(Date.now() - 3600000).toISOString()] : [];
-  await db().prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM orders WHERE '+match+')'+quota)
-    .bind(crypto.randomUUID(), user.userId, email, course.id, course.title, course.price, 'gbp', 'pending', mode, new Date().toISOString(), ...matchArgs, ...quotaArgs).run();
-  const order = await db().prepare('SELECT * FROM orders WHERE '+match+' ORDER BY created_at DESC LIMIT 1').bind(...matchArgs).first<AcademyOrder>();
+  const id = crypto.randomUUID();
+  const batch = [database.prepare('INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM orders WHERE '+match+')'+quota)
+    .bind(id,user.userId,email,course.id,course.title,course.price,'gbp',status,mode,new Date().toISOString(),...args,...quotaArgs)];
+  if (guest) batch.push(database.prepare("INSERT INTO settings(id,value) SELECT 'order_activation:'||id,'1' FROM orders WHERE id=?").bind(id));
+  if (callback) batch.push(database.prepare("INSERT OR IGNORE INTO settings(id,value) SELECT 'order_callback:'||id,? FROM orders WHERE "+match).bind(callback,...args));
+  await database.batch(batch);
+  const order = await database.prepare('SELECT * FROM orders WHERE '+match+' ORDER BY created_at DESC LIMIT 1').bind(...args).first<AcademyOrder>();
   if (!order && guest) throw new GuestOrderLimit('Please sign in with your email to place another order, or try again later.');
   if (!order) throw Error('Reopen this course to see its current order status.');
   return order;
+}
+
+// A paid guest receives this one-time password in their original payment conversation.
+// The order leaves the guest namespace atomically on activation, invalidating the password.
+export async function coursePassword(id: string, email?: string) {
+  const row = await db().prepare(`SELECT o.email FROM orders o JOIN settings s ON s.id='order_activation:'||o.id
+    WHERE o.id=? AND o.status='paid' AND o.mode='whatsapp' AND o.user_id LIKE 'guest/%'`)
+    .bind(id).first<{email:string}>();
+  if (!row || (email && row.email !== email.toLowerCase())) return null;
+  return activationPassword(id);
+}
+
+async function verifyCoursePassword(id:string, email:string, input:string) {
+  const password=await coursePassword(id,email);
+  const value=input.trim().toUpperCase().replace(/[- ]/g,'');
+  if (!password || !/^[0-9A-F]{16}$/.test(value)) return false;
+  return timingSafeEqual(Buffer.from(value), Buffer.from(password.replaceAll('-','')));
 }
 
 // Older releases keyed access by email. Transfer those paid entitlements before replacing the legacy row.
