@@ -1,4 +1,27 @@
 'use client';
-import {useRef} from 'react';
-import {Menu,X,ArrowUpRight} from 'lucide-react';
-export default function MobileMenu(){const ref=useRef<HTMLDialogElement>(null);return <><button className="header-icon menu-toggle" aria-label="Open menu" onClick={()=>ref.current?.showModal()}><Menu size={21}/></button><dialog ref={ref} className="mobile-drawer" onClick={e=>{if(e.target===e.currentTarget)ref.current?.close()}}><div className="drawer-content"><div className="drawer-heading"><span>Explore Savannah Sky</span><button className="header-icon" aria-label="Close menu" onClick={()=>ref.current?.close()}><X size={21}/></button></div><nav aria-label="Mobile navigation">{[['/courses','Courses'],['/about','Academy'],['/faq','FAQs'],['/dashboard','My learning'],['/sign-in','Sign in'],['/sign-up','Create account']].map(([href,label])=><a key={href} href={href} onClick={()=>ref.current?.close()}>{label}<ArrowUpRight size={18}/></a>)}</nav><p>Your next skill starts here.</p></div></dialog></>}
+
+import { useRef } from 'react';
+import { ArrowUpRight, Menu, X } from 'lucide-react';
+import Brand from './brand';
+
+const links = [
+  ['/courses', 'Courses'], ['/about', 'Meet Carla'], ['/faq', 'FAQs'], ['/contact', 'Contact'],
+  ['/dashboard', 'My learning'], ['/sign-in', 'Sign in'], ['/sign-up', 'Create account'],
+];
+
+export default function MobileMenu() {
+  const drawer = useRef<HTMLDialogElement>(null);
+  return (
+    <>
+      <button className="menu-button" aria-label="Open menu" aria-haspopup="dialog" onClick={() => drawer.current?.showModal()}><Menu /></button>
+      <dialog className="studio-drawer" ref={drawer} aria-label="Academy menu" onClick={event => { if (event.target === event.currentTarget) drawer.current?.close(); }}>
+        <div className="drawer-panel">
+          <div className="drawer-bar"><Brand /><button className="menu-close" aria-label="Close menu" onClick={() => drawer.current?.close()}><X /></button></div>
+          <nav aria-label="Mobile navigation">{links.map(([href, label]) =>
+            <a href={href} key={href} onClick={() => drawer.current?.close()}>{label}<ArrowUpRight size={18} /></a>
+          )}</nav>
+        </div>
+      </dialog>
+    </>
+  );
+}

@@ -7,4 +7,16 @@ const paragraphs = [
 "Choosing to train with Carla was genuinely one of the best things I have ever done for myself and my family. I will always be grateful for the chance she gave me, for everything she has taught me and for the support she continues to give me. She doesn't just teach you how to do nails; she helps you believe in yourself and see what you are capable of.",
 "I honestly couldn't recommend Carla and Savannah Sky Salon enough. If you're thinking about taking that first step into the nail industry, I would say go for it. You never know where that one opportunity might lead you. Mine has changed my life, and I will always be thankful for that. ❤️"
 ];
-export default function StudentStory(){return <section className="student-story" aria-labelledby="brogan-story"><div className="student-story-intro"><span className="eyebrow">A STUDENT’S STORY</span><h2 id="brogan-story">Finding confidence.<br/>Building a future.</h2><p>Brogan’s experience of training with Carla at Savannah Sky Salon.</p></div><div className="student-story-content"><figure><blockquote>“She doesn't just teach you how to do nails; she helps you believe in yourself and see what you are capable of.”</blockquote><figcaption><strong>Brogan</strong><span>Polished by Brogan</span></figcaption></figure><details><summary>Read Brogan’s full story<span aria-hidden="true">＋</span></summary><div className="student-story-full">{paragraphs.map((p,i)=><p key={i}>{p}</p>)}</div></details></div></section>}
+export default function StudentStory() {
+  return (
+    <section className="testimony" aria-labelledby="brogan-story">
+      <div className="studio-wrap testimony-inner">
+        <div><span className="overline">Student stories</span><h2 id="brogan-story">In Brogan’s words.</h2><p>Polished by Brogan<br />Savannah Sky Salon</p></div>
+        <div>
+          <figure><blockquote>“She wants you to succeed, not just as a nail technician, but as a person, and that really shines through in the way she teaches.”</blockquote><figcaption>Brogan, Polished by Brogan</figcaption></figure>
+          <details><summary>Read Brogan’s full story<span aria-hidden="true">+</span></summary><div className="student-story-full">{paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}</div></details>
+        </div>
+      </div>
+    </section>
+  );
+}
