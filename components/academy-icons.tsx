@@ -24,12 +24,3 @@ const drawings = {
 export function NailTool({ name, size = 32 }: { name: ToolName; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{drawings[name]}</svg>;
 }
-
-export function Petal({ className }: { className?: string }) {
-  return <svg className={className} viewBox="0 0 80 80" fill="none" aria-hidden="true">
-    {Array.from({ length: 8 }, (_, i) =>
-      <ellipse key={i} cx="40" cy="24" rx="7.4" ry="19.2" transform={'rotate(' + i * 45 + ' 40 40)'} stroke="currentColor" strokeWidth="1.65" />
-    )}
-    <circle cx="40" cy="40" r="4" fill="currentColor" />
-  </svg>;
-}

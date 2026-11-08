@@ -2,7 +2,6 @@ import { ArrowUpRight } from 'lucide-react';
 import Brand from './brand';
 import { NailTool } from './academy-icons';
 import MobileMenu from './mobile-menu';
-import { MotionControl } from './motion';
 
 const pages = [
   ['/courses', 'Courses'], ['/about', 'Meet Carla'], ['/faq', 'FAQs'], ['/contact', 'Contact'],
@@ -41,7 +40,7 @@ export function Footer() {
             <a href="https://www.facebook.com/Savannahskyaromas/" target="_blank" rel="noopener noreferrer">Facebook <ArrowUpRight size={14} /></a>
           </div>
         </div>
-        <div className="footer-small"><span>© {new Date().getFullYear()} Savannah Sky Training Academy</span><MotionControl /></div>
+        <div className="footer-small"><span>© {new Date().getFullYear()} Savannah Sky Training Academy</span></div>
       </div>
     </footer>
   );
