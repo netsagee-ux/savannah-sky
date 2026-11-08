@@ -47,4 +47,3 @@ next-env.d.ts
 
 # Master recordings stay outside the public source repository.
 /academy-media/
-/public/academy-media-recipient.json
