@@ -27,7 +27,7 @@ test('student library, quizzes, lesson return links and certificate follow the v
   const urls=await compile('lib/student-course-link.ts',{});
   const desk=await compile('components/student-desk.tsx',{'lucide-react':import.meta.resolve('lucide-react'),'@/lib/student-course-link':urls});
   const noop=moduleUrl('export default function Component(){return null;}');
-  const imports={'next/navigation':moduleUrl("export const redirect=p=>{throw Error(p)},notFound=()=>{throw Error('404')}"),
+  const imports={'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/navigation':moduleUrl("export const redirect=p=>{throw Error(p)},notFound=()=>{throw Error('404')}"),
     '@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-orders':orders,'@/components/student-desk':desk,
     '@/lib/video-security':await compile('lib/video-security.ts',{}),'@/components/print-button':noop,
     '@/components/lesson-player':noop,'@/components/course-playlist':noop};

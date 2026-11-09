@@ -17,3 +17,8 @@ export function courseSummary(description:string){
   const sentence=lead.match(/^.*[.!?](?=\s|$)/);
   return sentence?.[0] || lead.slice(0,lead.lastIndexOf(' ')>0?lead.lastIndexOf(' '):190).trimEnd()+'…';
 }
+
+const conversionCourses=new Set(['f34bb22b-697f-4be7-806a-ea8a6fc69f56','7fed4d8e-8b53-4834-b2c7-7df0f8583fbc']);
+export function isConversion(course:{id:string;title:string;level?:string}){
+  return conversionCourses.has(course.id)||course.level==='Conversion'||/\bconversion\b/i.test(course.title);
+}

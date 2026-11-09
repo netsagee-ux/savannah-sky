@@ -33,7 +33,9 @@ export async function storeMediaPart(id:string,meta:Metadata,part:number,bytes:B
   if(part===0){
     // Clear abandoned uploads without touching any referenced video or thumbnail.
     const stale=`SELECT id FROM classroom_files f WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM lessons WHERE video_key=f.id OR thumbnail_key=f.id)
-      AND NOT EXISTS(SELECT 1 FROM courses WHERE thumbnail_key=f.id)`;
+      AND NOT EXISTS(SELECT 1 FROM courses WHERE thumbnail_key=f.id)
+      AND (f.id NOT LIKE 'classroom-assets/qualifications/%' OR NOT EXISTS(
+        SELECT 1 FROM settings WHERE id LIKE 'qualification:%' AND json_extract(value,'$.proof')=f.id))`;
     const cutoff=Date.now()-7*86400000;
     await db.batch([db.prepare('DELETE FROM classroom_parts WHERE file_id IN ('+stale+')').bind(cutoff),
       db.prepare('DELETE FROM classroom_files WHERE id IN ('+stale+')').bind(cutoff),

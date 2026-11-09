@@ -3,7 +3,9 @@ import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play} from 'lucide-react';
 import CheckoutButton from '@/components/checkout-button';
 import {courseImage} from '@/components/ui';
-import {accredited,type Course} from '@/lib/data';
+import QualificationForm from '@/components/qualification-form';
+import {qualification} from '@/lib/qualifications';
+import {isConversion,accredited,type Course} from '@/lib/data';
 import {merchantStatus} from '@/lib/sumup';
 import {hasCourseDelivery,hasCoursePrice} from '@/lib/payments';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
@@ -11,7 +13,7 @@ import {db,enrolled} from '@/lib/server';
 import './course.css';
 
 export const dynamic='force-dynamic';
-type Lesson = {id:string;title:string;has_video:number;position:number};
+type Lesson = {id:string;title:string;has_video:number;has_quiz:number;position:number};
 
 export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
@@ -19,9 +21,11 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const [access,user,course,lessonRows]=await Promise.all([
     enrolled(id),getChatGPTUser(),
     database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id).first<Course>(),
-    database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
+    database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
   ]);
   if(!course || (!course.published && !access))notFound();
+  const conversion=isConversion(course);
+  const proof=conversion&&user&&!access?await qualification(course.id,user.userId):null;
   const lessons=lessonRows.results;
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
@@ -34,7 +38,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
 
   const detail=<section className="studio-wrap practice-detail">
     <a className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</a>
-    <header className="practice-heading"><span className="studio-kicker">{course.level==='Beginner'?'Beginner friendly · No previous experience needed':course.level}{accredited(course)?' · CPD accredited':''}</span>
+    <header className="practice-heading"><span className="studio-kicker">{conversion?'Conversion · Qualified nail technicians only':course.level==='Beginner'?'Beginner friendly · No previous experience needed':course.level}{accredited(course)?' · CPD accredited':''}</span>
       <h1>{course.title}</h1><p>{course.description}</p>
     </header>
     <div className="practice-grid">
@@ -47,14 +51,18 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
         <div className="practice-list-head"><h2>Course lessons</h2><span>{videos} {videos===1?'video':'videos'}</span></div>
         <ol className="practice-list">{lessons.map((lesson,i)=><li key={lesson.id}><span className="practice-index">{String(i+1).padStart(2,'0')}</span><div>
           {access?<a href={'/learn/'+encodeURIComponent(lesson.id)}>{lesson.title}</a>:<strong>{lesson.title}</strong>}
-          <small>{lesson.has_video?'Video lesson':'Reading'}{lesson.id==='studio-'+id?' · Illustrated practice':''}</small>
+          <small>{lesson.has_video?'Video lesson':lesson.has_quiz?'Knowledge check':'Reading'}{lesson.id==='studio-'+id?' · Illustrated practice':''}</small>
         </div>{access?<Play size={17}/>:<LockKeyhole size={16} aria-label="Locked"/>}</li>)}</ol>
         {!lessons.length&&<p>The academy is preparing the first lesson.</p>}
       </section>
       <aside id="enrol" className="practice-enrol" aria-label="Student enrolment">
         <span className="studio-kicker">Student access</span>
         <h2>{access?'Your course':priced?'£'+(course.price!/100).toFixed(2):'Join this course'}</h2>
-        {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:paymentsOpen?<>
+        {conversion&&!access&&<p>A nail qualification is required. The academy reviews your certificate before you can pay.</p>}
+        {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:conversion&&proof?.status!=='approved'?<>
+          {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
+          {!paymentsOpen&&<p>Online enrolment opens soon.</p>}
+        </>:paymentsOpen?<>
           <p>Pay securely by card with SumUp. Your lessons open in your student account as soon as payment is confirmed.</p>
           {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to enrol</a>}
         </>:<><p>{videos?'Online enrolment opens soon.':'Online lessons are in preparation.'}</p><a className="underlink" href={enquiry}>Ask the academy about this course</a></>}

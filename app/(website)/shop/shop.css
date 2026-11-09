@@ -1,0 +1,15 @@
+.academy-shop{padding-block:clamp(32px,6vw,80px);color:var(--brand-espresso)}
+.shop-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(25px,6vw,84px);padding-bottom:clamp(32px,6vw,70px)}
+.shop-intro h1,.shop-receipt h1{font:500 clamp(3rem,7vw,6.4rem)/.98 var(--display);letter-spacing:-.055em;margin:16px 0}
+.shop-intro p{font-size:1.08rem;max-width:34ch;margin:0 0 18px}.shop-intro img{width:100%;height:clamp(190px,26vw,360px);object-fit:cover;border-radius:10px 52px 10px 10px}
+.shop-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,.85fr);gap:clamp(20px,4vw,54px);align-items:start}
+.shop-products{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:25px}
+.shop-products article,.shop-basket,.shop-receipt{min-width:0;overflow-wrap:anywhere}
+.shop-products article{border-top:1px solid var(--brand-line);padding:20px 0}.shop-products article>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.shop-products article>img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:10px;margin-bottom:14px}
+.shop-products h2,.shop-basket h2,.shop-receipt h2{font:550 2rem/1.12 var(--display);margin:0 0 10px}
+.shop-basket{background:#f6eee5;border-radius:18px;padding:clamp(18px,3vw,32px)}.shop-basket h2{display:flex;gap:10px;align-items:center}
+.shop-basket ul,.shop-receipt ul{list-style:none;padding:0}.shop-basket li,.shop-receipt li{padding-block:12px;border-bottom:1px solid var(--brand-line)}
+.shop-basket p:has(>strong){display:flex;justify-content:space-between;gap:10px}.shop-quantity{display:flex;gap:10px;align-items:center}.shop-quantity button{width:44px;height:44px;display:grid;place-items:center}.shop-quantity span:last-child{margin-left:auto}
+.shop-basket input{font-size:16px;min-width:0;width:100%}.shop-receipt{max-width:780px;margin:0 auto;padding:clamp(30px,6vw,75px) clamp(20px,5vw,48px)}
+@media(max-width:760px){.shop-intro,.shop-layout{grid-template-columns:minmax(0,1fr)}.shop-intro img{height:clamp(150px,43vw,250px)}.shop-products{grid-template-columns:minmax(0,1fr)}}

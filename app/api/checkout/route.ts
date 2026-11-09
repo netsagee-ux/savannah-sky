@@ -1,3 +1,5 @@
+import {isConversion} from '@/lib/data';
+import {qualification} from '@/lib/qualifications';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {db,enrolled} from '@/lib/server';
 import {hasCourseDelivery,hasCoursePrice} from '@/lib/payments';
@@ -11,9 +13,10 @@ export async function POST(request:Request){
   try {
     const data=await request.json().catch(()=>null) as Record<string,unknown>|null;
     if(!data || typeof data.courseId!=='string' || data.handoff || data.test || data.orderId)return Response.json({error:'Start a new payment on the course page.'},{status:409});
-    const course=await db().prepare('SELECT id,title,price FROM courses WHERE id=? AND published=1').bind(data.courseId).first<{id:string;title:string;price:number}>();
+    const course=await db().prepare('SELECT id,title,price,level FROM courses WHERE id=? AND published=1').bind(data.courseId).first<{id:string;title:string;price:number;level:string}>();
     if(!course)return Response.json({error:'Course unavailable.'},{status:409});
     if(await enrolled(course.id))return Response.json({path:'/dashboard'});
+    if(isConversion(course)&&(await qualification(course.id,user.userId))?.status!=='approved')return Response.json({error:'The academy must approve your nail qualification before payment.'},{status:409});
     if(!hasCoursePrice(course.price)||!await hasCourseDelivery(course))return Response.json({error:'Online enrolment is not open for this course.'},{status:409});
     return Response.json({path:await startSumUp(user,course,origin)},{headers:{'Cache-Control':'no-store'}});
   } catch(e){

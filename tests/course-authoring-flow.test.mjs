@@ -47,7 +47,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const security=await compile('lib/payment-security.ts',{});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':security});
   const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orders,'./course-invitation':inviteModule});
-  const modules={'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
+  const modules={'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
   const route=async path=>import(await compile(path,modules));
@@ -227,4 +227,38 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   state.user=stranger;
   await claimPaidOrders(stranger);
   assert.equal((await watch()).status,403);
+  await t.test('educator authors quiz-only lessons, learners must answer every question, legacy edits preserve extra questions',async()=>{
+    state.user=owner;
+    const id=crypto.randomUUID(),qs=[{question:'First step?',options:['Prepare','Finish'],answer:0},{question:'Next step?',options:['Oil','Apply base','Wipe'],answer:1}];
+    const base={...lesson,id:'',creationId:id,title:'Studio quiz',position:'16'};
+    assert.equal((await save('lesson',{...base,quiz:JSON.stringify([{...qs[0],answer:6}])})).status,400);
+    assert.equal((await save('lesson',{...base,quiz:JSON.stringify(qs)})).status,200);
+    assert.equal((await save('lesson',{...base,id,question:'Prepare first?',option0:'Yes',option1:'No',option2:'Maybe',answer:0})).status,200);
+    const listed=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+courseId))).json();
+    assert.equal(JSON.parse(listed.lessons.find(l=>l.id===id).quiz_json).length,2);
+    await db.prepare('INSERT OR IGNORE INTO enrollments(id,email,course_id) VALUES(?,?,?)').bind('buyer/'+buyer.userId+'/'+courseId,buyer.email,courseId).run();
+    state.user=buyer;
+    for(const data of [{answer:0},{answers:[0]},{answers:[0,0]},{answers:[0,1,1]}])
+      assert.equal((await progress.POST(post('/api/progress',{lessonId:id,...data}))).status,400);
+    assert.equal((await progress.POST(post('/api/progress',{lessonId:id,answers:[0,1]}))).status,200);
+  });
+  await t.test('conversion certificate is private and only staff approval unlocks checkout eligibility',async()=>{
+    state.user=owner;
+    const conversion=(await (await save('course',{...course,title:'Builder conversion',level:'Conversion',published:'1'})).json()).courseId;
+    const quals=await route('app/api/qualifications/route.ts');
+    const submit=(values)=>{const f=new FormData();for(const [k,v] of Object.entries(values))f.set(k,v);return quals.POST(post('/api/qualifications',f));};
+    state.user=buyer;
+    const buy=()=>checkout.POST(post('/api/checkout',{courseId:conversion}));
+    assert.match((await (await buy()).json()).error,/approve your nail qualification/);
+    assert.equal((await submit({action:'submit',courseId:conversion,proof:new File(['%PDF-1.5 example fixture'],'certificate.pdf')})).status,200);
+    assert.equal((await quals.GET(new Request(origin+'/api/qualifications'))).status,403);
+    state.user=owner;const pending=(await (await quals.GET(new Request(origin+'/api/qualifications'))).json()).requests;
+    assert.equal(pending.length,1);const request=pending[0].id;
+    assert.equal((await quals.GET(new Request(origin+'/api/qualifications?id='+request))).status,200);
+    state.user=buyer;assert.equal((await submit({action:'approve',id:request})).status,403);
+    state.user=owner;assert.equal((await submit({action:'approve',id:request})).status,200);
+    assert.equal((await quals.GET(new Request(origin+'/api/qualifications?id='+request))).status,404);
+    state.user=buyer;assert.doesNotMatch((await (await buy()).json()).error,/approve your nail qualification/);
+  });
+
 });

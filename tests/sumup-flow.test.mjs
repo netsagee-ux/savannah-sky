@@ -26,7 +26,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const orders=await compile('lib/course-orders.ts',{'./server':server,'./order-receipt':receipt});
   const gateway=await compile('lib/sumup.ts',{'./server':server,'./course-invitation':invitations,'./course-orders':orders});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':await compile('lib/payment-security.ts',{})});
-  const imports={'@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-invitation':invitations,'@/lib/order-receipt':receipt,
+  const imports={'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-invitation':invitations,'@/lib/order-receipt':receipt,
     '@/lib/course-orders':orders,'@/lib/payments':payments,'@/lib/sumup':gateway,'@/lib/student-course-link':urls};
   const route=async p=>import(await compile(p,imports));
   const checkout=await route('app/api/checkout/route.ts'),staff=await route('app/api/payments/route.ts');
@@ -112,4 +112,42 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.deepEqual(await salesSummary(),{sales:2,gross:9900,customers:1});
   await db.prepare("DELETE FROM enrollments WHERE course_id='gel'").run();
   await notify();assert.equal(await grants(),1);assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
+  await t.test('shop basket prices, private receipts, idempotent SumUp callbacks and dispatch',async()=>{
+    const schema=await compile('lib/shop-schema.ts',{'./server':server});
+    const shopUrl=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway});
+    const lib=await import(shopUrl),extra={...imports,'@/lib/shop':shopUrl,'@/lib/shop-schema':schema,
+      '@/lib/video-security':await compile('lib/video-security.ts',{})};
+    const manage=await import(await compile('app/api/shop/admin/route.ts',extra));
+    const checkout=await import(await compile('app/api/shop/checkout/route.ts',extra));
+    const hook=await import(await compile('app/api/shop/webhook/route.ts',extra));
+    const product=crypto.randomUUID(),second=crypto.randomUUID(),attempt=crypto.randomUUID();
+    const save=(action,fields)=>{const f=new FormData();for(const [k,v] of Object.entries({action,...fields}))f.set(k,v);
+      return manage.POST(new Request(site+'/api/shop/admin',{method:'POST',headers:{origin:site},body:f}));};
+    const delivery={name:'Fixture Buyer',street:'1 Example Road',line2:'',town:'Bath',postcode:'BA1 1AB'};
+    const basket={attempt,delivery,items:[{id:product,quantity:2},{id:second,quantity:1}],total:4300};
+    const purchase=(body=basket)=>checkout.POST(post('/api/shop/checkout',body));
+    as('buyer');assert.equal((await manage.GET()).status,403);
+    as('educator');assert.equal((await save('product',{id:product,title:'Practice kit',description:'Fixture',price:'15.00',published:'1'})).status,200);
+    assert.equal((await save('product',{id:second,title:'File set',description:'Fixture',price:'10',published:'1'})).status,200);
+    assert.equal((await save('postage',{postage:'3.00'})).status,200);
+    as(null);assert.equal((await purchase()).status,401);
+    as('buyer');assert.equal((await purchase({...basket,total:1})).status,409);
+    const starts=await Promise.all([purchase(),purchase()]);
+    for(const res of starts){assert.equal(res.status,200);assert.deepEqual(await res.json(),{path:'/shop/orders/'+attempt});}
+    const sessions=[...remote.values()].filter(v=>v.checkout_reference===attempt);assert.equal(sessions.length,1);
+    const payment=sessions[0];assert.equal(payment.amount,43);assert.equal(payment.currency,'GBP');assert.ok(payment.return_url.includes('/api/shop/webhook'));
+    const saved=await lib.shopOrder(attempt,'buyer');assert.ok(!saved.delivery.includes('Example Road'));assert.deepEqual(lib.deliveryFor(saved),delivery);
+    assert.equal(await lib.shopOrder(attempt,'other'),null);
+    as('other');assert.equal((await purchase()).status,409);assert.equal((await manage.GET()).status,403);
+    as('educator');assert.equal((await save('dispatch',{id:attempt})).status,400);
+    const notifyShop=()=>hook.POST(post('/api/shop/webhook?order='+attempt,{event_type:'CHECKOUT_STATUS_CHANGED',id:payment.id,status:'PAID'}));
+    await notifyShop();assert.equal((await lib.shopOrder(attempt)).status,'pending');
+    payment.status='PAID';tamper={merchant_code:'BAD'};assert.equal((await notifyShop()).status,400);tamper={};
+    const before=await grants();await Promise.all([notifyShop(),notifyShop()]);assert.equal(await grants(),before);
+    assert.equal((await lib.shopOrder(attempt)).status,'paid');assert.deepEqual(await salesSummary(),{sales:3,gross:14200,customers:1});
+    assert.equal((await save('dispatch',{id:attempt,tracking:'test-ref'})).status,200);
+    assert.equal((await save('dispatch',{id:attempt})).status,400);
+    const visible=await (await manage.GET()).json();assert.equal(visible.orders[0].tracking,'test-ref');assert.equal(visible.orders[0].delivery.postcode,'BA1 1AB');
+  });
+
 });

@@ -103,13 +103,13 @@ const orderSelect=`SELECT o.*,s.value AS merchant FROM orders o JOIN settings s 
 async function orderById(id:string){
   return db().prepare(orderSelect+'o.id=?').bind(id).first<SumUpOrder>();
 }
-function matches(checkout:Checkout,order:SumUpOrder){
+export function checkoutMatches(checkout:Checkout,order:Pick<SumUpOrder,'id'|'merchant'|'amount'|'session_id'>){
   return checkout.checkout_reference===order.id && checkout.merchant_code===order.merchant && checkout.currency==='GBP' &&
     Number.isFinite(checkout.amount) && Math.abs(checkout.amount*100-order.amount)<0.000001 &&
     typeof checkout.id==='string' && /^[a-zA-Z0-9_-]{1,128}$/.test(checkout.id) && (!order.session_id || order.session_id===checkout.id);
 }
 async function bindCheckout(order:SumUpOrder,checkout:Checkout){
-  if(!matches(checkout,order))throw new SumUpError('Payment details do not match this order.',409);
+  if(!checkoutMatches(checkout,order))throw new SumUpError('Payment details do not match this order.',409);
   if(!order.session_id){
     const changed=await db().prepare("UPDATE orders SET session_id=? WHERE id=? AND mode='sumup' AND status='pending' AND (session_id IS NULL OR session_id=?)")
       .bind(checkout.id,order.id,checkout.id).run();
@@ -131,6 +131,34 @@ async function applyStatus(order:SumUpOrder,checkout:Checkout){
   return 'pending';
 }
 
+export async function checkoutMerchant(){
+  const merchant=await stored();
+  if(!merchant)throw new SumUpError('The academy has not connected its SumUp account.');
+  if(fromEnvironment())await verifyMerchant(merchant);
+  return merchant;
+}
+export function lookupMerchantCheckout(merchant:Merchant,id:string){
+  return request<Checkout>(merchant,'/v0.1/checkouts/'+encodeURIComponent(id));
+}
+export async function createMerchantCheckout(merchant:Merchant,order:Pick<SumUpOrder,'id'|'merchant'|'amount'|'session_id'>,title:string,origin:string,orderPath:string,webhook:string){
+  const base=process.env.ACADEMY_PUBLIC_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://'+process.env.VERCEL_PROJECT_PRODUCTION_URL : origin);
+  const callbackOrigin=new URL(base).origin;
+  let checkout:Checkout;
+  try {
+    checkout=await request<Checkout>(merchant,'/v0.1/checkouts',{checkout_reference:order.id,merchant_code:merchant.code,amount:order.amount/100,currency:'GBP',
+      description:title,return_url:callbackOrigin+webhook+'?order='+encodeURIComponent(order.id),redirect_url:callbackOrigin+orderPath,
+      valid_until:new Date(Date.now()+60*60*1000).toISOString()});
+  } catch(error) {
+    // A retry may follow a successful remote create whose response was lost.
+    if(error instanceof SumUpError && error.status<500 && error.status!==409)throw error;
+    const found=await request<Checkout[]>(merchant,'/v0.1/checkouts?checkout_reference='+encodeURIComponent(order.id));
+    const previous=found.find(entry=>checkoutMatches(entry,order));
+    if(!previous)throw error;
+    checkout=previous;
+  }
+  return checkout;
+}
+
 export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string){
   const merchant=await stored();
   if(!merchant)throw new SumUpError('Online enrolment opens when the academy connects its SumUp account.');
@@ -148,23 +176,9 @@ export async function startSumUp(user:{userId:string;email:string},course:{id:st
   const order=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
   if(!order)throw new SumUpError('Check My learning for your course.',409);
   if(order.merchant!==merchant.code)throw new SumUpError('Contact the academy about this pending order.',409);
-  const base=process.env.ACADEMY_PUBLIC_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://'+process.env.VERCEL_PROJECT_PRODUCTION_URL : origin);
-  const callbackOrigin=new URL(base).origin;
   const orderPath='/orders/'+encodeURIComponent(order.id);
   if(order.session_id)return orderPath;
-  let checkout:Checkout;
-  try {
-    checkout=await request<Checkout>(merchant,'/v0.1/checkouts',{checkout_reference:order.id,merchant_code:merchant.code,amount:order.amount/100,currency:'GBP',
-      description:order.title,return_url:callbackOrigin+'/api/sumup/webhook?order='+encodeURIComponent(order.id),redirect_url:callbackOrigin+orderPath,
-      valid_until:new Date(Date.now()+60*60*1000).toISOString()});
-  } catch(error) {
-    // A retry may follow a successful remote create whose response was lost.
-    if(!(error instanceof SumUpError) || error.status!==409)throw error;
-    const found=await request<Checkout[]>(merchant,'/v0.1/checkouts?checkout_reference='+encodeURIComponent(order.id));
-    const previous=found.find(entry=>matches(entry,order));
-    if(!previous)throw error;
-    checkout=previous;
-  }
+  const checkout=await createMerchantCheckout(merchant,order,order.title,origin,orderPath,'/api/sumup/webhook');
   await applyStatus(order,checkout);
   return orderPath;
 }
@@ -179,15 +193,18 @@ export async function syncSumUp(id:string,notifiedCheckout?:string){
   if(!merchant || order.merchant!==merchant.code)throw new SumUpError('Payment confirmation is temporarily unavailable.');
   if(fromEnvironment())await verifyMerchant(merchant);
   const remote=await request<Checkout>(merchant,'/v0.1/checkouts/'+encodeURIComponent(checkoutId));
-  if(remote.id!==checkoutId || !matches(remote,order))throw new SumUpError('The payment does not match this order.',409);
+  if(remote.id!==checkoutId || !checkoutMatches(remote,order))throw new SumUpError('The payment does not match this order.',409);
   return applyStatus(order,remote);
 }
 
 export async function salesSummary(){
-  return db().prepare(`SELECT COUNT(*) AS sales,COALESCE(SUM(amount),0) AS gross,
-     COUNT(DISTINCT CASE WHEN user_id LIKE 'guest/%' OR user_id LIKE 'withdrawn/%'
-       THEN COALESCE((SELECT p.user_id FROM orders p WHERE lower(p.email)=lower(o.email) AND p.status='paid' AND p.mode IN ('live','sumup','whatsapp')
-         AND p.user_id NOT LIKE 'guest/%' AND p.user_id NOT LIKE 'withdrawn/%' ORDER BY p.paid_at DESC LIMIT 1),'email:'||lower(o.email))
-       ELSE user_id END) AS customers
-    FROM orders o WHERE status='paid' AND mode IN ('live','whatsapp','sumup') AND lower(currency)='gbp'`).first<{sales:number;gross:number;customers:number}>();
+  const database=db();
+  const shop=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='shop_orders'").first();
+  const ledgers="SELECT user_id,email,amount,paid_at FROM orders WHERE status='paid' AND mode IN ('live','whatsapp','sumup') AND lower(currency)='gbp'"+
+    (shop?" UNION ALL SELECT user_id,email,amount,paid_at FROM shop_orders WHERE status='paid'":"");
+  return database.prepare(`WITH payments AS (`+ledgers+`) SELECT COUNT(*) AS sales,COALESCE(SUM(amount),0) AS gross,
+    COUNT(DISTINCT CASE WHEN user_id LIKE 'guest/%' OR user_id LIKE 'withdrawn/%'
+      THEN COALESCE((SELECT p.user_id FROM payments p WHERE lower(p.email)=lower(o.email)
+        AND p.user_id NOT LIKE 'guest/%' AND p.user_id NOT LIKE 'withdrawn/%' ORDER BY p.paid_at DESC LIMIT 1),'email:'||lower(o.email))
+      ELSE user_id END) AS customers FROM payments o`).first<{sales:number;gross:number;customers:number}>();
 }

@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { CourseCard } from './ui';
-import type { Course } from '@/lib/data';
+import { isConversion,type Course } from '@/lib/data';
 
+const courseLevel=(course:Course)=>isConversion(course)?'Conversion':course.level;
 export default function Catalog({ courses, featured = false }: { courses: Course[]; featured?: boolean }) {
   const [level, setLevel] = useState('All courses');
   const [query, setQuery] = useState('');
-  const levels = ['All courses', ...new Set(courses.map(course => course.level).filter(Boolean))];
-  const filtered = courses.filter(course => (level === 'All courses' || course.level === level)
+  const levels = ['All courses', ...new Set(courses.map(courseLevel).filter(Boolean))];
+  const filtered = courses.filter(course => (level === 'All courses' || courseLevel(course) === level)
     && (course.title + ' ' + course.description).toLowerCase().includes(query.trim().toLowerCase()));
 
   const shown = featured ? filtered.slice(0, 3) : filtered;

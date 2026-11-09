@@ -57,3 +57,7 @@
   .academy .desk-course>img {height:clamp(8rem,39vw,13rem);min-height:0;}
   .academy .desk-orders li {grid-template-columns:minmax(0,1fr);}
 }
+
+.quiz fieldset{min-width:0;margin:1.1rem 0 1.5rem;padding:0;border:0}
+.quiz legend{font-weight:600;line-height:1.45;overflow-wrap:anywhere;margin-bottom:.5rem}
+.quiz fieldset label{min-height:44px;overflow-wrap:anywhere}

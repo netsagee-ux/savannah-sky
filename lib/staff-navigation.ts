@@ -1,4 +1,4 @@
-const tabs=['Courses','Lessons','Students','Enquiries','Reviews','Payments'];
+const tabs=['Courses','Lessons','Students','Enquiries','Reviews','Payments','Shop'];
 
 export function staffDestination(value?:string){
   if(typeof value!=='string' || !value.startsWith('/admin') || value.length>300)return '/admin?tab=Lessons';

@@ -1,3 +1,4 @@
+import {readQuiz,type QuizRow} from '@/lib/lesson-quiz';
 import {db,enrolled} from '@/lib/server';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {videoBookmark} from '@/lib/video-security';
@@ -11,8 +12,8 @@ export async function POST(req:Request) {
     const data=await req.json().catch(()=>null) as Record<string,unknown>|null;
     if(typeof data?.lessonId!=='string')return reply({error:'Choose a lesson.'},400);
     const database=db();
-    const lesson=await database.prepare('SELECT id,course_id,video_key,question,answer FROM lessons WHERE id=?').bind(data.lessonId)
-      .first<{id:string;course_id:string;video_key:string|null;question:string|null;answer:number|null}>();
+    const lesson=await database.prepare("SELECT id,course_id,video_key,question,options,answer,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json FROM lessons l WHERE id=?").bind(data.lessonId)
+      .first<{id:string;course_id:string;video_key:string|null;}&QuizRow>();
     if(!lesson||!await enrolled(lesson.course_id))return reply({error:'Course access is required.'},403);
     if(data.action==='bookmark'){
       if(typeof data.seconds!=='number'||!Number.isSafeInteger(data.seconds)||data.seconds<0||data.seconds>604800)return reply({error:'Invalid playback time.'},400);
@@ -23,7 +24,9 @@ export async function POST(req:Request) {
       return reply({ok:true});
     }
     if(data.action!==undefined && data.action!=='complete')return reply({error:'Invalid progress action.'},400);
-    if(lesson.question && (!Number.isInteger(data.answer)||data.answer!==lesson.answer))
+    const quiz=readQuiz(lesson);
+    const answers=Array.isArray(data.answers)?data.answers:[data.answer];
+    if(quiz.length && (answers.length!==quiz.length||quiz.some((q,i)=>q.answer!==answers[i])))
       return reply({error:'Not quite. Revisit the lesson and try again.'},400);
     await database.prepare('INSERT OR IGNORE INTO progress(id,user_id,lesson_id,completed_at) VALUES(?,?,?,?)')
       .bind(user.userId+':'+lesson.id,user.userId,lesson.id,new Date().toISOString()).run();

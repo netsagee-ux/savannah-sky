@@ -1,4 +1,6 @@
 "use client";
+import QuizEditor from './quiz-editor';
+import {readQuiz} from '@/lib/lesson-quiz';
 import {useState, type FormEvent} from 'react';
 
 type Lesson = {
@@ -16,6 +18,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
   const [version,setVersion]=useState(0);
   const course=courses.find(item=>item.id===selected);
   const list=lessons.filter(item=>item.course_id===selected).sort((a,b)=>a.position-b.position || a.id.localeCompare(b.id));
+  const videos=list.filter(item=>item.video_key).length;
   const nextPosition=Math.min(1000,list.reduce((max,item)=>Math.max(max,item.position),0)+1);
   async function submit(event:FormEvent<HTMLFormElement>) {
     if(await save(event,'lesson')) {setEditorOpen(false);setLesson(null);setVersion(value=>value+1);}
@@ -26,11 +29,11 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
       <option value="">Choose a course</option>{courses.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
     {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
       <div className="library-heading">
-        <div><h2>{course.title}</h2><p>{list.length} lessons · {list.filter(item=>item.video_key).length} private videos</p></div>
+        <div><h2>{course.title}</h2><p>{list.length} {list.length===1?'lesson':'lessons'} · {videos} private {videos===1?'video':'videos'}</p></div>
         {!editorOpen && <button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button>}
       </div>
       {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
-        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':'Lesson notes'}{item.question?' · Knowledge check':''}</small></div>
+        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':item.body?'Lesson notes':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
         <div className="lesson-actions"><button type="button" className="edit-link" disabled={busy} aria-label={'Edit '+item.title} onClick={()=>{setLesson(item);setEditorOpen(true);}}>Edit</button>
         <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)} aria-label={'Preview '+item.title}>Preview</a></div>
       </li>)}</ol> : <p>Add the first lesson to start your course library.</p>)}
@@ -45,7 +48,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         <label>Position<input type="number" name="position" min="0" max="1000" defaultValue={lesson?.position??nextPosition}/>
         </label>
         </div>
-        <label>Lesson notes (optional with a video)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
+        <label>Lesson notes (optional with a video or quiz)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
         </label>
         <div className="notice">
         <strong>Private video hosting</strong>
@@ -65,17 +68,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         <option value="0">Keep video (or replace with upload above)</option>
         <option value="1">Remove existing video</option>
         </select>
-        </label>}{lesson?.video_url&&!lesson.video_key&&<p>Upload this lesson’s original recording to enable private playback.</p>}<label>Multiple-choice question (optional)<input name="question" maxLength={500} defaultValue={lesson?.question||''}/>
-        </label>
-        <div className="form-two">{[0,1,2].map(i=>
-        <label key={i}>Answer option {i+1}<input name={'option'+i} maxLength={300} defaultValue={lesson?JSON.parse(lesson.options||'[]')[i]||'':''}/>
-        </label>)}<label>Correct answer<select name="answer" defaultValue={lesson?.answer??0}>
-        <option value="0">Option 1</option>
-        <option value="1">Option 2</option>
-        <option value="2">Option 3</option>
-        </select>
-        </label>
-        </div>
+        </label>}{lesson?.video_url&&!lesson.video_key&&<p>Upload this lesson’s original recording to enable private playback.</p>}<QuizEditor initial={readQuiz(lesson)}/>
         <p className="status-message" role="status">{status}</p>{status.includes('staff session')&&<a className="underlink" target="_blank" rel="noreferrer" href="/admin/login">Open staff sign-in</a>}
         <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button></form></>}
     </>}

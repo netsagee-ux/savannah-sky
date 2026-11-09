@@ -1,4 +1,4 @@
-import {sqliteTable,text,integer,index} from 'drizzle-orm/sqlite-core';
+import {sqliteTable,text,integer,index,blob} from 'drizzle-orm/sqlite-core';
 export const courses=sqliteTable('courses',{id:text('id').primaryKey(),title:text('title').notNull(),description:text('description').notNull(),level:text('level').notNull(),price:integer('price'),paymentUrl:text('payment_url'),courseUrl:text('course_url'),thumbnailKey:text('thumbnail_key'),outcomes:text('outcomes'),requirements:text('requirements'),duration:text('duration'),accessPolicy:text('access_policy'),published:integer('published').notNull().default(0)});
 export const lessons=sqliteTable('lessons',{id:text('id').primaryKey(),courseId:text('course_id').notNull(),title:text('title').notNull(),body:text('body').notNull(),videoKey:text('video_key'),thumbnailKey:text('thumbnail_key'),videoUrl:text('video_url'),resourceUrl:text('resource_url'),question:text('question'),options:text('options'),answer:integer('answer'),position:integer('position').notNull().default(0)},t=>[index('idx_lessons_course').on(t.courseId)]);
 export const enrollments=sqliteTable('enrollments',{id:text('id').primaryKey(),email:text('email').notNull(),courseId:text('course_id').notNull()},t=>[index('idx_enrollment_email_course').on(t.email,t.courseId)]);
@@ -9,3 +9,14 @@ export const profiles=sqliteTable('profiles',{id:text('id').primaryKey(),email:t
 
 export const settings=sqliteTable('settings',{id:text('id').primaryKey(),value:text('value').notNull()});
 export const orders=sqliteTable('orders',{id:text('id').primaryKey(),userId:text('user_id').notNull(),email:text('email').notNull(),courseId:text('course_id').notNull(),title:text('title').notNull(),amount:integer('amount').notNull(),currency:text('currency').notNull().default('gbp'),status:text('status').notNull().default('pending'),sessionId:text('session_id'),mode:text('mode').notNull(),createdAt:text('created_at').notNull(),paidAt:text('paid_at')},t=>[index('idx_order_user').on(t.userId)]);
+
+export const shopProducts=sqliteTable('shop_products',{
+ id:text('id').primaryKey(),title:text('title').notNull(),description:text('description').notNull(),price:integer('price').notNull(),
+ published:integer('published').notNull().default(0),photo:blob('photo',{mode:'buffer'}),mime:text('mime'),updatedAt:text('updated_at').notNull(),
+});
+export const shopOrders=sqliteTable('shop_orders',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull(),email:text('email').notNull(),items:text('items').notNull(),
+ shipping:integer('shipping').notNull(),amount:integer('amount').notNull(),delivery:text('delivery').notNull(),fingerprint:text('fingerprint').notNull(),
+ merchant:text('merchant').notNull(),sessionId:text('session_id').unique(),status:text('status').notNull().default('pending'),createdAt:text('created_at').notNull(),
+ paidAt:text('paid_at'),dispatchedAt:text('dispatched_at'),tracking:text('tracking'),
+},t=>[index('shop_orders_buyer').on(t.userId,t.createdAt)]);

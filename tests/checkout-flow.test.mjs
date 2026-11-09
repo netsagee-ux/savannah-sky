@@ -45,17 +45,17 @@ test('course checkout checks availability, charges the listed price and grants a
   const { fulfill } = await import(payments);
   const { sendOrderReceipt } = await import(receipts);
   const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orderModule,'./course-invitation':invite});
-  const { POST } = await import(await compile('app/api/checkout/route.ts', {
+  const { POST } = await import(await compile('app/api/checkout/route.ts', {'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),
     '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/sumup':sumup,
   }));
   for (const sql of [
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',
     'CREATE TABLE progress(id TEXT PRIMARY KEY,user_id TEXT,lesson_id TEXT,completed_at TEXT)',
-    'CREATE TABLE courses(id TEXT PRIMARY KEY, title TEXT, price INTEGER, course_url TEXT, published INTEGER)',
-    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER)',
+    'CREATE TABLE courses(id TEXT PRIMARY KEY, title TEXT, price INTEGER, course_url TEXT, published INTEGER, level TEXT)',
+    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER,options TEXT)',
     'CREATE TABLE enrollments(id TEXT PRIMARY KEY, email TEXT, course_id TEXT)',
     'CREATE TABLE orders(id TEXT PRIMARY KEY,user_id TEXT,email TEXT,course_id TEXT,title TEXT,amount INTEGER,currency TEXT,status TEXT,mode TEXT,created_at TEXT,session_id TEXT,paid_at TEXT)',
-    "INSERT INTO courses VALUES('gel','Gel Foundations',6500,NULL,0)",
+    "INSERT INTO courses VALUES('gel','Gel Foundations',6500,NULL,0,'Beginner')",
   ]) await db.prepare(sql).run();
 
   globalThis.academyCheckoutIdentity = { user: null };
@@ -146,7 +146,7 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal((await ownedOrder(manual.orderId,'manual-student')).status,'paid');
   assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='manual@example.com'").all()).results.length,1);
 
-  const lessonModules = {
+  const lessonModules = {'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),
     '@/lib/server': server, '@/app/chatgpt-auth': identity,
     '@/lib/video-security': await compile('lib/video-security.ts', {}),
   };
