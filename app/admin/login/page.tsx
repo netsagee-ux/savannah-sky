@@ -37,8 +37,8 @@ export default async function AdminLogin({searchParams}:{searchParams:Promise<{n
         <div className="staff-entry-state"><h1>Staff sign-in</h1><p role="status">Staff sign-in is temporarily unavailable. Please try again later.</p></div>}
     </section>
     <picture className="staff-entry-photo">
-      <img src="/oxblood-campaign-640.webp" srcSet="/oxblood-campaign-640.webp 640w, /oxblood-campaign-1024.webp 1024w"
-        sizes="(max-width: 760px) 100vw, 45vw" width={640} height={768} alt="Burgundy manicure with a fine gold ring" />
+      <img src="/salon-pink-glaze-480.webp" srcSet="/salon-pink-glaze-480.webp 480w, /salon-pink-glaze-960.webp 960w"
+        sizes="(max-width: 760px) 100vw, 45vw" width={480} height={640} alt="A close-up of a soft pink manicure with fine shimmer at Savannah Sky Salon" />
     </picture>
   </div>;
 }

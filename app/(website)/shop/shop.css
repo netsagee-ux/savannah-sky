@@ -1,7 +1,7 @@
 .academy-shop{padding-block:clamp(32px,6vw,80px);color:var(--brand-espresso)}
 .shop-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:clamp(25px,6vw,84px);padding-bottom:clamp(32px,6vw,70px)}
 .shop-intro h1,.shop-receipt h1{font:500 clamp(3rem,7vw,6.4rem)/.98 var(--display);letter-spacing:-.055em;margin:16px 0}
-.shop-intro p{font-size:1.08rem;max-width:34ch;margin:0 0 18px}.shop-intro img{width:100%;height:clamp(190px,26vw,360px);object-fit:cover;border-radius:10px 52px 10px 10px}
+.shop-intro p{font-size:1.08rem;max-width:34ch;margin:0 0 18px}.shop-intro img{width:100%;height:clamp(190px,26vw,360px);object-fit:cover;object-position:center 69%;border-radius:10px 52px 10px 10px}
 .shop-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(270px,.85fr);gap:clamp(20px,4vw,54px);align-items:start}
 .shop-products{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:25px}
 .shop-products article,.shop-basket,.shop-receipt{min-width:0;overflow-wrap:anywhere}

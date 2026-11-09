@@ -16,13 +16,13 @@ export function Intro({ kicker, title, text, image }: IntroProps) {
 }
 
 const previewLooks: Record<string, string> = {
-  'gel-foundations': 'sculpted', 'builder-gel': 'leopard', 'nail-art': 'floral',
+  'gel-foundations': 'sculpted', 'builder-gel': 'botanical', 'nail-art': 'floral',
 };
 
 export function courseImage(course: Course, index = 0, size = 960) {
   if (course.thumbnail_key) return '/api/course-thumbnail/' + course.id;
   if (course.thumbnail_id) return '/api/thumbnail/' + course.thumbnail_id;
-  const look = previewLooks[course.id] ?? ['sculpted', 'leopard', 'floral'][index % 3];
+  const look = previewLooks[course.id] ?? ['sculpted', 'botanical', 'floral'][index % 3];
   return '/nail-' + look + '-' + size + '.webp';
 }
 
@@ -36,7 +36,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
   return (
     <a className="programme" href={'/courses/' + course.id}>
       <div className="programme-image">
-        <img src={image} style={image.startsWith('/nail-leopard-') ? {objectPosition: '50% 76%'} : undefined}
+        <img src={image} style={image.startsWith('/nail-botanical-') ? {objectPosition: '50% 50%'} : undefined}
           srcSet={hasThumbnail ? undefined : courseImage(course, index, 480) + ' 480w, ' + courseImage(course, index, 960) + ' 960w'}
           sizes="(max-width: 720px) 90vw, 30vw" width={480} height={440} loading="lazy" alt="" />
         <span className="programme-level"><NailTool name={courseTools[course.id] ?? 'swatches'} size={16} />{isConversion(course)?'Qualified technicians only':course.level==='Beginner'?'Beginner friendly':course.level}{accredited(course)?' · CPD accredited':''}</span>

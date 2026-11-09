@@ -56,7 +56,7 @@
   background: #eeede2;
 }
 .studio-heading.is-cover > div { padding: clamp(26px,3.2vw,52px); }
-.studio-heading.is-cover::after { content: ''; align-self: stretch; min-height: 204px; background: url('/oxblood-campaign-640.webp') center 52% / cover no-repeat; }
+.studio-heading.is-cover::after { content: ''; align-self: stretch; min-height: 204px; background: url('/nail-red-960.webp') center 44% / cover no-repeat; }
 .admin-area .studio-workspace .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px; width: fit-content; max-width: 100%;
   min-height: 46px; padding: 11px 19px; white-space: normal; text-align: center; border-radius: 7px;

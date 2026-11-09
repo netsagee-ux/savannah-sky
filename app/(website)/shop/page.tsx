@@ -10,6 +10,6 @@ export default async function Shop(){
   return <section className="studio-wrap academy-shop"><header className="shop-intro"><div><span className="studio-kicker">Savannah Sky Training Academy</span><h1>Academy shop</h1>
     <p>{items.length?'Student kits and essentials for your nail practice.':'Student kits and nail supplies are coming to the academy shop.'}</p>
     {items.length?<a className="underlink" href="/shop/orders">My shop orders</a>:<a className="underlink" href="/courses">Explore the courses</a>}</div>
-    <img src="/silk-manicure-medium.webp" alt="A polished manicure on silk" width={720} height={450}/></header>
+    <img src="/salon-colour-swatches-960.webp" srcSet="/salon-colour-swatches-480.webp 480w, /salon-colour-swatches-960.webp 960w" sizes="(max-width:760px) 92vw, 45vw" alt="Warm-toned nail colour swatches on display at Savannah Sky Salon" width={960} height={1023}/></header>
     {items.length?<AcademyShop items={items} shipping={shipping} ready={Boolean(merchant?.code)} signedIn={Boolean(user)}/>:user&&<a className="underlink" href="/shop/orders">My shop orders</a>}</section>;
 }

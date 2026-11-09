@@ -32,11 +32,11 @@ export default async function Home() {
   return (
     <>
       <section className="silk-hero" aria-labelledby="silk-title">
-        <picture className="silk-photo">
-          <source media="(max-width: 760px)" srcSet="/silk-manicure-mobile.webp" />
-          <img src="/silk-manicure-wide.webp" srcSet="/silk-manicure-medium.webp 1050w, /silk-manicure-wide.webp 1774w"
-            sizes="100vw" width={1774} height={887} fetchPriority="high" alt="Sheer blush French manicure with a fine gold accent on ivory silk" />
-        </picture>
+        <div className="silk-photo">
+          <img src="/salon-mint-tips-640.webp" srcSet="/salon-mint-tips-640.webp 640w, /salon-mint-tips-1200.webp 1200w"
+            sizes="(max-width: 760px) 100vw, 51vw" width={1200} height={1175} fetchPriority="high"
+            alt="Mint and pink square nails with hand-painted black stripes at Savannah Sky" />
+        </div>
         <div className="silk-layout"><div className="silk-copy">
           <span className="silk-kicker">Online nail training</span>
           <h1 id="silk-title">Nail artistry,<br /><em>step by step.</em></h1>
@@ -62,7 +62,7 @@ export default async function Home() {
             <div className="course-edit-photo"><img src={courseImage(course,index,480)}
               srcSet={course.thumbnail_key || course.thumbnail_id ? undefined : courseImage(course,index,480)+' 480w, '+courseImage(course,index,960)+' 960w'}
               sizes="(max-width: 650px) 26vw, 30vw" width={480} height={480} loading="lazy" alt=""
-              style={course.id === 'builder-gel' ? {objectPosition: '50% 76%'} : undefined} /></div>
+              style={course.id === 'builder-gel' ? {objectPosition: '50% 50%'} : undefined} /></div>
             <div className="course-edit-info"><span>{course.level}</span><h3>{course.title}</h3></div>
             <span className="course-edit-arrow" aria-hidden="true"><ArrowUpRight size={19}/></span>
           </a>
@@ -72,9 +72,9 @@ export default async function Home() {
       <section id="educator" className="carla-studio" aria-labelledby="carla-title">
         <div className="studio-wrap carla-layout">
           <div className="carla-pictures">
-            <img className="educator-photo" src="/academy-portrait-960.webp" srcSet="/academy-portrait-480.webp 480w, /academy-portrait-960.webp 960w"
-              sizes="(max-width: 750px) 90vw, 43vw" width={960} height={1440} loading="lazy" alt="Carla at her teaching desk at Savannah Sky Salon" />
-            <img className="studio-glimpse" src="/salon-lounge-480.webp" width={480} height={640} loading="lazy" alt="A corner of Savannah Sky Salon" />
+            <img className="educator-photo" src="/academy-graduation-960.webp" srcSet="/academy-graduation-480.webp 480w, /academy-graduation-960.webp 960w"
+              sizes="(max-width: 750px) 90vw, 43vw" width={960} height={1598} loading="lazy" alt="A Savannah Sky graduation, with a student holding her certificate" />
+            <img className="studio-glimpse" src="/salon-reception-480.webp" width={480} height={496} loading="lazy" alt="The reception desk at Savannah Sky" />
           </div>
           <div className="carla-note"><span className="studio-kicker">Meet your educator</span><h2 id="carla-title">At the table<br /><em>with Carla.</em></h2>
             <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. I want you to feel you can pull up a chair, ask a question and try again.</p>
