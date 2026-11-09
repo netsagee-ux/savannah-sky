@@ -11,6 +11,7 @@ export async function GET(request:Request){
     const tab=params.get('tab'),courseId=params.get('courseId');
     const all=!tab,store=db();
     const fullCourses=`SELECT c.*,(SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,
+      (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count,
       (SELECT count(*) FROM lessons l WHERE l.course_id=c.id AND nullif(l.video_key,'') IS NOT NULL) AS videos
       FROM courses c ORDER BY c.title`;
     const lessons=store.prepare("SELECT l.*,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json,c.title AS course_title FROM lessons l JOIN courses c ON c.id=l.course_id "+
@@ -20,8 +21,9 @@ export async function GET(request:Request){
         (e.id='buyer/'||p.user_id||'/'||e.course_id OR (e.id NOT LIKE 'buyer/%' AND EXISTS(SELECT 1 FROM profiles u WHERE u.id=p.user_id AND u.email=e.email)))
         AND l.course_id=e.course_id) AS completed FROM enrollments e JOIN courses c ON c.id=e.course_id`;
     const [merchant,metrics,courses,enquiries,enrollments,recordings]=await Promise.all([
-      all||tab==='Courses'?merchantStatus().catch(()=>null):null,salesSummary().catch(()=>null),
-      all||tab==='Courses'?store.prepare(fullCourses).all():tab==='Lessons'?store.prepare('SELECT id,title FROM courses ORDER BY title').all():null,
+      all||tab==='Courses'?merchantStatus().catch(()=>null):null,all||tab==='Courses'||tab==='Payments'?salesSummary().catch(()=>null):null,
+      all||tab==='Courses'?store.prepare(fullCourses).all():tab==='Lessons'?store.prepare(`SELECT c.id,c.title,c.level,c.published,c.thumbnail_key,
+        (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count FROM courses c ORDER BY c.title`).all():null,
       all||tab==='Enquiries'?store.prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 100').all():null,
       all||tab==='Students'?store.prepare(students).all():null,
       all?lessons.all():tab==='Lessons'&&courseId?lessons.bind(courseId).all():null,

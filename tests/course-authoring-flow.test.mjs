@@ -123,9 +123,14 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.deepEqual(roster.map(row=>row.position),Array.from({length:15},(_,i)=>i+1));
   const lessonTab=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+courseId))).json();
   assert.equal(lessonTab.lessons.length,15);
+  const library=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons'))).json();
+  assert.equal(library.lessons.length,0);
+  assert.equal(library.courses.find(c=>c.id===courseId).lesson_count,15);
+  assert.equal(library.metrics,null);
   assert.equal(lessonTab.enquiries.length,0);
   const courseTab=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
   assert.equal(courseTab.lessons.length,0);
+  assert.equal(courseTab.courses.find(c=>c.id===courseId).lesson_count,15);
   assert.equal(courseTab.courses.find(c=>c.id===courseId).videos,15);
   const watch=()=>token.POST(post('/api/video-access',{lessonId}));
   state.user=owner;
