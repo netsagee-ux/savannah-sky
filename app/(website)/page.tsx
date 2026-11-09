@@ -4,12 +4,12 @@ import { courseImage } from '@/components/ui';
 import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
 import StudentStory from '@/components/student-story';
-import { previews, type Course } from '@/lib/data';
+import { type Course } from '@/lib/data';
 import { catalog } from '@/lib/server';
 import './atelier-home.css';
 import './silk-home.css';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 const techniques: { name: string; tool: ToolName }[] = [
   { name: 'Gel polish', tool: 'polish' }, { name: 'Builder gel', tool: 'builder' },
@@ -23,11 +23,11 @@ const questions = [
 ];
 
 export default async function Home() {
-  let courses: Course[] = previews;
+  let courses: Course[] = [];
   try {
     const published = await catalog();
     courses = published as Course[];
-  } catch { /* Keep the editorial catalogue available during an outage. */ }
+  } catch { /* The directory link remains available when the course service is offline. */ }
 
   return (
     <>
@@ -57,7 +57,7 @@ export default async function Home() {
         <div className="course-edit-heading"><h2 id="collection-title">The course <em>collection.</em></h2>
           <a className="studio-text-link" href="/courses">All courses <ArrowUpRight size={16} aria-hidden="true" /></a>
         </div>
-        <div className="course-edit-list">{courses.slice(0, 3).map((course, index) =>
+        <div className="course-edit-list">{!courses.length&&<p>Visit the course directory for current programmes.</p>}{courses.slice(0, 3).map((course, index) =>
           <a className="course-edit-piece" key={course.id} href={'/courses/' + encodeURIComponent(course.id)}>
             <div className="course-edit-photo"><img src={courseImage(course,index,480)}
               srcSet={course.thumbnail_key || course.thumbnail_id ? undefined : courseImage(course,index,480)+' 480w, '+courseImage(course,index,960)+' 960w'}

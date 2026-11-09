@@ -29,4 +29,8 @@ export async function enrolled(courseId:string) {
  return Boolean(await db().prepare('SELECT e.id FROM enrollments e WHERE e.course_id=? AND '+enrolmentOwner)
   .bind(courseId,user.userId,user.userId,user.email.toLowerCase()).first());
 }
-export async function catalog(){return (await db().prepare('SELECT c.id,c.title,c.description,c.level,c.price,c.outcomes,c.requirements,c.duration,c.access_policy,c.published,CASE WHEN c.thumbnail_key IS NOT NULL THEN c.id ELSE NULL END AS thumbnail_key, (SELECT l.id FROM lessons l WHERE l.course_id=c.id AND l.thumbnail_key IS NOT NULL ORDER BY l.position,l.id LIMIT 1) AS thumbnail_id FROM courses c WHERE c.published = 1').all()).results;}
+export async function catalog(){return (await db().prepare(`SELECT c.id,c.title,c.description,c.level,c.price,
+ (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,
+ CASE WHEN c.thumbnail_key IS NOT NULL THEN c.id END AS thumbnail_key,
+ (SELECT l.id FROM lessons l WHERE l.course_id=c.id AND l.thumbnail_key IS NOT NULL ORDER BY l.position,l.id LIMIT 1) AS thumbnail_id
+ FROM courses c WHERE c.published=1 ORDER BY c.rowid`).all()).results;}

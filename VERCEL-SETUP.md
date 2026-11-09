@@ -22,7 +22,7 @@ Admin → Lessons sends MP4 and WebM recordings up to 1 GiB directly to the conn
 Production release gates: Next build passes; deployment homepage responds successfully; configured login works; admin is denied to other accounts; course thumbnails load; unpaid users cannot access course links; a verified SumUp payment grants exactly one enrolment; revocation removes access.
 
 ## Storefront follow-up
-Administrator fallback is explicitly set to Netsagee@gmail.com; ADMIN_EMAIL can override it. The Clerk primary email must be verified. Public navigation has no admin links.
+Administrator fallback is explicitly set to Netsagee@gmail.com; ADMIN_EMAIL can override it. The Clerk primary email must be verified. The public footer links to staff sign-in. The owner approves access requests from verified educators.
 
 After schema migration, run `node --env-file=.env.local scripts/seed-academy.mjs` to add three unpublished draft courses, with proposed GBP prices of £49, £79 and £39. This never overwrites existing courses. Add real training content, thumbnail, prerequisites and access terms before publication.
 

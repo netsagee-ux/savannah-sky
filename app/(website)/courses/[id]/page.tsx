@@ -1,3 +1,4 @@
+import AccountLayout from '@/components/account-layout';
 import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play} from 'lucide-react';
 import CheckoutButton from '@/components/checkout-button';
@@ -14,24 +15,25 @@ type Lesson = {id:string;title:string;has_video:number;position:number};
 
 export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
-  const access=await enrolled(id);
   const database=db();
-  const course=await database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=? AND (published=1 OR ?=1)")
-    .bind(id,access?1:0).first<Course>();
-  if(!course)notFound();
-  const lessons=(await database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>()).results;
+  const [access,user,course,lessonRows]=await Promise.all([
+    enrolled(id),getChatGPTUser(),
+    database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id).first<Course>(),
+    database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
+  ]);
+  if(!course || (!course.published && !access))notFound();
+  const lessons=lessonRows.results;
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
-  const user=await getChatGPTUser();
   const merchant=!access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     ? await merchantStatus().catch(()=>null) : null;
   const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
   const learning=firstVideo?'/learn/'+encodeURIComponent(firstVideo.id):'/dashboard';
 
-  return <section className="studio-wrap practice-detail">
+  const detail=<section className="studio-wrap practice-detail">
     <a className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</a>
-    <header className="practice-heading"><span className="studio-kicker">{course.level}{accredited(course)?' · CPD accredited':''}</span>
+    <header className="practice-heading"><span className="studio-kicker">{course.level==='Beginner'?'Beginner friendly · No previous experience needed':course.level}{accredited(course)?' · CPD accredited':''}</span>
       <h1>{course.title}</h1><p>{course.description}</p>
     </header>
     <div className="practice-grid">
@@ -65,4 +67,5 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
       </section>}
     </div>
   </section>;
+  return user?<AccountLayout>{detail}</AccountLayout>:detail;
 }

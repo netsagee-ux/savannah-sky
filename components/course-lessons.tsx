@@ -7,10 +7,10 @@ type Lesson = {
 };
 type Props = {
   courses:{id:string;title:string}[]; lessons:Lesson[]; selected:string; onSelect:(id:string)=>void;
-  directUpload:boolean; busy:boolean; save:(event:FormEvent<HTMLFormElement>,action:string)=>Promise<boolean>;
+  directUpload:boolean; busy:boolean; status:string; save:(event:FormEvent<HTMLFormElement>,action:string)=>Promise<boolean>;
 };
 
-export default function CourseLessons({courses,lessons,selected,onSelect,directUpload,busy,save}:Props) {
+export default function CourseLessons({courses,lessons,selected,onSelect,directUpload,busy,status,save}:Props) {
   const [lesson,setLesson]=useState<Lesson|null>(null);
   const [editorOpen,setEditorOpen]=useState(false);
   const [version,setVersion]=useState(0);
@@ -21,6 +21,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
     if(await save(event,'lesson')) {setEditorOpen(false);setLesson(null);setVersion(value=>value+1);}
   }
   return <section className="admin-section">
+    {!editorOpen&&<p className="status-message" role="status">{status}</p>}
     <label className="form">Course workspace<select aria-label="Course workspace" value={course?.id||''} disabled={busy} onChange={e=>onSelect(e.target.value)}>
       <option value="">Choose a course</option>{courses.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
     {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
@@ -75,6 +76,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         </select>
         </label>
         </div>
+        <p className="status-message" role="status">{status}</p>{status.includes('staff session')&&<a className="underlink" target="_blank" rel="noreferrer" href="/admin/login">Open staff sign-in</a>}
         <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button></form></>}
     </>}
   </section>;

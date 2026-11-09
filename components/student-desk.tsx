@@ -4,12 +4,12 @@ import {studentCoursePath} from '@/lib/student-course-link';
 export type DeskCourse = {id:string; title:string; level:string; thumbnail_key:string|null; total:number; completed:number; next_lesson:string|null};
 export type DeskOrder = {id:string; title:string; amount:number; status:string; mode:string; created_at:string; session_id:string|null; invitation:string|null};
 
-export default function StudentDesk({name,email,courses,orders,failed}: {
-  name:string; email:string; courses:DeskCourse[]; orders:DeskOrder[]; failed:boolean;
+export default function StudentDesk({name,email,courses,orders,failed,staff=false}: {
+  name:string; email:string; courses:DeskCourse[]; orders:DeskOrder[]; failed:boolean; staff?:boolean;
 }) {
   return <div className="student-desk-inner" aria-label="Student workspace">
     <header className="desk-heading"><p className="studio-kicker">Student workspace</p><h1>My learning</h1>
-      <nav aria-label="Student workspace"><a href="#my-courses">My courses</a><a href="#orders">Orders</a><a href="#account">Account</a></nav></header>
+      <nav aria-label="Student workspace"><a href="#my-courses">My courses</a><a href="#orders">Orders</a><a href="#account">Account</a>{staff&&<a href="/admin?tab=Lessons">Manage course videos</a>}</nav></header>
     {failed && <p className="notice" role="alert">Your account could not be loaded. Refresh to try again.</p>}
     <section id="my-courses"><div className="desk-section-head"><h2>Course library</h2><span>{courses.length} active</span></div>
       {courses.length ? <div className="desk-courses">{courses.map(course=>{

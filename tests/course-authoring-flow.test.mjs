@@ -47,7 +47,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const security=await compile('lib/payment-security.ts',{});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':security});
   const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orders,'./course-invitation':inviteModule});
-  const modules={'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
+  const modules={'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
   const route=async path=>import(await compile(path,modules));
@@ -63,7 +63,22 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const stranger={userId:'student-b',email:'other@example.test',sessionId:'tablet'};
   const course={title:'Studio practice',description:'A private training demonstration.',level:'Beginner',price:'49.50',published:'0'};
   assert.equal((await save('course',course)).status,403);
+  const educator={userId:'educator',email:'educator@example.test',sessionId:'studio'};
+  const staffRoute=await route('app/api/staff-access/route.ts');
+  const requestStaff=(action,fields={})=>staffRoute.POST(post('/api/staff-access',{action,...fields}));
+  assert.equal((await requestStaff('request')).status,401);
+  state.user=educator;
+  const request='staff-request:'+educator.userId;
+  assert.equal((await requestStaff('request',{email:owner.email})).status,200);
+  assert.equal((await requestStaff('request')).status,200);
+  assert.equal((await db.prepare('SELECT value FROM settings WHERE id=?').bind(request).first()).value,educator.email);
+  assert.equal((await requestStaff('approve',{request,current:''})).status,403);
+  assert.equal((await author.GET(new Request(origin+'/api/admin'))).status,403);
   state.user=owner;
+  assert.equal((await requestStaff('approve',{request,current:'stale@example.test'})).status,409);
+  assert.equal((await requestStaff('approve',{request,current:''})).status,200);
+  assert.equal((await requestStaff('approve',{request,current:''})).status,409);
+  state.user=educator;
   const courseId=(await (await save('course',course)).json()).courseId;
   assert.ok(courseId);
   const lesson={courseId,title:'Prepare the nail',position:'1'};
@@ -99,6 +114,12 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   }
   const roster=(await db.prepare('SELECT id,position FROM lessons WHERE course_id=? AND video_key IS NOT NULL ORDER BY position').bind(courseId).all()).results;
   assert.deepEqual(roster.map(row=>row.position),Array.from({length:15},(_,i)=>i+1));
+  const lessonTab=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+courseId))).json();
+  assert.equal(lessonTab.lessons.length,15);
+  assert.equal(lessonTab.enquiries.length,0);
+  const courseTab=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
+  assert.equal(courseTab.lessons.length,0);
+  assert.equal(courseTab.courses.find(c=>c.id===courseId).videos,15);
   const watch=()=>token.POST(post('/api/video-access',{lessonId}));
   state.user=owner;
   assert.equal((await save('visibility',{id:courseId,published:'1'})).status,200);

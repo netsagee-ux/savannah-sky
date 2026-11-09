@@ -83,3 +83,6 @@
   .admin-area .admin-metrics {grid-template-columns:repeat(2,minmax(0,1fr));}
   .admin-area .admin-metrics > :first-child {grid-column:1/-1;}
 }
+
+.staff-requests {max-width:58rem;margin:clamp(1rem,6vw,5rem) auto;padding:clamp(1.2rem,5vw,3rem);overflow-wrap:anywhere;}
+.admin-area .staff-access-link {display:inline-block;margin:0 0 1.4rem;}

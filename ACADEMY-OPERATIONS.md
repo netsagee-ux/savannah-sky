@@ -2,9 +2,9 @@
 
 ## Prepare a course
 
-1. Use the academy administrator’s verified Clerk account to open `/admin`.
+1. Open **Staff sign-in** in the website footer. An educator signs in with their own verified email and selects **Request staff access**. The owner can approve it in **Manage staff access requests** at `/admin/staff`. The educator then returns to Staff sign-in and opens **Lessons**.
 2. In **Courses**, create a draft with its final GBP price, level, description, requirements, duration and access terms. Add a public cover photograph if available.
-3. Select **Save course & add lessons**, or open **Manage lessons & videos** on an existing course, and upload the original MP4 or WebM. Set the teaching order and add lesson notes or a knowledge check. A private Vercel Blob store supports direct uploads up to 1 GiB per lesson. Without direct Blob uploads the dashboard sends encrypted recording parts to the private academy database, up to 256 MiB per lesson. Thumbnails accept JPG, PNG and WebP up to 3 MiB.
+3. Select **Save course & add lessons**, or open **Manage lessons & videos** on an existing course, and upload the original MP4 or WebM. Set the teaching order and add lesson notes or a knowledge check. A private Vercel Blob store supports direct uploads up to 1 GiB per lesson. Without direct Blob uploads the dashboard sends encrypted recording parts to the private academy database, up to 256 MiB per lesson. Thumbnails accept JPG, PNG and WebP up to 3 MiB. For an interrupted database upload, leave the editor open and press **Save lesson** again. Uploaded parts are reused.
 4. Preview the lesson from the admin lesson list. Upload original recordings for programmes that previously used links to an external video host.
 5. Set the CPD accreditation flag for the course when applicable. Publish the priced course once its private recordings are ready.
 

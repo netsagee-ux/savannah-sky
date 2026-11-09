@@ -5,7 +5,7 @@ import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react';
 import AcademyWordmark from './academy-wordmark';
 import { academyPages } from './academy-navigation';
 
-export default function MobileMenu({signedIn}: {signedIn: boolean}) {
+export default function MobileMenu() {
   const drawer = useRef<HTMLDialogElement>(null);
   const close = () => drawer.current?.close();
   return <>
@@ -19,7 +19,7 @@ export default function MobileMenu({signedIn}: {signedIn: boolean}) {
         <nav aria-label="Mobile navigation">{academyPages.map(page =>
           <a href={page.href} key={page.href} onClick={close}>{page.label}<ArrowUpRight size={18} aria-hidden="true" /></a>
         )}</nav>
-        <a className="drawer-signin" href={signedIn ? '/dashboard' : '/sign-in'}>{signedIn ? 'My learning' : 'Sign in'} <ArrowRight size={17}/></a>
+        <a className="drawer-signin" href="/dashboard">My learning <ArrowRight size={17}/></a>
       </div>
     </dialog>
   </>;

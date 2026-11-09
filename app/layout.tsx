@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './refinement.css';
@@ -17,14 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en-GB">
       <body>
         <a href="#main" className="skip">Skip to content</a>
-        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          ? <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up" localization={{
-              signIn: { start: {
-                titleCombined: 'Student sign-in',
-                subtitleCombined: 'Use your email to open your courses and orders.',
-              } },
-            }}>{children}</ClerkProvider>
-          : children}
+        {children}
       </body>
     </html>
   );

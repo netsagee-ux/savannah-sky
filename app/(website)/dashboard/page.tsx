@@ -2,14 +2,14 @@ import {redirect} from 'next/navigation';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import StudentDesk, {type DeskCourse, type DeskOrder} from '@/components/student-desk';
 import {claimPaidOrders} from '@/lib/course-orders';
-import {db, enrolmentOwner} from '@/lib/server';
+import {db, admin, enrolmentOwner} from '@/lib/server';
 
 export const dynamic='force-dynamic';
 export const metadata={title:'My learning & orders'};
 
 export default async function Dashboard(){
   const user=await getChatGPTUser();
-  if(!user)redirect('/login');
+  if(!user)redirect('/sign-in?redirect_url=%2Fdashboard');
   const email=user.email.toLowerCase(), uid=user.userId;
   let courses:DeskCourse[]=[],orders:DeskOrder[]=[],failed=false;
   try {
@@ -32,5 +32,5 @@ export default async function Dashboard(){
     courses=library.results;
     orders=history.results;
   } catch {failed=true;}
-  return <StudentDesk name={user.displayName} email={user.email} courses={courses} orders={orders} failed={failed}/>;
+  return <StudentDesk name={user.displayName} email={user.email} courses={courses} orders={orders} failed={failed} staff={await admin()}/>;
 }
