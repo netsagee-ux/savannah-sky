@@ -37,3 +37,22 @@ test('staff sign-in restores only authorised workspace destinations',async()=>{
   assert.equal(staffDestination('/admin?tab=Lessons&courseId=gel'),'/admin?tab=Lessons&courseId=gel');
   for(const value of ['https://other.example/private','//other.example','/admin/../orders','/administer',null,[]])assert.equal(staffDestination(value),'/admin?tab=Lessons');
 });
+
+test('small recordings recover from a failed direct upload using authenticated private database parts',async t=>{
+  const config=await compile('lib/lesson-upload.ts',{});
+  const blob=moduleUrl("export const upload=async()=>{throw Error('Direct store unavailable')}");
+  const {uploadLessonVideo}=await import(await compile('components/upload-lesson-video.ts',{
+    '@/lib/lesson-upload':config,'@vercel/blob/client':blob,
+  }));
+  const file=new File(['example recording'],'lesson.webm',{type:'video/webm'});
+  const form=()=>{const f=new FormData();f.set('courseId','art');f.set('video',file);return f;};
+  let parts=0;
+  t.mock.method(globalThis,'fetch',async (path,options)=>{
+    assert.match(path,/^\/api\/admin\/video-part\?/);
+    assert.equal(await options.body.text(),'example recording');parts++;return Response.json({ok:true});
+  });
+  const first=form();await uploadLessonVideo(first,()=>{},true);
+  assert.match(first.get('uploadedVideoKey'),/^classroom\/art\//);
+  const retry=form();await uploadLessonVideo(retry,()=>{},true);
+  assert.equal(first.get('uploadedVideoKey'),retry.get('uploadedVideoKey'));assert.equal(parts,1);
+});

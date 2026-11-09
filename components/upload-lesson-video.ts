@@ -47,18 +47,24 @@ export async function uploadLessonVideo(form:FormData,report:(message:string)=>v
   if(!direct&&file.size>classroomVideoLimit)throw Error('Choose an MP4 or WebM up to 256 MB.');
   const course=String(form.get('courseId'));
   let key=staged.get(file);
-  if(!direct){
-    if(!key?.parts||key.course!==course){
-      key={course,pathname:'classroom/'+course+'/'+crypto.randomUUID(),parts:new Set()};staged.set(file,key);
+  if(key?.course!==course)key=undefined;
+  if(direct && !key){
+    try{
+      const {upload}=await import('@vercel/blob/client');
+      const pathname='lessons/uploads/'+course+'/'+crypto.randomUUID()+(type==='video/webm'?'.webm':'.mp4');
+      report('Uploading private video…');
+      const result=await upload(pathname,file,{access:'private',handleUploadUrl:'/api/admin/video-upload',multipart:true,contentType:type,
+        onUploadProgress:({percentage})=>report('Uploading private video · '+Math.round(percentage)+'%')});
+      key={course,pathname:result.pathname};staged.set(file,key);
+    }catch{
+      if(file.size>classroomVideoLimit)throw Error('The private video store could not accept this upload. Keep the editor open, check your staff sign-in and retry.');
+      report('Switching to the academy’s private database upload…');
     }
-    await uploadParts(file,type,key,report);
-  }else if(key?.course!==course||key.parts){
-    const {upload}=await import('@vercel/blob/client');
-    const pathname='lessons/uploads/'+course+'/'+crypto.randomUUID()+(type==='video/webm'?'.webm':'.mp4');
-    report('Uploading private video…');
-    const result=await upload(pathname,file,{access:'private',handleUploadUrl:'/api/admin/video-upload',multipart:true,contentType:type,
-      onUploadProgress:({percentage})=>report('Uploading private video · '+Math.round(percentage)+'%')});
-    key={course,pathname:result.pathname};staged.set(file,key);
   }
+  if(!key){
+    key={course,pathname:'classroom/'+course+'/'+crypto.randomUUID(),parts:new Set()};
+    staged.set(file,key);
+  }
+  if(key.parts)await uploadParts(file,type,key,report);
   form.delete('video');form.set('uploadedVideoKey',key.pathname);report('Saving lesson…');
 }

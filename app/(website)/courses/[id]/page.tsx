@@ -29,6 +29,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const merchant=!access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     ? await merchantStatus().catch(()=>null) : null;
   const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
+  const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
   const learning=firstVideo?'/learn/'+encodeURIComponent(firstVideo.id):'/dashboard';
 
   const detail=<section className="studio-wrap practice-detail">
@@ -56,7 +57,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
         {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:paymentsOpen?<>
           <p>Pay securely by card with SumUp. Your lessons open in your student account as soon as payment is confirmed.</p>
           {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to enrol</a>}
-        </>:<><p>{videos?'Online enrolment opens soon.':'Online lessons are in preparation.'}</p><a className="underlink" href="/contact">Ask the academy about this course</a></>}
+        </>:<><p>{videos?'Online enrolment opens soon.':'Online lessons are in preparation.'}</p><a className="underlink" href={enquiry}>Ask the academy about this course</a></>}
 
       </aside>
       {(course.outcomes||course.requirements||course.access_policy||course.duration)&&<section className="practice-notes">

@@ -8,7 +8,9 @@ export function moduleUrl(source) {
 export async function compile(path, imports) {
   let source = await readFile(path, 'utf8');
   for (const [from, to] of Object.entries(imports)) source = source.replaceAll("'" + from + "'", JSON.stringify(to));
-  return moduleUrl(ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-  }).outputText);
+  const compiled=ts.transpileModule(source, {
+    fileName:path,
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx:ts.JsxEmit.ReactJSX },
+  }).outputText;
+  return moduleUrl(compiled.replaceAll('"react/jsx-runtime"',JSON.stringify(import.meta.resolve('react/jsx-runtime'))));
 }

@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import CourseInvitationActions from './course-invitation-actions';
 type Order={awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
 type Settings={receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};canManageStaff:boolean;staffEmail:string;orders:Order[]};
@@ -8,15 +8,20 @@ const pounds=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
 export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
  const [data,setData]=useState<Settings|null>(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
  const [search,setSearch]=useState(''),[applied,setApplied]=useState('');
+ const [loadError,setLoadError]=useState(''),[loading,setLoading]=useState(true);
+ const latest=useRef(0);
  async function refresh(term=''){
+   const ticket=++latest.current;
+   setLoadError('');setLoading(true);
    try{
      const response=await fetch('/api/payments'+(term?'?order='+encodeURIComponent(term):''),{cache:'no-store'});
      const result=await response.json() as Settings & {error?:string};
-     if(!response.ok)throw Error(result.error);
-     setData(result);
-   }catch(e){setMessage((e as Error).message);}
+     if(!response.ok)throw Error(response.status===403?'Your staff session has expired.':result.error);
+     if(ticket===latest.current)setData(result);
+   }catch(e){if(ticket===latest.current)setLoadError((e as Error).message||'Orders could not be loaded.');}
+   finally{if(ticket===latest.current)setLoading(false);}
  }
- useEffect(()=>{void refresh();},[]);
+ useEffect(()=>{void refresh();return ()=>{latest.current++;};},[]);
  async function save(body:object){
    setBusy(true);setMessage('');
    try{
@@ -29,7 +34,9 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
    }catch(e){setMessage((e as Error).message);return false;}
    finally{setBusy(false);}
  }
- return <><p role="status">{message}</p>{!data?<p>Loading payments…</p>:<>
+ return <><p role="status">{message}</p>
+   {loadError&&<div role="alert">{loadError} <button type="button" className="underlink" onClick={()=>void refresh(applied)}>Try again</button>{' '}<a className="underlink" href="/admin/login?next=%2Fadmin%3Ftab%3DPayments">Staff sign-in</a></div>}
+   {!data?(loading&&<p role="status">Loading payments…</p>):<>
    <div className="admin-grid"><section className="admin-section"><h2>SumUp payments</h2>
      <p>{data.merchant.code?'Connected merchant · '+data.merchant.code:'Connect the existing academy merchant account to take card payments on this website.'}</p>
      {!data.merchant.fromEnvironment&&<details open={!data.merchant.code}><summary>{data.merchant.code?'Update secret key':'Connect merchant account'}</summary>
@@ -56,7 +63,8 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
        <label>Find by order reference or student email<input type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label>
        <div><button className="button outline">Find order</button>{applied&&<button type="button" className="underlink" onClick={()=>{setSearch('');setApplied('');void refresh();}}>Show recent orders</button>}</div>
      </form>
-     {data.orders.map(order=>{
+     {loading&&<p role="status">Loading orders…</p>}
+     {!loading&&!loadError&&data.orders.map(order=>{
        const active=Boolean(order.accessActive||order.awaitingClaim);
        return <article className="payment-record" key={order.id}><h3>{order.title}</h3>
          <p>{order.email} · {pounds.format(order.amount/100)} · {order.status}</p>
@@ -68,6 +76,6 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
          {order.status==='pending'&&order.mode==='whatsapp'&&<button className="underlink" disabled={busy} onClick={()=>{if(confirm('Have you received '+pounds.format(order.amount/100)+' for this historical order?'))void save({action:'confirm-whatsapp',id:order.id});}}>Confirm earlier payment</button>}
          {order.status==='pending'&&['live','test'].includes(order.mode)&&<button className="underlink" disabled={busy} onClick={()=>void save({action:'reconcile',id:order.id})}>Check earlier card payment</button>}
        </article>;
-     })}{!data.orders.length&&<p>{applied?'No matching orders.':'No course orders yet.'}</p>}
+     })}{!loading&&!loadError&&!data.orders.length&&<p>{applied?'No matching orders.':'No course orders yet.'}</p>}
    </section></>}</>;
 }

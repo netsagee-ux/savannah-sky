@@ -49,7 +49,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         </label>
         <div className="notice">
         <strong>Private video hosting</strong>
-        <p>Students stream uploaded lessons from their own accounts. MP4 (H.264) is recommended.</p>
+        <p>New recordings are saved in {directUpload?'private Vercel Blob storage':'the encrypted academy database'}. Students watch here after signing in. MP4 (H.264) is recommended.</p>
         </div>
         <label>Private training video (MP4 or WebM, up to {directUpload?'1 GB':'256 MB'})<input name="video" type="file" accept="video/mp4,video/webm"/>
         </label>

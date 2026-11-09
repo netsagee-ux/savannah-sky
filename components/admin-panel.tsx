@@ -6,6 +6,7 @@ export default function AdminPanel({initialTab,initialCourse}:{initialTab:string
   const [tab,setTab]=useState(initialTab), [selected,setSelected]=useState(initialCourse);
   const [editing,setEditing]=useState<any>(null), [busy,setBusy]=useState(false), [status,setStatus]=useState('');
   const latest=useRef(0);
+  const createRequests=useRef(new WeakMap<HTMLFormElement,string>());
   const [loadedView,setLoadedView]=useState(''),[loadError,setLoadError]=useState('');
   const view=tab+':'+selected;
   const refresh=useCallback(async()=>{
@@ -33,6 +34,11 @@ export default function AdminPanel({initialTab,initialCourse}:{initialTab:string
     setBusy(true);setStatus('');
     try {
       fields.set('action',action);
+      if((action==='lesson'||action==='course')&&!fields.get('id')){
+        const requestId=createRequests.current.get(form)??crypto.randomUUID();
+        createRequests.current.set(form,requestId);
+        fields.set('creationId',requestId);
+      }
       if(action==='lesson'){
         const file=(form.elements.namedItem('video') as HTMLInputElement|null)?.files?.[0];
         if(file)fields.set('video',file);
@@ -41,7 +47,7 @@ export default function AdminPanel({initialTab,initialCourse}:{initialTab:string
       const response=await fetch('/api/admin',{method:'POST',body:fields});
       const result=await response.json() as {error?:string;courseId?:string};
       if(!response.ok) throw Error(result.error||'Unable to save.');
-      form.reset();setEditing(null);
+      createRequests.current.delete(form);form.reset();setEditing(null);
       const newCourse=action==='course'&&!fields.get('id')&&result.courseId;
       if(newCourse)openLessons(result.courseId!);
       setStatus(action==='lesson'?'Lesson saved.':action==='course'?'Course saved.':'Saved successfully.');

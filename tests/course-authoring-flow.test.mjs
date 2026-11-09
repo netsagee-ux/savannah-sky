@@ -79,14 +79,21 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.equal((await requestStaff('approve',{request,current:''})).status,200);
   assert.equal((await requestStaff('approve',{request,current:''})).status,409);
   state.user=educator;
-  const courseId=(await (await save('course',course)).json()).courseId;
+  const creationId=crypto.randomUUID();
+  const create=()=>save('course',{...course,creationId});
+  const courseId=(await (await create()).json()).courseId;
+  assert.equal(courseId,creationId);
+  assert.equal((await (await create()).json()).courseId,courseId);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM courses').first()).n,1);
   assert.ok(courseId);
   const lesson={courseId,title:'Prepare the nail',position:'1'};
   assert.equal((await save('lesson',lesson)).status,400);
   // A two-frame, 32px VP9 recording. The actual upload and streaming handlers round-trip its bytes.
   const video=Buffer.from('GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQJChYECGFOAZwEAAAAAAAH6EU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHWTbuMU6uEElTDZ1OsggEjTbuMU6uEHFO7a1OsggHk7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsCrXsYMPQkBNgIxMYXZmNjEuNy4xMDNXQYxMYXZmNjEuNy4xMDNEiYhAeQAAAAAAABZUrmvIrgEAAAAAAAA/14EBc8WIpvfJr9g5ExucgQAitZyDdW5kiIEAhoVWX1ZQOYOBASPjg4QL68IA4JCwgSC6gSCagQJVsIRVuYEBElTDZ0B/c3OfY8CAZ8iZRaOHRU5DT0RFUkSHjExhdmY2MS43LjEwM3Nz2mPAi2PFiKb3ya/YORMbZ8ilRaOHRU5DT0RFUkSHmExhdmM2MS4xOS4xMDEgbGlidnB4LXZwOWfIoUWjiERVUkFUSU9ORIeTMDA6MDA6MDAuNDAwMDAwMDAwAB9DtnW354EAo52BAACAgkmDQgAB8AH2ADgkHBhKAAAwYAAAItXAAKOTgQDIAIYAQJKcAFAAAAMgAABDQBxTu2uRu4+zgQC3iveBAfGCAajwgQM=','base64');
   const file=new File([video],'studio.webm',{type:'video/webm'});
-  assert.equal((await save('lesson',{...lesson,video:file})).status,200);
+  const firstLesson=crypto.randomUUID();
+  const createLesson=()=>save('lesson',{...lesson,creationId:firstLesson,video:file});
+  assert.ok((await Promise.all([createLesson(),createLesson()])).every(response=>response.ok));
   const lessonId=(await db.prepare('SELECT id FROM lessons WHERE course_id=?').bind(courseId).first()).id;
   assert.equal((await save('lesson',{...lesson,id:lessonId,removeVideo:'1'})).status,400);
   const partRoute=await route('app/api/admin/video-part/route.ts');
@@ -180,6 +187,21 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
     const bytes=await stream.GET(new Request(origin+address),{params:Promise.resolve({id:row.id})});
     assert.deepEqual(Buffer.from(await bytes.arrayBuffer()),row.position===15?largerVideo:video);
   }
+  const progress=await route('app/api/progress/route.ts');
+  const checkpoint=async values=>progress.POST(post('/api/progress',{lessonId,...values}));
+  const before=await (await watch()).json();
+  assert.equal(before.seconds,0);
+  const savePlace={action:'bookmark',seconds:42,bookmark:before.bookmark};
+  assert.equal((await checkpoint(savePlace)).status,200);
+  state.user={...buyer,sessionId:'another-device'};
+  assert.equal((await (await watch()).json()).seconds,42);
+  assert.equal((await checkpoint({...savePlace,seconds:-1})).status,400);
+  assert.equal((await checkpoint({...savePlace,bookmark:'other-recording'})).status,409);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM progress').first()).n,0);
+  state.user=owner;
+  assert.equal((await (await watch()).json()).seconds,0);
+  assert.equal((await checkpoint(savePlace)).status,409);
+  state.user=buyer;
   const playbackUrl=(await (await watch()).json()).url;
   const play=()=>stream.GET(new Request(origin+playbackUrl),{params:Promise.resolve({id:lessonId})});
   assert.deepEqual(Buffer.from(await (await play()).arrayBuffer()),video);
@@ -194,6 +216,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   state.user=buyer;
   await claimPaidOrders(buyer);
   assert.equal((await play()).status,403);
+  assert.equal((await checkpoint(savePlace)).status,403);
   assert.ok(await db.prepare('SELECT id FROM enrollments WHERE id=?').bind('buyer/former-owner/'+courseId).first());
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
   state.user=null;

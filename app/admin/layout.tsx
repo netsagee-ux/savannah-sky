@@ -1,4 +1,16 @@
+import {ArrowUpRight} from 'lucide-react';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
-import './dashboard.css';
+import AcademyWordmark from '@/components/academy-wordmark';
 import AccountLayout from '@/components/account-layout';
-export default async function AdminLayout({children}:{children:React.ReactNode}){const user=await getChatGPTUser();return <AccountLayout staff><div className="admin-area"><header className="admin-topbar"><a className="admin-brand" href="/"><span>Savannah Sky<small>ACADEMY WORKSPACE</small></span></a>{user&&<a className="admin-signout" href="/sign-out" target="_top">Sign out ↗</a>}</header><main id="main">{children}</main></div></AccountLayout>}
+import './dashboard.css';
+
+export default async function AdminLayout({children}:{children:React.ReactNode}){
+  const user=await getChatGPTUser();
+  return <AccountLayout staff><div className="admin-area">
+    <header className="workspace-mast"><div className="workspace-mast-inner">
+      <a className="workspace-brand" href="/" aria-label="Savannah Sky Training Academy home"><AcademyWordmark/></a>
+      <a className="workspace-account" href={user?'/sign-out?staff=1':'/sign-in'}>{user?'Sign out':'Student sign-in'}<ArrowUpRight size={16} aria-hidden="true"/></a>
+    </div></header>
+    <main id="main">{children}</main>
+  </div></AccountLayout>;
+}

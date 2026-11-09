@@ -52,7 +52,7 @@ test('course checkout checks availability, charges the listed price and grants a
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',
     'CREATE TABLE progress(id TEXT PRIMARY KEY,user_id TEXT,lesson_id TEXT,completed_at TEXT)',
     'CREATE TABLE courses(id TEXT PRIMARY KEY, title TEXT, price INTEGER, course_url TEXT, published INTEGER)',
-    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER)',
+    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER)',
     'CREATE TABLE enrollments(id TEXT PRIMARY KEY, email TEXT, course_id TEXT)',
     'CREATE TABLE orders(id TEXT PRIMARY KEY,user_id TEXT,email TEXT,course_id TEXT,title TEXT,amount INTEGER,currency TEXT,status TEXT,mode TEXT,created_at TEXT,session_id TEXT,paid_at TEXT)',
     "INSERT INTO courses VALUES('gel','Gel Foundations',6500,NULL,0)",
@@ -81,7 +81,7 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal((await checkout()).status, 409);
   await db.prepare("UPDATE courses SET published=1 WHERE id='gel'").run();
   assert.equal((await checkout()).status, 409);
-  await db.prepare("INSERT INTO lessons VALUES('prep','gel','private-video-key',NULL,1)").run();
+  await db.prepare("INSERT INTO lessons(id,course_id,video_key,video_url,position) VALUES('prep','gel','private-video-key',NULL,1)").run();
   assert.equal((await checkout()).status, 503); // Live merchant not connected.
   await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('legacy-card','student','student@example.com','gel','Gel Foundations',6500,'gbp','pending','live','2026-01-01')").run();
   process.env.PUBLIC_PAYMENTS_READY = 'false';
@@ -142,7 +142,7 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.match(emailRequests[1].body.text,/https:\/\/academy.example\/orders\/s1_[\w-]+\/learn/);
   assert.equal(new URL((await openLink()).headers.get('Location')).pathname, '/learn/prep');
   assert.equal((await openLink()).headers.get('Cache-Control'), 'private, no-store');
-  await db.prepare("INSERT INTO lessons VALUES('shape','gel','another-private-key',NULL,2)").run();
+  await db.prepare("INSERT INTO lessons(id,course_id,video_key,video_url,position) VALUES('shape','gel','another-private-key',NULL,2)").run();
   assert.equal((await ownedOrder(manual.orderId,'manual-student')).status,'paid');
   assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='manual@example.com'").all()).results.length,1);
 

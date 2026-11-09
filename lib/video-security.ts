@@ -24,3 +24,10 @@ export async function verifyPlayback(viewer: Viewer, lessonId: string, expires: 
 }
 export function imageContentType(bytes:Uint8Array):string|null{if(bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';if([137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v))return 'image/png';if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')return 'image/webp';return null;}
 export function parseRange(value:string|null,size:number):{offset:number;length:number}|null{if(!value)return null;const m=/^bytes=(\d*)-(\d*)$/.exec(value);if(!m||(!m[1]&&!m[2]))throw Error('Invalid range');let start:number,end:number;if(!m[1]){const suffix=Number(m[2]);if(!Number.isSafeInteger(suffix)||suffix<=0)throw Error('Invalid range');start=Math.max(0,size-suffix);end=size-1;}else{start=Number(m[1]);end=m[2]?Math.min(Number(m[2]),size-1):size-1;}if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=size||end<start)throw Error('Invalid range');return {offset:start,length:end-start+1};}
+
+export async function videoBookmark(userId:string,lessonId:string,videoKey:string) {
+  // Replacing a recording starts a new bookmark even when the lesson ID stays the same.
+  const bytes=encoder.encode(JSON.stringify([userId,lessonId,videoKey]));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return 'watch:'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+}
