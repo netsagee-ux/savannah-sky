@@ -22,7 +22,7 @@ export async function GET(request:Request){
         AND l.course_id=e.course_id) AS completed FROM enrollments e JOIN courses c ON c.id=e.course_id`;
     const [merchant,metrics,courses,enquiries,enrollments,recordings]=await Promise.all([
       all||tab==='Courses'?merchantStatus().catch(()=>null):null,all||tab==='Courses'||tab==='Payments'?salesSummary().catch(()=>null):null,
-      all||tab==='Courses'?store.prepare(fullCourses).all():tab==='Lessons'?store.prepare(`SELECT c.id,c.title,c.level,c.published,c.thumbnail_key,
+      all||tab==='Courses'||(tab==='Lessons'&&!courseId)?store.prepare(fullCourses).all():tab==='Lessons'?store.prepare(`SELECT c.id,c.title,c.level,c.published,c.thumbnail_key,
         (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count FROM courses c ORDER BY c.title`).all():null,
       all||tab==='Enquiries'?store.prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 100').all():null,
       all||tab==='Students'?store.prepare(students).all():null,

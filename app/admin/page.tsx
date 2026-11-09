@@ -18,5 +18,5 @@ export default async function Admin({searchParams}:{searchParams:Promise<{tab?:s
   const [user,canManageStaff]=await Promise.all([getChatGPTUser(),owner()]);
   const params=new URL(destination,'https://academy.local').searchParams;
   return <AdminPanel initialTab={params.get('tab')||'Courses'} initialCourse={params.get('courseId')||''}
-    canManageStaff={canManageStaff} displayName={user?.fullName||''}/>;
+    canManageStaff={canManageStaff} email={user?.email||''} displayName={user?.fullName||''}/>;
 }
