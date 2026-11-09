@@ -4,9 +4,9 @@ export default function AccountLayout({children,staff=false}:{children:React.Rea
   if(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return children;
   return <ClerkProvider signInUrl={staff?'/admin/login':'/sign-in'} signUpUrl="/sign-up"
     localization={{signIn:{start:{
-      ...(staff?{title:'Staff sign-in',subtitle:'Use your educator email to open your workspace.'}:{}),
+      ...(staff?{title:'Staff sign-in',subtitle:'Enter your own educator email. Your sign-in code goes straight to that inbox.'}:{}),
       titleCombined:staff?'Staff sign-in':'Student sign-in',
-      subtitleCombined:staff?'Use your educator email to open your workspace.':'Use your email to open your courses and orders.',
+      subtitleCombined:staff?'Enter your own educator email. Your sign-in code goes straight to that inbox.':'Use your email to open your courses and orders.',
     }}}}>{children}</ClerkProvider>;
 }
 

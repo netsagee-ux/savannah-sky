@@ -1,5 +1,5 @@
 import {getChatGPTUser} from '@/app/chatgpt-auth';
-import {db,owner,staffEmail} from '@/lib/server';
+import {db,owner,staffEmail,educatorInviteKey} from '@/lib/server';
 
 const prefix='staff-request:';
 const headers={'Cache-Control':'private, no-store'};
@@ -19,6 +19,10 @@ export async function POST(req:Request){
       return reply({message:'Your request is with the academy owner. Return here after approval.'});
     }
     if(!await owner())return reply({error:'Academy owner access required.'},403);
+    if(data?.action==='revoke-invite'){
+      await dbh.prepare("INSERT INTO settings(id,value) VALUES(?,'revoked') ON CONFLICT(id) DO UPDATE SET value='revoked'").bind(educatorInviteKey).run();
+      return reply({message:'Educator invitation revoked.'});
+    }
     const id=data?.request;
     if(!id?.startsWith(prefix)||!['approve','dismiss'].includes(data?.action||''))return reply({error:'Select a staff request.'},400);
     const request=await dbh.prepare('SELECT value FROM settings WHERE id=?').bind(id).first<{value:string}>();
