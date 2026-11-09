@@ -13,11 +13,15 @@ export class SumUpError extends Error {
   constructor(message:string,readonly status=503){super(message);}
 }
 
-async function request<T>(merchant:Merchant,path:string,body?:object):Promise<T>{
-  const response=await fetch(api+path,{method:body?'POST':'GET',cache:'no-store',redirect:'error',
+async function callSumUp(merchant:Merchant,path:string,method:'GET'|'POST'|'DELETE',body?:object){
+  const response=await fetch(api+path,{method,cache:'no-store',redirect:'error',
     signal:AbortSignal.timeout(9000),headers:{Authorization:'Bearer '+merchant.key,...(body?{'Content-Type':'application/json'}:{})},
     ...(body?{body:JSON.stringify(body)}:{})});
   if(!response.ok)throw new SumUpError('SumUp could not complete this request.',response.status);
+  return response;
+}
+async function request<T>(merchant:Merchant,path:string,body?:object):Promise<T>{
+  const response=await callSumUp(merchant,path,body?'POST':'GET',body);
   return response.json() as Promise<T>;
 }
 
@@ -46,6 +50,26 @@ async function verifyMerchant(merchant:Merchant){
   if(account.default_currency!=='GBP')throw new SumUpError('Connect the GBP merchant account that receives the academy course fees.',400);
   if(account.merchant_code!==merchant.code || account.sandbox===true)throw new SumUpError('Connect a verified live merchant account to accept course payments.',400);
 }
+
+async function verifyCheckoutAccess(merchant:Merchant){
+  const reference='setup-'+crypto.randomUUID();
+  // This checkout is never processed or presented to a payer. Expiry also covers an interrupted setup.
+  const checkout=await request<Checkout>(merchant,'/v0.1/checkouts',{
+    checkout_reference:reference,merchant_code:merchant.code,amount:1,currency:'GBP',
+    description:'Academy connection check',valid_until:new Date(Date.now()+5*60_000).toISOString(),
+  });
+  if(!checkout || typeof checkout.id!=='string' || !/^[\w-]{1,128}$/.test(checkout.id) || checkout.checkout_reference!==reference)
+    throw new SumUpError('SumUp could not confirm the connection check.');
+  const path='/v0.1/checkouts/'+encodeURIComponent(checkout.id);
+  try{
+    const verified=await request<Checkout>(merchant,path);
+    if(verified.id!==checkout.id || verified.checkout_reference!==reference || verified.merchant_code!==merchant.code ||
+      verified.amount!==1 || verified.currency!=='GBP' || verified.status!=='PENDING')
+      throw new SumUpError('SumUp returned unexpected checkout details.');
+  } finally {
+    await callSumUp(merchant,path,'DELETE');
+  }
+}
 export async function merchantStatus(){
   const merchant=await stored();
   return {code:merchant?.code??null,fromEnvironment:!!fromEnvironment()};
@@ -60,7 +84,14 @@ export async function saveMerchant(code:string,key:string){
   if(existing && existing.code!==merchant.code)throw new SumUpError('Use the existing merchant code when updating its key.',409);
   try {await verifyMerchant(merchant);}
   catch(e){if(e instanceof SumUpError && e.status===400)throw e;throw new SumUpError('SumUp could not verify this merchant. Check the code and the permissions on the API key.',400);}
-  const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',configKey(),iv);
+  const encryptionKey=configKey();
+  try {await verifyCheckoutAccess(merchant);}
+  catch(e){
+    if(e instanceof SumUpError && [401,403].includes(e.status))
+      throw new SumUpError('SumUp recognised this account but denied access to online checkouts. Check that online payments are enabled for this merchant and try its live secret API key.',400);
+    throw new SumUpError('SumUp could not complete the online checkout check. Please try again.');
+  }
+  const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',encryptionKey,iv);
   cipher.setAAD(Buffer.from(settingsId));
   const data=Buffer.concat([cipher.update(JSON.stringify(merchant),'utf8'),cipher.final()]);
   const packed=Buffer.concat([iv,cipher.getAuthTag(),data]).toString('base64');

@@ -38,18 +38,27 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const configure=body=>staff.POST(post('/api/payments',body));
   const as=(id)=>{globalThis.sumupTestUser=id?{userId:id,email:id+'@example.test',sessionId:'browser'}:null;};
   const code='MTEST123',key='sup_sk_abcdefghijklmnop';
-  const remote=new Map(),calls=[];let tamper={},sandbox=true;
+  const remote=new Map();let tamper={},sandbox=true,denyWrite=false,denyRead=false,closedChecks=0;
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     assert.equal(options.headers.Authorization,'Bearer '+key);
     const {pathname,searchParams}=new URL(url);
     if(pathname.startsWith('/v1/merchants/'))return Response.json({merchant_code:code,sandbox,default_currency:'GBP'});
     if(pathname==='/v0.1/checkouts' && options.method==='POST'){
-      const body=JSON.parse(options.body);calls.push(body);
+      const body=JSON.parse(options.body);
+      if(denyWrite)return new Response(null,{status:403});
       if([...remote.values()].some(item=>item.checkout_reference===body.checkout_reference))return new Response(null,{status:409});
       const id=crypto.randomUUID(),checkout={...body,id,status:'PENDING'};remote.set(id,checkout);return Response.json(checkout);
     }
     if(pathname==='/v0.1/checkouts')return Response.json([...remote.values()].filter(c=>c.checkout_reference===searchParams.get('checkout_reference')));
-    const current=remote.get(pathname.split('/').at(-1));assert.ok(current);return Response.json({...current,...tamper});
+    const current=remote.get(pathname.split('/').at(-1));assert.ok(current);
+    if(options.method==='DELETE'){
+      assert.match(current.checkout_reference,/^setup-/);assert.equal(current.amount,1);
+      assert.equal(current.status,'PENDING');assert.ok(Date.parse(current.valid_until)-Date.now()<=300_000);
+      closedChecks++;remote.delete(current.id);return new Response(null,{status:204});
+    }
+    assert.equal(options.method,'GET');
+    if(denyRead)return new Response(null,{status:403});
+    return Response.json({...current,...tamper});
   });
   for(const id of ['gel','art','empty'])await db.prepare("INSERT INTO courses(id,title,description,level,price,published) VALUES(?,?,'Lesson','Beginner',4950,1)").bind(id,id).run();
   for(const id of ['gel','art'])await db.prepare("INSERT INTO lessons(id,course_id,title,position,video_key,body) VALUES(?,?,?,1,'private','Practice')").bind('video-'+id,id,id).run();
@@ -58,7 +67,14 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   as('owner');assert.equal((await configure({action:'connect-sumup',code,key})).status,400);
   assert.equal((await configure({action:'staff-access',email:'educator@example.test'})).status,200);
   as('educator');assert.equal((await configure({action:'staff-access',email:'buyer@example.test'})).status,403);
-  sandbox=false;assert.equal((await configure({action:'connect-sumup',code,key})).status,200);
+  sandbox=false;denyWrite=true;
+  assert.match((await (await configure({action:'connect-sumup',code,key})).json()).error,/denied access to online checkouts/);
+  denyWrite=false;denyRead=true;
+  assert.match((await (await configure({action:'connect-sumup',code,key})).json()).error,/denied access to online checkouts/);
+  assert.equal(await db.prepare("SELECT id FROM settings WHERE id='sumup:merchant:v1'").first(),null);
+  denyRead=false;assert.equal((await configure({action:'connect-sumup',code,key})).status,200);
+  assert.equal(closedChecks,2);assert.equal(remote.size,0);
+  assert.deepEqual(await salesSummary(),{sales:0,gross:0,customers:0});
   const settings=await (await staff.GET(new Request(site+'/api/payments'))).json();assert.equal(settings.merchant.code,code);
   assert.ok(!JSON.stringify(settings).includes(key));assert.ok(!(await db.prepare("SELECT value FROM settings WHERE id='sumup:merchant:v1'").first()).value.includes(key));
   as('buyer');

@@ -38,8 +38,10 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
          if(await save({action:'connect-sumup',code:fields.get('code'),key:fields.get('key')}))form.reset();
        }}>
          <label>Merchant code<input name="code" defaultValue={data.merchant.code||''} required autoCapitalize="characters" spellCheck={false}/></label>
+         <small>Use the code beside your business name in your <a href="https://me.sumup.com" target="_blank" rel="noreferrer">SumUp dashboard</a>.</small>
          <label>Secret API key<input name="key" type="password" autoComplete="new-password" required/></label>
-         <small>Use the live key from your <a href="https://me.sumup.com" target="_blank" rel="noreferrer">SumUp dashboard</a> under Settings → For Developers → Toolkit → API Keys.</small>
+         <small>In your live business profile, open Settings → For Developers → Toolkit → API Keys and create a secret key for the academy website.</small>
+         <p>We’ll check that this account can create and confirm a GBP checkout. No card is charged.</p>
          <button className="button" disabled={busy}>Verify and save</button>
        </form></details>}
    </section>{data.canManageStaff&&<section className="admin-section"><h2>Staff access</h2>
