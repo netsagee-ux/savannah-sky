@@ -10,6 +10,11 @@ export function accredited(course:{id:string;cpd?:number|string|null}){
  return course.cpd==null?accreditedCourses.has(course.id):Number(course.cpd)===1;
 }
 
+const gbp = new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
+export function courseFee(pence:number){
+  return gbp.format(pence/100).replace(/\.00$/,'');
+}
+
 export function courseSummary(description:string){
   const opening=description.trim().split(/\r?\n/)[0];
   if(opening.length<=190)return opening;

@@ -1,6 +1,6 @@
 import {useState, type FormEvent} from 'react';
 import {ArrowUpRight, BookOpen, Check, Columns3, Ellipsis, LayoutList, Plus, SearchX, SlidersHorizontal, Video, X} from 'lucide-react';
-import {accredited, courseSummary, isConversion, type Course} from '@/lib/data';
+import {accredited, courseFee, courseSummary, isConversion, type Course} from '@/lib/data';
 import {courseImage} from './ui';
 
 export type StudioCourse = Course & {videos?:number; lesson_count?:number};
@@ -75,7 +75,7 @@ export default function WorkspaceLibrary({courses,search,busy,onLessons,onEdit,o
               <h3><button type="button" disabled={busy} aria-label={'Manage lessons for '+c.title} onClick={()=>onLessons(c.id)}>{c.title}</button></h3>
               {c.description&&<p className="studio-card-description">{courseSummary(c.description)}</p>}
               {feature&&<img className="studio-course-photo" src={courseImage(c,index,480)} width={440} height={200} alt="" loading="lazy"/>}
-              {c.price!=null&&<p className="studio-card-fee"><span>Course fee</span><strong>{new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',minimumFractionDigits:0,maximumFractionDigits:2}).format(c.price/100)}</strong></p>}
+              {c.price!=null&&<p className="studio-card-fee"><span>Course fee</span><strong>{courseFee(c.price)}</strong></p>}
               {total>0&&<div className="studio-video-coverage"><div><span>Video lessons</span><span>{videos} of {total}</span></div>
                 <div className="studio-meter" aria-hidden="true"><span style={{width:Math.min(100,videos/total*100)+'%'}}/></div></div>}
               <footer><span className="studio-publish-state">{c.published?<Check size={14}/>:<span className="studio-draft-dot"/>}{c.published?'Published':'Draft'}</span>

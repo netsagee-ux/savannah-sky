@@ -35,6 +35,8 @@ test('classroom uploads initialise once, run at most three parts concurrently, a
 test('staff sign-in restores only authorised workspace destinations',async()=>{
   const {staffDestination}=await import(await compile('lib/staff-navigation.ts',{}));
   assert.equal(staffDestination('/admin?tab=Lessons&courseId=gel'),'/admin?tab=Lessons&courseId=gel');
+  assert.equal(staffDestination('/admin?tab=Courses&action=create'),'/admin?tab=Courses&action=create');
+  assert.equal(staffDestination('/admin?tab=Payments&action=create'),'/admin?tab=Payments');
   for(const value of ['https://other.example/private','//other.example','/admin/../orders','/administer',null,[]])assert.equal(staffDestination(value),'/admin?tab=Lessons');
 });
 

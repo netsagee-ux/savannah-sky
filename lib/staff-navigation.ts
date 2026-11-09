@@ -9,6 +9,7 @@ export function staffDestination(value?:string){
   const tab=url.searchParams.get('tab');
   if(!tab||!tabs.includes(tab))return '/admin';
   const params=new URLSearchParams({tab});
+  if(tab==='Courses'&&url.searchParams.get('action')==='create')params.set('action','create');
   const course=url.searchParams.get('courseId');
   if(tab==='Lessons'&&course&&/^[a-zA-Z0-9_-]{1,128}$/.test(course))params.set('courseId',course);
   return '/admin?'+params;
