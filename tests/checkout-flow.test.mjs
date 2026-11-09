@@ -44,8 +44,9 @@ test('course checkout checks availability, charges the listed price and grants a
   const { confirmManualPayment, ownedOrder } = await import(orderModule);
   const { fulfill } = await import(payments);
   const { sendOrderReceipt } = await import(receipts);
+  const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orderModule,'./course-invitation':invite});
   const { POST } = await import(await compile('app/api/checkout/route.ts', {
-    '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/course-orders': orderModule,
+    '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/sumup':sumup,
   }));
   for (const sql of [
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',
@@ -81,7 +82,7 @@ test('course checkout checks availability, charges the listed price and grants a
   await db.prepare("UPDATE courses SET published=1 WHERE id='gel'").run();
   assert.equal((await checkout()).status, 409);
   await db.prepare("INSERT INTO lessons VALUES('prep','gel','private-video-key',NULL,1)").run();
-  assert.equal((await checkout()).status, 409); // New purchases must start in WhatsApp.
+  assert.equal((await checkout()).status, 503); // Live merchant not connected.
   await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('legacy-card','student','student@example.com','gel','Gel Foundations',6500,'gbp','pending','live','2026-01-01')").run();
   process.env.PUBLIC_PAYMENTS_READY = 'false';
   assert.equal((await checkout({orderId:'legacy-card'})).status,409);
@@ -100,13 +101,13 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(await fulfill(session), true);
   assert.equal((await db.prepare('SELECT * FROM enrollments').all()).results.length, 1);
   assert.equal(await sendOrderReceipt(order.id), 'unconfigured');
-  assert.equal((await (await checkout({handoff:true})).json()).enrolled, true);
+  assert.equal((await (await checkout()).json()).path, '/dashboard');
 
   globalThis.academyCheckoutIdentity = { user: {userId:'manual-student',email:'manual@example.com',sessionId:'mobile'} };
   process.env.PUBLIC_PAYMENTS_READY = 'false';
-  assert.equal((await (await checkout({handoff:true})).json()).callbackRequired,true);
-  await db.prepare("INSERT INTO settings VALUES('academy_whatsapp','+44 7700 900123')").run();
-  const manual = await (await checkout({handoff:true})).json();
+  assert.equal((await checkout({handoff:true})).status,409);
+  const manual={orderId:'historical-manual'};
+  await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES(?,'manual-student','manual@example.com','gel','Gel Foundations',6500,'gbp','pending','whatsapp','2026-01-01')").bind(manual.orderId).run();
   const privateEntry = await import(await compile('app/(website)/orders/[id]/learn/route.ts', {
     '@/app/chatgpt-auth': identity, '@/lib/course-orders': orderModule, '@/lib/server': server,
     '@/lib/student-course-link': privateUrls, '@/lib/course-invitation':invite,
@@ -121,12 +122,6 @@ test('course checkout checks availability, charges the listed price and grants a
   assert.equal(signInLink.pathname, '/sign-in');
   assert.equal(signInLink.searchParams.get('redirect_url'), orderPath+'/learn');
   globalThis.academyCheckoutIdentity.user = buyer;
-  assert.equal(new URL(manual.url).pathname, '/447700900123');
-  const message = new URL(manual.url).searchParams.get('text');
-  assert.ok(message.includes('Gel Foundations (£65.00)'));
-  assert.ok(message.includes('https://academy.example/orders/'+manual.orderId));
-  assert.ok(!message.includes('manual@example.com'));
-  assert.equal((await (await checkout({handoff:true})).json()).orderId,manual.orderId);
   assert.ok(!await ownedOrder(manual.orderId,'stranger'));
   assert.equal((await ownedOrder(manual.orderId,'manual-student')).status,'pending');
   assert.equal((await db.prepare("SELECT id FROM enrollments WHERE email='manual@example.com'").all()).results.length,0);
@@ -187,14 +182,6 @@ test('course checkout checks availability, charges the listed price and grants a
   await confirmManualPayment(manual.orderId);
   assert.equal((await readVideo()).status, 403);
 
-  process.env.PUBLIC_PAYMENTS_READY = 'true';
-  globalThis.academyCheckoutIdentity.user = {userId:'online-student',email:'online@example.com'};
-  const online = await (await checkout({handoff:true})).json();
-  assert.equal((await checkout({orderId:online.orderId})).status,409);
-  assert.equal((await ownedOrder(online.orderId,'online-student')).mode,'whatsapp');
-  globalThis.academyCheckoutIdentity.user = {userId:'stranger',email:'other@example.com'};
-  assert.equal((await checkout({orderId:online.orderId})).status,409);
-
   // On a reused email, keep each buyer’s access independently revocable when upgrading an old enrolment.
   await db.prepare("UPDATE enrollments SET id=email||':'||course_id WHERE id='buyer/student/gel'").run();
   await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode) VALUES('second-owner','next-owner','student@example.com','gel','Gel',6500,'gbp','pending','whatsapp')").run();
@@ -240,7 +227,7 @@ test('a course enquiry is saved for staff and invalid requests leave the inbox u
     const server = moduleUrl(`export const db = () => ({prepare: sql => ({bind: (...args) => ({
       run: () => globalThis.enquiryTestDatabase.prepare(sql).run(...args)
     })})});`);
-    const { POST } = await import(await compile('app/api/enquiry/route.ts', {'@/lib/server': server}));
+  const { POST } = await import(await compile('app/api/enquiry/route.ts', {'@/lib/server': server}));
     const enquiry = {name: 'Student', email: 'student@example.test', interest: 'Course availability',
       message: 'When can I enrol in Gel Polish Foundations?'};
     const send = (body, origin = 'https://academy.example') => POST(new Request('https://academy.example/api/enquiry', {

@@ -21,7 +21,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
   try {
     const database = db();
     const order = await database.prepare(
-      "SELECT email,title,amount,course_id,EXISTS(SELECT 1 FROM settings WHERE id='order_activation:'||orders.id) AS activatedWithPassword FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live') AND user_id NOT LIKE 'withdrawn/%'"
+      "SELECT email,title,amount,course_id,EXISTS(SELECT 1 FROM settings WHERE id='order_activation:'||orders.id) AS activatedWithPassword FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live','sumup') AND user_id NOT LIKE 'withdrawn/%'"
     ).bind(id).first<PaidOrder>();
     if (!order) return 'ineligible';
 

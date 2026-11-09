@@ -13,10 +13,10 @@ export default async function AdminLogin() {
     <div className="login-card">
       <span className="eyebrow">ACADEMY MANAGEMENT</span>
       <h1>Staff sign-in</h1>
-      <p>Manage course recordings, verify payments and look after your students.</p>
+      <p>Manage course recordings, review sales and look after your students.</p>
       {user ? <><p className="notice">{user.email} does not have academy management access.</p><a className="button" href="/sign-out">Switch account</a></>
         : process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-        ? <SignIn routing="hash" forceRedirectUrl="/admin" appearance={{elements:{footerAction:{display:'none'}},variables:{colorPrimary:'#512634'}}}/>
+        ? <SignIn withSignUp routing="hash" forceRedirectUrl="/admin" appearance={{variables:{colorPrimary:'#512634'}}}/>
         : <p role="status">Staff sign-in is temporarily unavailable.</p>}
       <a className="underlink" href="/sign-in">Go to student sign-in</a>
     </div>

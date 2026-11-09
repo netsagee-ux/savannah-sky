@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {test} from 'node:test';
 import {compile, moduleUrl} from './compile-fixture.mjs';
 
-test('administrator uploads a course and a guest can claim it once after a verified WhatsApp payment', async t => {
+test('staff can publish fifteen recordings and earlier paid guest orders still activate once', async t => {
   const dir=await mkdtemp(join(tmpdir(),'academy-authoring-'));
   const env={TURSO_DATABASE_URL:'file:'+join(dir,'academy.db'), TURSO_AUTH_TOKEN:'test', ADMIN_EMAIL:'teacher@example.test',
     CLERK_SECRET_KEY:'test',NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:'test',APP_ENCRYPTION_KEY:'private-test-key',
@@ -46,7 +46,8 @@ test('administrator uploads a course and a guest can claim it once after a verif
   const orders=await compile('lib/course-orders.ts',{'./server':server,'./order-receipt':receipt});
   const security=await compile('lib/payment-security.ts',{});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':security});
-  const modules={'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
+  const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orders,'./course-invitation':inviteModule});
+  const modules={'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
   const route=async path=>import(await compile(path,modules));
@@ -98,53 +99,17 @@ test('administrator uploads a course and a guest can claim it once after a verif
   }
   const roster=(await db.prepare('SELECT id,position FROM lessons WHERE course_id=? AND video_key IS NOT NULL ORDER BY position').bind(courseId).all()).results;
   assert.deepEqual(roster.map(row=>row.position),Array.from({length:15},(_,i)=>i+1));
-  const intent=crypto.randomUUID(), fields={courseId,handoff:true,email:' Learner@example.test ',intent};
-  const order=(overrides={})=>checkout.POST(post('/api/checkout',{...fields,...overrides}));
   const watch=()=>token.POST(post('/api/video-access',{lessonId}));
-  state.user=null;
-  assert.equal((await order()).status,409);
   state.user=owner;
   assert.equal((await save('visibility',{id:courseId,published:'1'})).status,200);
+  async function historicalGuestOrder(email){
+    const id=crypto.randomUUID();
+    await db.batch([db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES(?,?,?,?,?,4950,'gbp','pending','whatsapp',?)").bind(id,'guest/'+id,email,courseId,course.title,new Date().toISOString()),
+      db.prepare('INSERT INTO settings(id,value) VALUES(?,?)').bind('order_activation:'+id,'1')]);
+    return id;
+  }
+  const orderId=await historicalGuestOrder(buyer.email);
   state.user=null;
-  assert.equal((await order({email:'wrong'})).status,400);
-  assert.equal((await (await order()).json()).callbackRequired,true);
-  const callback={email:'callback@example.test',intent:crypto.randomUUID(),callback:'+44 7700 900099'};
-  await db.prepare('UPDATE courses SET price=NULL WHERE id=?').bind(courseId).run();
-  const request=await (await order(callback)).json();
-  assert.equal(request.callbackSaved,true);
-  assert.equal((await (await order(callback)).json()).orderId,request.orderId);
-  state.user=owner;
-  assert.equal((await payment({action:'confirm-whatsapp',id:request.orderId})).status,400);
-  assert.equal((await payment({action:'quote',id:request.orderId,price:'12.50'})).status,200);
-  assert.equal((await db.prepare('SELECT amount FROM orders WHERE id=?').bind(request.orderId).first()).amount,1250);
-  state.user=null;
-  assert.equal((await (await order(callback)).json()).orderId,request.orderId);
-  await db.prepare('UPDATE courses SET price=4950 WHERE id=?').bind(courseId).run();
-  state.user=owner;
-  assert.equal((await payment({action:'whatsapp',number:'+44 7700 900123'})).status,200);
-  state.user=null;
-  // The academy can accept a WhatsApp order and agree its fee in the buyer’s chat.
-  await db.prepare('UPDATE courses SET price=NULL WHERE id=?').bind(courseId).run();
-  const enquiry={email:'quote@example.test',intent:crypto.randomUUID()};
-  const direct=await (await order(enquiry)).json();
-  assert.equal(new URL(direct.url).hostname,'wa.me');
-  assert.equal(new URL(direct.url).pathname,'/447700900123');
-  assert.match(new URL(direct.url).searchParams.get('text'),/course fee and payment details/);
-  assert.doesNotMatch(direct.url,/%C2%A30\.00/);
-  state.user=owner;
-  assert.equal((await payment({action:'confirm-whatsapp',id:direct.orderId})).status,400);
-  assert.equal((await payment({action:'quote',id:direct.orderId,price:'18.50'})).status,200);
-  state.user=null;
-  const quoted=await (await order(enquiry)).json();
-  assert.equal(quoted.orderId,direct.orderId);
-  assert.match(new URL(quoted.url).searchParams.get('text'),/£18.50/);
-  await db.prepare('UPDATE courses SET price=4950 WHERE id=?').bind(courseId).run();
-  const created=await order();assert.equal(created.status,200);
-  const {orderId,url,guest}=await created.json();
-  assert.equal(guest,true);
-  assert.equal(new URL(url).hostname,'wa.me');
-  assert.ok(new URL(url).searchParams.get('text').includes('£49.50'));
-  assert.equal((await (await order()).json()).orderId,orderId);
   const open=()=>entry.GET(new Request(origin+'/orders/'+orderId+'/learn'),{params:Promise.resolve({id:orderId})});
   const confirm=()=>payment({action:'confirm-whatsapp',id:orderId});
   assert.equal((await confirm()).status,403);
@@ -211,7 +176,7 @@ test('administrator uploads a course and a guest can claim it once after a verif
   assert.ok(await db.prepare('SELECT id FROM enrollments WHERE id=?').bind('buyer/former-owner/'+courseId).first());
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
   state.user=null;
-  const invite=(await (await order({intent:crypto.randomUUID(),email:stranger.email})).json()).orderId;
+  const invite=await historicalGuestOrder(stranger.email);
   state.user=owner;
   assert.equal((await payment({action:'confirm-whatsapp',id:invite})).status,200);
   assert.equal((await payment({action:'withdraw-claim',id:invite})).status,200);

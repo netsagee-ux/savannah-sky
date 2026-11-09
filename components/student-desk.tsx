@@ -22,12 +22,12 @@ export default function StudentDesk({name,email,courses,orders,failed}: {
             <a className="button" href={course.next_lesson?'/learn/'+course.next_lesson:'/courses/'+course.id}>{complete?'Revisit lessons':course.completed?'Continue learning':'Start course'} <ArrowUpRight size={16}/></a>
             {complete&&<a className="underlink" href={'/certificate/'+course.id}>Completion record</a>}
           </div></article>;
-      })}</div>:!failed && <div className="desk-empty"><BookOpen size={24}/><h3>No active courses yet</h3><p>After payment, open your personal invitation to activate your course.</p><a className="button" href="/courses">Browse courses</a></div>}
+      })}</div>:!failed && <div className="desk-empty"><BookOpen size={24}/><h3>No active courses yet</h3><p>Once SumUp confirms your payment, your course appears here.</p><a className="button" href="/courses">Browse courses</a></div>}
     </section>
     <section id="orders"><div className="desk-section-head"><h2>My orders</h2></div>
       {orders.length ? <ul className="desk-orders">{orders.map(order=>{
         const paid=order.status==='paid' && order.mode!=='test';
-        const path=paid&&order.invitation?studentCoursePath(order.invitation):!paid&&order.session_id?'/payment-result?session_id='+encodeURIComponent(order.session_id):'/orders/'+encodeURIComponent(order.id);
+        const path=paid&&order.invitation?studentCoursePath(order.invitation):!paid&&['live','test'].includes(order.mode)&&order.session_id?'/payment-result?session_id='+encodeURIComponent(order.session_id):'/orders/'+encodeURIComponent(order.id);
         return <li key={order.id}><div><small>{new Date(order.created_at).toLocaleDateString('en-GB')} · Ref {order.id.slice(0,8)}</small><h3>{order.title}</h3>
           <p>{order.status==='requested'?'Fee requested':'£'+(order.amount/100).toFixed(2)} · {order.mode==='test'?'Test order':paid?'Payment confirmed':order.status==='pending'?'Awaiting payment':order.status}</p></div>
           <a href={path} className="underlink">{paid?'Open my course':'View order'} <ArrowUpRight size={15}/></a></li>;

@@ -2,8 +2,8 @@ import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play} from 'lucide-react';
 import CheckoutButton from '@/components/checkout-button';
 import {courseImage} from '@/components/ui';
-import type {Course} from '@/lib/data';
-import {academyWhatsApp} from '@/lib/course-orders';
+import {accredited,type Course} from '@/lib/data';
+import {merchantStatus} from '@/lib/sumup';
 import {hasCourseDelivery,hasCoursePrice} from '@/lib/payments';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {db,enrolled} from '@/lib/server';
@@ -16,7 +16,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
   const access=await enrolled(id);
   const database=db();
-  const course=await database.prepare('SELECT * FROM courses WHERE id=? AND (published=1 OR ?=1)')
+  const course=await database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=? AND (published=1 OR ?=1)")
     .bind(id,access?1:0).first<Course>();
   if(!course)notFound();
   const lessons=(await database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>()).results;
@@ -24,13 +24,14 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
   const user=await getChatGPTUser();
-  const ready=!access && Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) && await hasCourseDelivery(course);
-  const callback=ready&&!await academyWhatsApp();
+  const merchant=!access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    ? await merchantStatus().catch(()=>null) : null;
+  const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
   const learning=firstVideo?'/learn/'+encodeURIComponent(firstVideo.id):'/dashboard';
 
   return <section className="studio-wrap practice-detail">
     <a className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</a>
-    <header className="practice-heading"><span className="studio-kicker">{course.level} · Online course</span>
+    <header className="practice-heading"><span className="studio-kicker">{course.level}{accredited(course)?' · CPD accredited':''}</span>
       <h1>{course.title}</h1><p>{course.description}</p>
     </header>
     <div className="practice-grid">
@@ -50,13 +51,14 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
       <aside id="enrol" className="practice-enrol" aria-label="Student enrolment">
         <span className="studio-kicker">Student access</span>
         <h2>{access?'Your course':priced?'£'+(course.price!/100).toFixed(2):'Join this course'}</h2>
-        {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:ready?<>
-          <p>{callback?'Leave your WhatsApp number to receive payment details.':priced?'Arrange payment with the academy on WhatsApp.':'Open WhatsApp for the course fee and payment details.'} Your lessons unlock after payment is confirmed.</p>
-          <CheckoutButton courseId={id} guest={!user} callback={callback}/>
-        </>:<p>Course ordering is temporarily unavailable. Please check back shortly.</p>}
+        {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:paymentsOpen?<>
+          <p>Pay securely by card with SumUp. Your lessons open in your student account as soon as payment is confirmed.</p>
+          {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to enrol</a>}
+        </>:<><p>{videos?'Online enrolment opens soon.':'Online lessons are in preparation.'}</p><a className="underlink" href="/contact">Ask the academy about this course</a></>}
+
       </aside>
       {(course.outcomes||course.requirements||course.access_policy||course.duration)&&<section className="practice-notes">
-        {course.outcomes&&<><h2>What you’ll learn</h2><ul>{course.outcomes.split('\n').filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}</ul></>}
+        {course.outcomes&&<><h2>What you’ll learn</h2><ul>{course.outcomes.split('\n').map(line=>line.trim()).filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}</ul></>}
         {course.requirements&&<><h2>Before you begin</h2><p>{course.requirements}</p></>}
         {course.duration&&<p>{course.duration}</p>}
         {course.access_policy&&<><h2>Access &amp; support</h2><p>{course.access_policy}</p></>}

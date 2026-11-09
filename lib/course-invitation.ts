@@ -38,7 +38,7 @@ export function orderFromCourseLink(value: string): string | null {
 export async function paidInvitationPath(id: string) {
   const database = db();
   const order = await database.prepare(`SELECT id FROM orders o WHERE id=? AND status='paid'
-    AND mode IN ('whatsapp','live') AND user_id NOT LIKE 'withdrawn/%' AND (
+    AND mode IN ('whatsapp','live','sumup') AND user_id NOT LIKE 'withdrawn/%' AND (
       user_id LIKE 'guest/%' OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id=o.course_id AND
         (e.id='buyer/'||o.user_id||'/'||o.course_id OR (e.id NOT LIKE 'buyer/%' AND e.email=o.email))))`).bind(id).first();
   if (!order) return null;

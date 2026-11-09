@@ -19,7 +19,7 @@ const techniques: { name: string; tool: ToolName }[] = [
 const questions = [
   ['Can I learn on my phone?', 'Yes. Open My learning on your phone, tablet or computer. You’ll need an internet connection to stream lessons.'],
   ['How long will I have access?', 'Access and support vary by course. Check the course details or ask Carla before you enrol.'],
-  ['Will I receive a certificate?', 'Finishing all published lessons and knowledge checks gives you a completion record. Ask the academy about accreditation or insurance eligibility for the specific course.'],
+  ['Will I receive a certificate?', 'Finishing all published lessons and knowledge checks gives you a completion record. CPD accreditation is listed on each accredited course page.'],
 ];
 
 export default async function Home() {
@@ -101,8 +101,8 @@ export default async function Home() {
         <div className="edit-head"><div><span className="studio-kicker">Enrolment</span><h2 id="enrol-title">From course to <em>first lesson.</em></h2></div></div>
         <ol className="enrol-steps">
           <li><BookOpen /><h3>Choose a course</h3><p>Check the level, price and lesson plan.</p></li>
-          <li><UserRound /><h3>Arrange payment</h3><p>Enter your student email and arrange payment on WhatsApp.</p></li>
-          <li><MonitorPlay /><h3>Open your lessons</h3><p>After confirmation, sign in with your order email to watch your course.</p></li>
+          <li><UserRound /><h3>Pay by card</h3><p>Sign in with your student email and pay securely with SumUp.</p></li>
+          <li><MonitorPlay /><h3>Open your lessons</h3><p>Once payment is confirmed, open your course in My learning.</p></li>
         </ol>
       </section>
 

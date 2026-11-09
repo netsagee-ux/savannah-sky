@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 
-export default function WhatsAppCourseReply({id, title, email}: {id: string; title: string; email:string}) {
+export default function CourseInvitationActions({id, title, email}: {id: string; title: string; email:string}) {
   const [reply, setReply] = useState('');
+  const [available,setAvailable]=useState(false);
   const [copied, setCopied] = useState(false);
 
   async function prepareReply() {
@@ -15,10 +16,10 @@ export default function WhatsAppCourseReply({id, title, email}: {id: string; tit
       const details=await response.json() as {password:string|null;path:string};
       password=details.password;
       url=new URL(details.path,window.location.origin);
-    } catch {setCopied(false);setReply('Unable to load the course details. Please retry.');return;}
+    } catch {setAvailable(false);setCopied(false);setReply('Unable to load the course details. Please retry.');return;}
     const text = 'Your payment for ' + title + ' is confirmed. Open your course here: ' + url.href +
       '\nStudent login: ' + email + (password?'\nOne-time course password: '+password+'\nVerify your order email, then enter this password to unlock the lessons.':'\nSign in to open your lessons.');
-    setReply(text);
+    setAvailable(true);setReply(text);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -28,9 +29,10 @@ export default function WhatsAppCourseReply({id, title, email}: {id: string; tit
   }
 
   return <div className="form">
-    <button type="button" className="button outline" onClick={prepareReply}>Copy WhatsApp reply</button>
-    {reply && <><label>Reply for the buyer’s original WhatsApp chat<textarea readOnly value={reply} rows={3}
+    <button type="button" className="button outline" onClick={prepareReply}>Copy private course link and sign-in details</button>
+    {available && <a className="underlink" href={'mailto:'+encodeURIComponent(email)+'?subject='+encodeURIComponent('Your '+title+' course')+'&body='+encodeURIComponent(reply)}>Open email draft for buyer</a>}
+    {reply && <><label>Message for the buyer<textarea readOnly value={reply} rows={3}
       onFocus={event => event.currentTarget.select()} /></label>
-      <small role="status">{copied ? 'Copied. Paste this reply into the buyer’s chat.' : 'Select the reply and copy it into the buyer’s chat.'}</small></>}
+      <small role="status">{copied ? 'Copied. Send these details to the buyer.' : 'Select the message to copy it.'}</small></>}
   </div>;
 }

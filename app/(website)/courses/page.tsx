@@ -15,7 +15,7 @@ export default async function Courses() {
   return (
     <>
       <Intro kicker="Course directory" title="Nail training courses."
-        text="From your first gel application to the finishing touches on a set. Explore each course, its level and the techniques you’ll practise."
+        text="Explore CPD-accredited nail training. Start from scratch with our beginner courses or build on your existing qualification with a conversion course."
         image={{ src: '/nail-floral-960.webp', alt: 'A close look at a handmade floral set by Savannah Sky' }} />
       <section className="studio-wrap directory" aria-label="Browse courses">
         <Catalog courses={courses} />
