@@ -20,18 +20,26 @@ export async function educatorInvite(){
  await database.prepare("INSERT OR IGNORE INTO settings(id,value) VALUES(?,'invited')").bind(educatorInviteKey).run();
  return (await database.prepare('SELECT value FROM settings WHERE id=?').bind(educatorInviteKey).first<{value:string}>())?.value;
 }
+export async function staffAccessFor(user:{email:string}){
+ const email=user.email.trim().toLowerCase();
+ if(email===ownerEmail())return true;
+ const invited='educator-invite:'+createHash('sha256').update(email).digest('hex')===educatorInviteKey;
+ if(!invited)return email===(await staffEmail()).trim().toLowerCase();
+ const store=db();
+ const row=await store.prepare(`SELECT
+   (SELECT value FROM settings WHERE id='academy_staff_email') AS staff,
+   (SELECT value FROM settings WHERE id=?) AS invitation`).bind(educatorInviteKey)
+   .first<{staff:string|null;invitation:string|null}>();
+ if(row?.staff?.trim().toLowerCase()===email || row?.invitation===email)return true;
+ if(row?.invitation!=null && row.invitation!=='invited')return false;
+ // A concurrent revocation must take precedence over claiming an invitation.
+ await store.prepare(`INSERT INTO settings(id,value) VALUES(?,?)
+   ON CONFLICT(id) DO UPDATE SET value=excluded.value WHERE settings.value='invited'`).bind(educatorInviteKey,email).run();
+ return (await store.prepare('SELECT value FROM settings WHERE id=?').bind(educatorInviteKey).first<{value:string}>())?.value===email;
+}
 export async function admin(){
  const user=await getChatGPTUser();
- if(!user)return false;
- if(user.email.toLowerCase()===ownerEmail())return true;
- const email=user.email.toLowerCase();
- try{
-   if(email===await staffEmail())return true;
-   if('educator-invite:'+createHash('sha256').update(email).digest('hex')!==educatorInviteKey)return false;
-   const state=await educatorInvite();
-   if(state==='invited')await db().prepare("UPDATE settings SET value=? WHERE id=? AND value='invited'").bind(email,educatorInviteKey).run();
-   return (await db().prepare('SELECT value FROM settings WHERE id=?').bind(educatorInviteKey).first<{value:string}>())?.value===email;
- }catch{return false;}
+ return user?staffAccessFor(user).catch(()=>false):false;
 }
 // An order-backed enrolment follows the verified buyer, including after an email change.
 export const enrolmentOwner = `(e.id='buyer/'||?||'/'||e.course_id OR

@@ -1,4 +1,4 @@
-"use client";import EnquiryInbox from './enquiry-inbox';import {uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
+"use client";import EnquiryInbox from './enquiry-inbox';import {StaffSessionError,uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
 import CourseEditor from './course-editor';
 import QualificationReviews from './qualification-reviews';
 import ShopManager from './shop-manager';
@@ -19,6 +19,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
   const [data,setData]=useState<any>({courses:[],lessons:[],enquiries:[],enrollments:[]});
   const [tab,setTab]=useState(initialTab), [selected,setSelected]=useState(initialCourse);
   const [editing,setEditing]=useState<StudioCourse|null>(null), [busy,setBusy]=useState(false), [status,setStatus]=useState('');
+  const [needsSignIn,setNeedsSignIn]=useState(false);
   const [courseForm,setCourseForm]=useState(startCreating);
   const heading=useRef<HTMLHeadingElement>(null);
   const searchInput=useRef<HTMLInputElement>(null);
@@ -43,11 +44,12 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
       const params=new URLSearchParams({tab});
       if(tab==='Lessons' && selected)params.set('courseId',selected);
       const response=await fetch('/api/admin?'+params,{cache:'no-store'});
-      if(!response.ok)throw Error(response.status===403?'Your staff session needs attention.':'Academy data could not be loaded.');
+      if(response.status===401||response.status===403)throw new StaffSessionError();
+      if(!response.ok)throw Error('Academy data could not be loaded.');
       const result=await response.json() as {courses:StudioCourse[]};
       if(ticket===latest.current&&tab==='Lessons'&&selected&&!result.courses.some(c=>c.id===selected)){setSelected('');window.history.replaceState(null,'','/admin?tab=Lessons');return;}
-      if(ticket===latest.current){setData(result);setLoadedView(tab+':'+selected);setLoadError('');}
-    }catch(e){if(ticket===latest.current)setLoadError((e as Error).message);}
+      if(ticket===latest.current){setData(result);setLoadedView(tab+':'+selected);setLoadError('');setNeedsSignIn(false);}
+    }catch(e){if(ticket===latest.current){setLoadError((e as Error).message);setNeedsSignIn(e instanceof StaffSessionError);}}
   },[tab,selected]);
   useEffect(()=>{setLoadError('');void refresh();return ()=>{latest.current++;};},[refresh]);
   function openTab(name:string, courseId=selected) {
@@ -75,15 +77,16 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
         await uploadLessonVideo(fields,setStatus,Boolean(data.directVideoUpload));
       }
       const response=await fetch('/api/admin',{method:'POST',body:fields});
+      if(response.status===401||response.status===403)throw new StaffSessionError();
       const result=await response.json() as {error?:string;courseId?:string};
       if(!response.ok) throw Error(result.error||'Unable to save.');
-      createRequests.current.delete(form);form.reset();setEditing(null);if(action==='course')setCourseForm(false);
+      setNeedsSignIn(false);createRequests.current.delete(form);form.reset();setEditing(null);if(action==='course')setCourseForm(false);
       const newCourse=action==='course'&&!fields.get('id')&&result.courseId;
       if(newCourse)openLessons(result.courseId!);
       setStatus(action==='lesson'?'Lesson saved.':action==='course'?'Course saved.':'Saved successfully.');
       if(!newCourse)await refresh();
       return true;
-    } catch(reason) {setStatus((reason as Error).message||'Unable to save. Please retry.');return false;}
+    } catch(reason) {setNeedsSignIn(reason instanceof StaffSessionError);setStatus((reason as Error).message||'Unable to save. Please retry.');return false;}
     finally {setBusy(false);}
   }
   function createFirstCourse(){
@@ -96,6 +99,10 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
     setEditing(course);setCourseForm(true);setStatus('');
     heading.current?.focus();window.scrollTo({top:0});
   }
+  const returnParams=new URLSearchParams({tab});
+  if(tab==='Lessons'&&selected)returnParams.set('courseId',selected);
+  if(tab==='Courses'&&courseForm&&!editing)returnParams.set('action','create');
+  const signInUrl='/admin/login?next='+encodeURIComponent('/admin?'+returnParams);
   const isEditor=tab==='Courses'&&courseForm;
   const section=sections[tab]||sections.Courses;
   const isBoard=!isEditor&&(tab==='Courses'||(tab==='Lessons'&&!selected));
@@ -125,8 +132,9 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
         <h1 ref={heading} tabIndex={-1}>{isBoard?(tab==='Lessons'?'Lesson board':'Course board'):isEditor?(editing?'Edit course':'Create a course'):section.title}</h1>
         {!isEditor&&<p>{isBoard?'Open a course to manage its lessons, videos and quizzes.':tab==='Lessons'?'Manage lesson order, recordings and knowledge checks for this course.':section.description}</p>}
       </div></header>
+      {needsSignIn&&<p className="notice"><a className="underlink" href={signInUrl} target="_blank" rel="noopener noreferrer">Open staff sign-in in a new tab</a>. Keep this workspace open to resume your work.</p>}
       {tab==='Payments'&&totals}
-      {tab!=='Lessons'&&!isEditor&&<p role="status" className="status-message">{status}</p>}{loadError&&<div className="notice" role="alert">{loadError} <button className="underlink" onClick={()=>void refresh()}>Try again</button>{' '}<a href="/admin/login" target="_blank" rel="noreferrer">Staff sign-in</a></div>}{loadedView!==view?<p role="status">{loadError?'':'Loading workspace…'}</p>:<>{tab==='Shop'&&<ShopManager onChange={refresh}/>}{tab==='Enquiries'&&<EnquiryInbox enquiries={data.enquiries||[]}/>}{tab==='Payments'&&<PaymentPanel onChange={refresh}/>}{tab==='Reviews'&&<ReviewManager/>}{tab==='Courses'&&!isEditor&&<>
+      {tab!=='Lessons'&&!isEditor&&<p role="status" className="status-message">{status}</p>}{loadError&&<div className="notice" role="alert">{loadError} <button className="underlink" onClick={()=>void refresh()}>Try again</button></div>}{loadedView!==view?<p role="status">{loadError?'':'Loading workspace…'}</p>:<>{tab==='Shop'&&<ShopManager onChange={refresh}/>}{tab==='Enquiries'&&<EnquiryInbox enquiries={data.enquiries||[]}/>}{tab==='Payments'&&<PaymentPanel onChange={refresh}/>}{tab==='Reviews'&&<ReviewManager/>}{tab==='Courses'&&!isEditor&&<>
         {board}
         {data.sumupReady===false&&<p className="studio-connection"><a href="/admin?tab=Payments">Connect SumUp <ArrowUpRight size={16}/></a> to start taking card payments.</p>}
       </>}

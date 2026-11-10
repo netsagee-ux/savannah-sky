@@ -2,6 +2,14 @@ import {clerkMiddleware} from '@clerk/nextjs/server';
 import {NextResponse,type NextRequest,type NextFetchEvent} from 'next/server';
 const clerk=clerkMiddleware();
 export default function proxy(req:NextRequest,event:NextFetchEvent){
+ // A copied chat link can include its closing punctuation.
+ const sharedStaffLink=/^\/admin\/login(?:\)|%29|\.|%2e)+\/?$/i.test(req.nextUrl.pathname);
+ if(sharedStaffLink && (req.method==='GET'||req.method==='HEAD')){
+   const destination=req.nextUrl.clone();
+   if(destination.hostname==='savannah-sky.vercel.app')destination.hostname='savannah-sky-k4rz-three.vercel.app';
+   destination.pathname='/admin/login';
+   return NextResponse.redirect(destination,307);
+ }
  if(req.nextUrl.hostname==='savannah-sky.vercel.app'){
    const destination=new URL('https://savannah-sky-k4rz-three.vercel.app');
    destination.pathname=req.nextUrl.pathname;

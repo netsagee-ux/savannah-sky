@@ -1,5 +1,9 @@
 import {lessonVideoTypes,maxLessonBytes,mediaPartBytes,classroomVideoLimit} from '@/lib/lesson-upload';
 
+export class StaffSessionError extends Error{
+  constructor(){super('Your staff session needs attention. Sign in in a new tab, then return here and save again.');}
+}
+
 type Staged={course:string;pathname:string;parts?:Set<number>};
 const staged=new WeakMap<File,Staged>();
 
@@ -12,7 +16,7 @@ async function sendPart(file:File,type:string,pathname:string,part:number){
         body:file.slice(part*mediaPartBytes,(part+1)*mediaPartBytes)});
     }catch{ /* Keep the same upload key when retrying a lost response. */ }
     if(response?.ok)return;
-    if(response?.status===401||response?.status===403)throw Error('Your staff session needs attention. Open staff sign-in in another tab, then retry here.');
+    if(response?.status===401||response?.status===403)throw new StaffSessionError();
     if(response && response.status<500 && ![408,429].includes(response.status))throw Error('This part could not be saved. Check the file and try again.');
     if(attempt<2)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
   }
@@ -57,7 +61,11 @@ export async function uploadLessonVideo(form:FormData,report:(message:string)=>v
         onUploadProgress:({percentage})=>report('Uploading private video · '+Math.round(percentage)+'%')});
       key={course,pathname:result.pathname};staged.set(file,key);
     }catch{
-      if(file.size>classroomVideoLimit)throw Error('The private video store could not accept this upload. Keep the editor open, check your staff sign-in and retry.');
+      if(file.size>classroomVideoLimit){
+        const session=await fetch('/api/admin?tab=Lessons',{cache:'no-store'}).catch(()=>null);
+        if(session?.status===401||session?.status===403)throw new StaffSessionError();
+        throw Error('The private video store could not accept this upload. Keep the editor open and try again.');
+      }
       report('Switching to the academy’s private database upload…');
     }
   }

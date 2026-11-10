@@ -1,4 +1,3 @@
-import AccountLayout from '@/components/account-layout';
 import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play} from 'lucide-react';
 import CheckoutButton from '@/components/checkout-button';
@@ -18,19 +17,26 @@ type Lesson = {id:string;title:string;has_video:number;has_quiz:number;position:
 export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
   const database=db();
-  const [access,user,course,lessonRows]=await Promise.all([
-    enrolled(id),getChatGPTUser(),
+  const [course,lessonRows]=await Promise.all([
     database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id).first<Course>(),
     database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
   ]);
-  if(!course || (!course.published && !access))notFound();
+  if(!course)notFound();
   const conversion=isConversion(course);
-  const proof=conversion&&user&&!access?await qualification(course.id,user.userId):null;
+  // The public outline remains readable while account services recover.
+  const viewer=await (async()=>{
+    const user=await getChatGPTUser();
+    const access=user?await enrolled(id):false;
+    const proof=conversion&&user&&!access?await qualification(id,user.userId):null;
+    return {user,access,proof};
+  })().catch(()=>null);
+  const access=viewer?.access===true, user=viewer?.user, proof=viewer?.proof;
+  if(!course.published && !access)notFound();
   const lessons=lessonRows.results;
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
-  const merchant=!access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  const merchant=viewer && !access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     ? await merchantStatus().catch(()=>null) : null;
   const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
   const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
@@ -59,7 +65,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
         <span className="studio-kicker">Student access</span>
         <h2>{access?'Your course':priced?'£'+(course.price!/100).toFixed(2):'Join this course'}</h2>
         {conversion&&!access&&<p>A nail qualification is required. The academy reviews your certificate before you can pay.</p>}
-        {access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:conversion&&proof?.status!=='approved'?<>
+        {!viewer?<><p role="status">Your account access couldn’t be checked just now. Please try again to open your lessons.</p><form method="get" action={'/courses/'+encodeURIComponent(id)+'#enrol'}><button className="underlink" type="submit">Check access again</button></form></>:access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:conversion&&proof?.status!=='approved'?<>
           {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
           {!paymentsOpen&&<p>Online enrolment opens soon.</p>}
         </>:paymentsOpen?<>
@@ -76,5 +82,5 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
       </section>}
     </div>
   </section>;
-  return user?<AccountLayout>{detail}</AccountLayout>:detail;
+  return detail;
 }

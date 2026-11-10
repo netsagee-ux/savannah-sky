@@ -15,7 +15,7 @@ export default async function Admin({searchParams}:{searchParams:Promise<{tab?:s
   if(typeof courseId==='string')query.set('courseId',courseId);
   if(typeof action==='string')query.set('action',action);
   const destination=staffDestination('/admin?'+query);
-  if(!await admin())redirect('/admin/login?next='+encodeURIComponent(destination));
+  if(!await admin().catch(()=>false))redirect('/admin/login?next='+encodeURIComponent(destination));
   const [user,canManageStaff]=await Promise.all([getChatGPTUser(),owner()]);
   const params=new URL(destination,'https://academy.local').searchParams;
   return <AdminPanel initialTab={params.get('tab')||'Courses'} initialCourse={params.get('courseId')||''}
