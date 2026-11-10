@@ -10,7 +10,7 @@ export const metadata={title:'My learning & orders'};
 export default async function Dashboard({searchParams}:{searchParams:Promise<{view?:string}>}){
   const user=await getChatGPTUser();
   if(!user)redirect('/sign-in?redirect_url=%2Fdashboard');
-  const isOwner=isOwnerEmail(user.email);
+  const isOwner=await isOwnerEmail(user.email);
   if(isOwner && (await searchParams).view!=='student')redirect('/admin');
   const email=user.email.toLowerCase(), uid=user.userId;
   let courses:DeskCourse[]=[],orders:DeskOrder[]=[],failed=false;
@@ -21,12 +21,13 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{vi
       database.prepare('INSERT INTO profiles(id,email,name) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email,name=excluded.name')
         .bind(uid,email,user.displayName).run(),
       database.prepare(`SELECT DISTINCT c.id,c.title,c.level,c.thumbnail_key,
+        (SELECT o.id FROM orders o JOIN settings b ON b.id='class-booking:'||o.id WHERE o.course_id=c.id AND o.user_id=? AND o.status='paid' ORDER BY o.paid_at DESC LIMIT 1) AS booking_id,
         (SELECT COUNT(*) FROM lessons l WHERE l.course_id=c.id) AS total,
         (SELECT COUNT(*) FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE l.course_id=c.id AND p.user_id=?) AS completed,
         (SELECT l.id FROM lessons l WHERE l.course_id=c.id ORDER BY EXISTS
           (SELECT 1 FROM progress p WHERE p.user_id=? AND p.lesson_id=l.id),l.position,l.id LIMIT 1) AS next_lesson
-        FROM courses c JOIN enrollments e ON e.course_id=c.id WHERE `+enrolmentOwner).bind(uid,uid,uid).all<DeskCourse>(),
-      database.prepare(`SELECT id,title,amount,status,mode,created_at,session_id,
+        FROM courses c JOIN enrollments e ON e.course_id=c.id WHERE `+enrolmentOwner).bind(uid,uid,uid,uid).all<DeskCourse>(),
+      database.prepare(`SELECT id,title,amount,status,mode,created_at,session_id,EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||orders.id) AS classroom,
         (SELECT value FROM settings WHERE id='course_invite:'||orders.id) AS invitation
         FROM orders WHERE user_id=? OR (user_id LIKE 'guest/%' AND email=? AND status IN ('paid','requested','pending'))
         ORDER BY created_at DESC LIMIT 100`).bind(uid,email).all<DeskOrder>(),
@@ -34,5 +35,5 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{vi
     courses=library.results;
     orders=history.results;
   } catch {failed=true;}
-  return <StudentDesk name={user.displayName} email={user.email} courses={courses} orders={orders} failed={failed} staff={isOwner}/>;
+  return <StudentDesk name={user.displayName} email={user.email} courses={courses} orders={orders} failed={failed} staff={isOwner} retiredDeveloper={!isOwner&&email==='netsagee@gmail.com'}/>;
 }

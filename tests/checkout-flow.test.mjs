@@ -80,7 +80,8 @@ test('course checkout checks availability, charges the listed price and grants a
   globalThis.academyCheckoutIdentity.user = { userId: 'student', email: 'Student@example.com' };
   assert.equal((await checkout()).status, 409);
   await db.prepare("UPDATE courses SET published=1 WHERE id='gel'").run();
-  assert.equal((await checkout()).status, 409);
+  // Classroom bookings can reach the merchant without video lessons.
+  assert.equal((await checkout()).status, 503);
   await db.prepare("INSERT INTO lessons(id,course_id,video_key,video_url,position) VALUES('prep','gel','private-video-key',NULL,1)").run();
   assert.equal((await checkout()).status, 503); // Live merchant not connected.
   await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('legacy-card','student','student@example.com','gel','Gel Foundations',6500,'gbp','pending','live','2026-01-01')").run();

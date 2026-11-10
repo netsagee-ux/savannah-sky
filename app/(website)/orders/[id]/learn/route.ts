@@ -19,6 +19,7 @@ export async function GET(request: Request, {params}: {params: Promise<{id: stri
     if (!user) return redirectTo(chatGPTSignInPath(studentCoursePath(ticket)));
     const order = await studentOrder(id, user);
     if (!order) return new Response('This link belongs to the student account used to buy the course.', {status: 404, headers});
+    if (order.classroom) return redirectTo('/orders/' + encodeURIComponent(id));
     if (order.status !== 'paid' || !['whatsapp', 'live','sumup'].includes(order.mode) || !await enrolled(order.course_id)) {
       return redirectTo('/orders/' + encodeURIComponent(id));
     }

@@ -37,7 +37,7 @@ export function Footer() {
           <div><h2>The academy</h2>{academyPages.map(({href, label}) => <Link href={href} key={href}>{label}</Link>)}</div>
           <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/shop/orders">My shop orders</a></div>
           <div><h2>Follow the salon</h2>
-            <a href="https://www.instagram.com/savannahskyaromasandbeauty/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>
+            <a href="https://www.instagram.com/savannahskysalon/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>
             <a href="https://www.facebook.com/Savannahskyaromas/" target="_blank" rel="noopener noreferrer">Facebook <ArrowUpRight size={14} /></a>
           </div>
         </div>

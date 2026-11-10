@@ -17,7 +17,11 @@ test('the shared account form routes verified owners and customers and protects 
   const identity=await compile('app/chatgpt-auth.ts',{
     '@clerk/nextjs/server':clerk,'react':moduleUrl('export const cache=fn=>fn'),'next/navigation':nav,
   });
-  const database=moduleUrl('export const database=()=>{throw Error("Role checks must not use old staff settings")}');
+  const database=moduleUrl(`export const database=()=>({prepare:sql=>({bind:(key)=>{
+    if(key!=='academy:owner-handover')throw Error('Unexpected owner setting');
+    return {first:async()=>globalThis.handedOver?{id:key}:null,run:async()=>{globalThis.handedOver=true}};
+  }})});`);
+  t.after(()=>delete globalThis.handedOver);
   const server=await compile('lib/server.ts',{'./vercel-database':database,'./vercel-storage':moduleUrl('export const objectStorage=()=>null'),'@/app/chatgpt-auth':identity});
   const staffNav=await compile('lib/staff-navigation.ts',{});
   const accountNav=await compile('lib/account-navigation.ts',{'./staff-navigation':staffNav});
@@ -73,4 +77,16 @@ test('the shared account form routes verified owners and customers and protects 
     for(const path of ['//outside.example','https://outside.example','/api/admin','/admin/login','/sign-out','/account/continue'])
       await goes(finish(args({next:path})),'/dashboard');
   }
+  const handover=await import(await compile('app/api/owner-handover/route.ts',{'@/lib/server':server}));
+  const site='https://academy.example';
+  const seal=(origin=site)=>handover.POST(new Request(site+'/api/owner-handover',{method:'POST',headers:{origin}}));
+  identify('netsagee@gmail.com');assert.equal((await seal()).status,403);
+  if(process.env.TEST_ACADEMY_COOWNER_EMAIL){
+    identify(process.env.TEST_ACADEMY_COOWNER_EMAIL,false);assert.equal((await seal()).status,403);
+    identify(process.env.TEST_ACADEMY_COOWNER_EMAIL);assert.equal((await seal('https://elsewhere.example')).status,403);
+    assert.ok((await seal()).ok);assert.ok((await seal()).ok);assert.equal(await admin(),true);
+    identify('netsagee@gmail.com');assert.equal(await admin(),false);
+    await goes(workspace(args()),'/dashboard');await goes(login(args()),'/dashboard');
+  }
+
 });

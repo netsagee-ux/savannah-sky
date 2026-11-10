@@ -7,7 +7,7 @@ export const viewport: Viewport = { themeColor: '#fffaf5' };
 
 export const metadata: Metadata = {
   title: { default: 'Savannah Sky | Nail Education', template: '%s | Savannah Sky' },
-  description: 'Where nail techs come to grow, not just to learn. Discover online nail courses and meet Carla, the founder of Savannah Sky Training Academy.',
+  description: 'Explore in-person nail courses with Carla at Savannah Sky Training Academy. Online courses are coming soon.',
   icons: { icon: '/favicon.svg' },
 };
 

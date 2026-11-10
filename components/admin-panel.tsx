@@ -1,6 +1,7 @@
 "use client";import EnquiryInbox from './enquiry-inbox';import {StaffSessionError,uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
 import {stageLessonPhotos} from './lesson-photos';
 import CourseEditor from './course-editor';
+import OwnerHandover from './owner-handover';
 import QualificationReviews from './qualification-reviews';
 import ShopManager from './shop-manager';
 import WorkspaceNavigation from './workspace-navigation';
@@ -16,7 +17,7 @@ const sections:Record<string,{title:string;description:string}>={
   Payments:{title:'Payments',description:'Manage your SumUp connection, orders and course receipts.'},
   Shop:{title:'Academy shop',description:'Manage products, delivery and customer orders.'},
 };
-export default function AdminPanel({initialTab,initialCourse,startCreating,displayName,email}:{initialTab:string;initialCourse:string;startCreating:boolean;displayName:string;email:string}) {
+export default function AdminPanel({initialTab,initialCourse,startCreating,displayName,email,handover}:{handover:'complete'|'temporary'|'ready';initialTab:string;initialCourse:string;startCreating:boolean;displayName:string;email:string}) {
   const [data,setData]=useState<any>({courses:[],lessons:[],enquiries:[],enrollments:[]});
   const [tab,setTab]=useState(initialTab), [selected,setSelected]=useState(initialCourse);
   const [editing,setEditing]=useState<StudioCourse|null>(null), [busy,setBusy]=useState(false), [status,setStatus]=useState('');
@@ -145,5 +146,5 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
         onSave={e=>submit(e,'course')} onCancel={closeEditor}/>}
       {tab==='Lessons'&&!data.courses.some((c:{id:string})=>c.id===selected)&&board}
       {tab==='Lessons'&&data.courses.some((c:{id:string})=>c.id===selected)&&<CourseLessons key={selected} selected={selected} status={status} onSelect={openLessons} courses={data.courses} lessons={data.lessons||[]} busy={busy} save={submit} directUpload={data.directVideoUpload}/>}{tab==='Students'&&<><QualificationReviews/><div className="admin-grid"><div className="admin-section"><h2>Student payments</h2><p>SumUp confirms card payments automatically. Open a paid order to find the student’s private course link.</p><a className="button" href="/admin?tab=Payments">Open payments</a></div><div className="admin-section"><h2>Active enrolments</h2>{data.enrollments.length?data.enrollments.map((e:any)=><div className="row" key={e.id}><div><strong>{e.email}</strong><p>{e.title} · {e.completed}/{e.total} lessons complete</p></div><form onSubmit={event=>{if(!window.confirm('Remove course access for '+e.email+'?')){event.preventDefault();return}void submit(event,'revoke')}}><input type="hidden" name="id" value={e.id}/><button className="button outline" disabled={busy}>Revoke access</button></form></div>):<p>No active enrolments yet.</p>}</div></div></>}</>}
-      {tab==='Courses'&&!isEditor&&totals}
+      {tab==='Courses'&&!isEditor&&<>{totals}<OwnerHandover state={handover}/></>}
     </section></div></div>;}

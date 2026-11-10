@@ -7,7 +7,7 @@ import QualificationForm from '@/components/qualification-form';
 import {qualification} from '@/lib/qualifications';
 import {isConversion,accredited,type Course} from '@/lib/data';
 import {merchantStatus} from '@/lib/sumup';
-import {hasCourseDelivery,hasCoursePrice} from '@/lib/payments';
+import {hasCoursePrice} from '@/lib/payments';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {db,enrolled} from '@/lib/server';
 import './course.css';
@@ -21,7 +21,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const authConfigured=Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const [outline,account,merchant]=await Promise.all([
     database.batch([
-      database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id),
+      database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='course-format:'||courses.id) AS format,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id),
       database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id),
     ],'read'),
     getChatGPTUser().then(user=>({user})).catch(()=>null),
@@ -41,11 +41,9 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const access=viewer?.access===true, user=viewer?.user, proof=viewer?.proof;
   if(!course.published && !access)notFound();
   const lessons=outline[1].results as Lesson[];
-  const firstVideo=lessons.find(lesson=>lesson.has_video);
-  const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
-  const paymentsOpen=Boolean(viewer && !access && priced && lessons.length && merchant?.code)
-    && await hasCourseDelivery(course).catch(()=>false);
+  const classroom=course.format!=='online';
+  const paymentsOpen=Boolean(classroom && viewer && !access && priced && process.env.APP_ENCRYPTION_KEY && merchant?.code);
   const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
   const firstLesson=lessons[0];
   const learning=firstLesson?'/learn/'+encodeURIComponent(firstLesson.id):'/dashboard';
@@ -53,34 +51,31 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const detail=<section className="studio-wrap practice-detail">
     <Link className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</Link>
     <header className="practice-heading"><span className="studio-kicker">{conversion?'Conversion · Qualified nail technicians only':course.level==='Beginner'?'Beginner friendly · No previous experience needed':course.level}{accredited(course)?' · CPD accredited':''}</span>
-      <h1>{course.title}</h1><p>{course.description}</p>
+      <h1>{course.title}</h1><p><strong>{classroom?'In-person classroom training':'Online course · coming soon'}</strong></p><p>{course.description}</p>
     </header>
     <div className="practice-grid">
-      <section className="practice-lessons" aria-label="Course lessons">
-        {firstVideo && <a className="practice-film" href={access?'/learn/'+encodeURIComponent(firstVideo.id):'#enrol'} aria-label={access?'Watch '+firstVideo.title:'Enrol to watch '+firstVideo.title}>
-          <img src={courseImage(course)} width={960} height={560} alt="" />
-          <div className="practice-film-caption"><span className="practice-indicator">{access?<Play size={17}/>:<LockKeyhole size={17}/>}</span><div>
-            <small>{access?'Watch lesson':'Private video lesson'}</small><strong>{firstVideo.title}</strong></div></div>
-        </a>}
-        <div className="practice-list-head"><h2>Course lessons</h2><span>{videos} {videos===1?'video':'videos'}</span></div>
+      <section className="practice-lessons" id="materials" aria-label="Course information">
+        <img className="class-cover" src={courseImage(course)} width={960} height={560} alt="" />
+        {classroom&&<><h2>Your classroom training</h2><p>Train in person with Carla. When your payment is confirmed, open your booking for available dates and joining instructions. Carla will confirm your chosen date with you.</p></>}
+        {lessons.length>0&&<><div className="practice-list-head"><h2>{classroom?'Supporting materials':'Course outline'}</h2></div>
         <ol className="practice-list">{lessons.map((lesson,i)=><li key={lesson.id}><span className="practice-index">{String(i+1).padStart(2,'0')}</span><div>
           {access?<a href={'/learn/'+encodeURIComponent(lesson.id)}>{lesson.title}</a>:<strong>{lesson.title}</strong>}
-          <small>{lesson.has_video?'Video lesson':lesson.has_quiz?'Knowledge check':'Reading'}{lesson.id==='studio-'+id?' · Illustrated practice':''}</small>
-        </div>{access?<Play size={17}/>:<LockKeyhole size={16} aria-label="Locked"/>}</li>)}</ol>
-        {!lessons.length&&<p>The academy is preparing the first lesson.</p>}
+          <small>{lesson.has_video?'Practice video':lesson.has_quiz?'Knowledge check':'Reading'}</small>
+        </div>{access?<Play size={17}/>:<LockKeyhole size={16} aria-label="Locked"/>}</li>)}</ol></>}
       </section>
       <aside id="enrol" className="practice-enrol" aria-label="Student enrolment">
-        <span className="studio-kicker">Student access</span>
-        <h2>{access?'Your course':priced?'£'+(course.price!/100).toFixed(2):'Join this course'}</h2>
+        <span className="studio-kicker">{classroom?'Classroom booking':'Student access'}</span>
+        <h2>{access?'Your course':!classroom?'Coming soon':priced?'£'+(course.price!/100).toFixed(2):'Ask about this class'}</h2>
         {conversion&&!access&&<p>A nail qualification is required. The academy reviews your certificate before you can pay.</p>}
-        {!viewer?<><p role="status">Your account access couldn’t be checked just now. Please try again to open your lessons.</p><form method="get" action={'/courses/'+encodeURIComponent(id)+'#enrol'}><button className="underlink" type="submit">Check access again</button></form></>:access?<a className="button" href={learning}>Open my lessons <Play size={16}/></a>:conversion&&proof?.status!=='approved'?<>
-          {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
-          {!paymentsOpen&&<p>Online enrolment opens soon.</p>}
-        </>:paymentsOpen?<>
-          <p>Pay securely by card with SumUp. Your lessons open in your student account as soon as payment is confirmed.</p>
-          {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to enrol</a>}
-        </>:<><p>{!lessons.length?'Online lessons are in preparation.':merchant && !merchant.code?'Card enrolment will open once the academy connects SumUp.':'Online enrolment opens soon.'}</p><a className="underlink" href={enquiry}>Ask the academy about this course</a></>}
-
+        {!viewer?<><p role="status">Your account access couldn’t be checked just now.</p><form method="get" action={'/courses/'+encodeURIComponent(id)+'#enrol'}><button className="underlink" type="submit">Check access again</button></form></>:
+          access?<><a className="button" href="/dashboard?view=student">My bookings</a>{firstLesson&&<a className="underlink" href={learning}>Open supporting materials</a>}</>:
+          !classroom?<p>Online courses are coming soon.</p>:
+          conversion&&proof?.status!=='approved'?<>
+            {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
+          </>:paymentsOpen?<><p>Pay your course fee securely by card through SumUp.</p>
+            {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to book</a>}</>:
+          <><p>Contact Carla about booking this class while card booking is unavailable.</p><a className="underlink" href={enquiry}>Ask about this class</a></>}
+          {classroom&&!access&&<p><a className="underlink" href={'/contact?topic=instalments&course='+encodeURIComponent(course.title)+'#ask'}>Ask about payment plans</a></p>}
       </aside>
       {(course.outcomes||course.requirements||course.access_policy||course.duration)&&<section className="practice-notes">
         {course.outcomes&&<><h2>What you’ll learn</h2><ul>{course.outcomes.split('\n').map(line=>line.trim()).filter(Boolean).map((line,i)=><li key={i}>{line}</li>)}</ul></>}

@@ -68,7 +68,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const owner={userId:'teacher',email:'netsagee@gmail.com',sessionId:'staff'};
   const buyer={userId:'student-a',email:'learner@example.test',sessionId:'phone'};
   const stranger={userId:'student-b',email:'other@example.test',sessionId:'tablet'};
-  const course={title:'Studio practice',description:'A private training demonstration.',level:'Beginner',price:'49.50',published:'0'};
+  const course={title:'Studio practice',description:'A private training demonstration.',level:'Beginner',price:'49.50',published:'0',format:'classroom',classDates:'Private classroom joining notes'};
   assert.equal((await save('course',course)).status,403);
   const educator={userId:'educator',email:'educator@example.test',sessionId:'studio'};
   // A historical educator assignment can no longer open or change academy records.
@@ -84,6 +84,16 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.equal((await (await create()).json()).courseId,courseId);
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM courses').first()).n,1);
   assert.ok(courseId);
+  const edited=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
+  assert.equal(edited.courses[0].format,'classroom');
+  assert.equal(edited.courses[0].class_dates,'Private classroom joining notes');
+  const directory=(await import(server)).catalog;
+  assert.ok((await save('visibility',{id:courseId,published:'1'})).ok);
+  assert.ok((await directory()).some(item=>item.id===courseId));
+  assert.ok(!JSON.stringify(await directory()).includes('Private classroom joining notes'));
+  assert.ok((await save('course',{...course,id:courseId,published:'1',format:'online'})).ok);
+  assert.ok(!(await directory()).some(item=>item.id===courseId));
+  assert.ok((await save('course',{...course,id:courseId})).ok);
   const lesson={courseId,title:'Prepare the nail',position:'1'};
   assert.equal((await save('lesson',lesson)).status,400);
   // A two-frame, 32px VP9 recording. The actual upload and streaming handlers round-trip its bytes.

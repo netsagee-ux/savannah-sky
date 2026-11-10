@@ -13,15 +13,15 @@ export const revalidate = 60;
 
 const questions = [
   ['Do I need a qualification to start?', 'Our beginner courses are open to complete beginners. Conversion courses are for nail technicians who already hold a relevant qualification. You’ll find the entry requirements on each course page.'],
-  ['Can I watch the lessons on my phone?', 'Yes. Sign in to My learning on your phone, tablet or laptop. You’ll need an internet connection to stream your lessons.'],
-  ['How long can I access my course?', 'The access period and support available depend on the course. Read the course details before enrolling, or get in touch with Carla.'],
+  ['Are the courses online or in person?', 'All current courses are taught in person with Carla. Online courses are coming soon. You can check your booking and any supporting materials on your phone.'],
+  ['When do I choose a class date?', 'After payment, open your booking for date options and joining instructions. Carla will confirm your place on the date you agree together.'],
   ['Is my course CPD accredited?', 'Look for the CPD accreditation details on the course page. You can also view your completion record in My learning once you finish your lessons and knowledge checks.'],
 ];
 
 const enrolment = [
-  { icon: BookOpen, title: 'Find your level', text: 'Open a course to see its entry requirements, kit list and lesson plan.' },
-  { icon: CreditCard, title: 'Enrol online', text: 'When enrolment is open, sign in with your student email and pay securely by card through SumUp.' },
-  { icon: Play, title: 'Start practising', text: 'Once payment is confirmed, your lessons are ready in My learning. Come back to the same account to carry on.' },
+  { icon: BookOpen, title: 'Find your level', text: 'Open a course to see its entry requirements, kit list and what you’ll cover in class.' },
+  { icon: CreditCard, title: 'Book your training', text: 'When enrolment is open, sign in with your student email and pay securely by card through SumUp.' },
+  { icon: Play, title: 'Arrange your date', text: 'Open your paid booking for class dates, then confirm your preferred date with Carla.' },
 ];
 
 async function courseEntries(): Promise<CourseEntry[]> {
@@ -29,7 +29,7 @@ async function courseEntries(): Promise<CourseEntry[]> {
     const rows = await catalog() as Course[];
     return rows.map(course => ({
       id: course.id, title: course.title,
-      level: isConversion(course) ? 'Conversion' : course.level || 'Online course',
+      level: isConversion(course) ? 'Conversion' : course.level || 'Classroom course',
       fee: course.price != null ? courseFee(course.price) : null,
     }));
   } catch {
@@ -43,9 +43,9 @@ export default async function Home() {
     <section className="cover" aria-labelledby="home-title">
       <div className="cover-layout">
         <div className="cover-copy">
-          <span className="folio-label">Online nail training with Carla</span>
+          <span className="folio-label">In-person nail training with Carla</span>
           <h1 id="home-title">The art of<br /><em>doing nails.</em></h1>
-          <p>Pull up a chair. Learn the shape, the finish and the little details that make a set your own.</p>
+          <p>Join Carla at the salon for hands-on nail training. Online courses are coming soon.</p>
           <a className="folio-button" href="#collection">Discover the courses <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
         <HomeSalonPhotos />
@@ -83,7 +83,7 @@ export default async function Home() {
     <StudentStory />
 
     <section className="folio-wrap folio-section" aria-labelledby="lessons-title">
-      <div className="folio-heading"><div><span className="folio-label">Learning online</span><h2 id="lessons-title">Your first <em>lesson.</em></h2></div></div>
+      <div className="folio-heading"><div><span className="folio-label">In the classroom</span><h2 id="lessons-title">Booking your <em>place.</em></h2></div></div>
       <ol className="lesson-path">{enrolment.map(({ icon: Icon, title, text }) => <li key={title}>
         <Icon aria-hidden="true" size={24} strokeWidth={1.45} /><h3>{title}</h3><p>{text}</p>
       </li>)}</ol>
@@ -105,8 +105,8 @@ export default async function Home() {
     </section>
 
     <section className="student-door" aria-labelledby="student-title"><div className="folio-wrap">
-      <div><span className="folio-label">Student workspace</span><h2 id="student-title">Back for your <em>next lesson?</em></h2></div>
-      <a className="folio-button" href="/dashboard">My learning <ArrowRight size={17} aria-hidden="true" /></a>
+      <div><span className="folio-label">Student workspace</span><h2 id="student-title">Already <em>booked?</em></h2></div>
+      <a className="folio-button" href="/dashboard">My bookings <ArrowRight size={17} aria-hidden="true" /></a>
     </div></section>
   </div>;
 }

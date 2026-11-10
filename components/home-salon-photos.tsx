@@ -26,13 +26,13 @@ export default function HomeSalonPhotos() {
         <figcaption>Sculpted French</figcaption>
       </figure>
       <figure className="cover-photo cover-small">
-        <div><img src="/salon-pink-glaze-480.webp" srcSet="/salon-pink-glaze-480.webp 480w, /salon-pink-glaze-960.webp 960w"
+        <div><img src="/salon-fawn-art-480.webp" srcSet="/salon-fawn-art-480.webp 480w, /salon-fawn-art-960.webp 960w"
           sizes="(max-width: 660px) 90vw, (max-width: 980px) 47vw, (max-width: 1300px) 24vw, 310px"
-          width={960} height={1280} alt="A soft pink glazed manicure from Savannah Sky Salon" /></div>
-        <figcaption>Blush glaze</figcaption>
+          width={960} height={1280} alt="Carla’s hand-painted fawn and white spots on almond-shaped nails" /></div>
+        <figcaption>Hand-painted fawn</figcaption>
       </figure>
     </div>
     <button className="cover-next" type="button" aria-controls="cover-prints" onClick={nextPhoto}>Next photo <ArrowRight size={15} aria-hidden="true" /></button>
-    <span className="cover-current sr-only" role="status">{visible ? 'Blush glaze' : 'Sculpted French'}</span>
+    <span className="cover-current sr-only" role="status">{visible ? 'Hand-painted fawn' : 'Sculpted French'}</span>
   </div>;
 }

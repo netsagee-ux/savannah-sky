@@ -160,8 +160,9 @@ export async function createMerchantCheckout(merchant:Merchant,order:Pick<SumUpO
 }
 
 export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string){
+  if(!process.env.APP_ENCRYPTION_KEY)throw new SumUpError('Booking confirmation is temporarily unavailable.');
   const merchant=await stored();
-  if(!merchant)throw new SumUpError('Online enrolment opens when the academy connects its SumUp account.');
+  if(!merchant)throw new SumUpError('Classroom booking opens when the academy connects its SumUp account.');
   // Environment credentials can be changed outside the verified staff form.
   if(fromEnvironment())await verifyMerchant(merchant);
   const dbh=db(),id=crypto.randomUUID(),email=user.email.toLowerCase();
@@ -172,6 +173,7 @@ export async function startSumUp(user:{userId:string;email:string},course:{id:st
       ") AND NOT EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=? AND "+enrolmentOwner+")")
       .bind(id,user.userId,email,course.id,course.title,course.price,new Date().toISOString(),user.userId,course.id,course.id,user.userId),
     dbh.prepare("INSERT INTO settings(id,value) SELECT 'sumup:order:'||id,? FROM orders WHERE id=?").bind(merchant.code,id),
+    dbh.prepare("INSERT INTO settings(id,value) SELECT 'class-booking:'||id,'1' FROM orders WHERE id=?").bind(id),
   ]);
   const order=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
   if(!order)throw new SumUpError('Check My learning for your course.',409);

@@ -48,7 +48,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
         <h3>{course.title}</h3>
         <p>{course.description}</p>
         <div className="programme-foot">
-          <span>{course.preview ? 'Course preview' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'View lessons'}</span>
+          <span>{course.preview ? 'Course preview' : course.price != null ? '£' + (course.price / 100).toFixed(2) : 'View class'}</span>
           <span className="programme-open" aria-hidden="true"><ArrowRight size={17} /></span>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
 
 const benefits = [
   { Icon: Play, title: 'Practise without pressure', text: 'Revisit a technique and give yourself time to get comfortable with it.' },
-  { Icon: BookOpen, title: 'See your progress', text: 'Your learning dashboard keeps your lessons and progress together.' },
+  { Icon: BookOpen, title: 'See your progress', text: 'Your dashboard keeps your booking, class details and supporting materials together.' },
   { Icon: Lightbulb, title: 'Choose your next step', text: 'Check the level, equipment and support on each course page before you begin.' },
 ];
 

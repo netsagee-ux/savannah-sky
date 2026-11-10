@@ -1,6 +1,6 @@
 import { db } from '@/lib/server';
 
-const interests = ['Choosing a course', 'Course availability', 'Student support', 'Something else'];
+const interests = ['Choosing a course', 'Course availability', 'Student support', 'Something else', 'Payment plans', 'Class dates'];
 
 export async function POST(request: Request) {
   if (request.headers.get('origin') !== new URL(request.url).origin) {

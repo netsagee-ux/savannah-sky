@@ -33,7 +33,7 @@ export default async function Certificate({params}:{params:Promise<{id:string}>}
     <span className="eyebrow">CELEBRATING YOUR PROGRESS</span><h1>Certificate of completion</h1>
     <p>This confirms that</p><p className="name">{user.fullName||user.email}</p>
     <p>has completed the published lessons and knowledge checks for</p><h2>{course.title}</h2>
-    <p>Completed {date}</p><p className="quiet">This record covers the online lessons. Your course details explain any practical assessments required for your academy certificate.</p>
+    <p>Completed {date}</p><p className="quiet">This record covers the supporting lessons completed in your account. Your course details explain any practical assessments required for your academy certificate.</p>
     <Print/>
   </div>;
 }

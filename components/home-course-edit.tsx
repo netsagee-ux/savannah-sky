@@ -8,7 +8,7 @@ import { ArrowUpRight } from 'lucide-react';
 export type CourseEntry = { id: string; title: string; level: string; fee: string | null };
 
 // All editorial covers come from the salon's own portfolio.
-const covers = ['salon-mint-tips', 'nail-botanical', 'nail-red', 'nail-floral', 'salon-pink-glaze', 'nail-sculpted'];
+const covers = ['salon-mint-tips', 'nail-botanical', 'nail-red', 'nail-floral', 'salon-fawn-art', 'nail-sculpted'];
 function coverFor(title: string, index: number) {
   if (/art\b/i.test(title)) return 'nail-floral';
   if (/builder/i.test(title)) return 'nail-botanical';

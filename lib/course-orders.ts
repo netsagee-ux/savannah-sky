@@ -4,7 +4,7 @@ import { activationPassword, sendOrderReceipt } from './order-receipt';
 
 export type AcademyOrder = {
   id: string; user_id: string; email: string; course_id: string; title: string; amount: number;
-  mode: string; status: string; session_id: string | null;
+  classroom?: number; mode: string; status: string; session_id: string | null;
 };
 
 export async function ownedOrder(id: string, userId: string) {
@@ -43,7 +43,8 @@ export async function claimPaidOrders(buyer: Buyer, id?: string, password?: stri
 
 export async function studentOrder(id: string, buyer: Buyer) {
   await claimPaidOrders(buyer, id);
-  return db().prepare(`SELECT id,user_id,email,course_id,title,amount,mode,status,session_id FROM orders WHERE id=? AND
+  return db().prepare(`SELECT id,user_id,email,course_id,title,amount,mode,status,session_id,
+    EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||orders.id) AS classroom FROM orders WHERE id=? AND
     (user_id=? OR (user_id LIKE 'guest/%' AND mode='whatsapp' AND status IN ('requested','pending','paid') AND email=?))`)
     .bind(id, buyer.userId, buyer.email.toLowerCase()).first<AcademyOrder>();
 }

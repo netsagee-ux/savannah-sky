@@ -2,7 +2,7 @@ import {createHmac} from 'node:crypto';
 import { db } from './server';
 import { paidInvitationPath } from './course-invitation';
 
-type PaidOrder = { activatedWithPassword:number; email: string; title: string; amount: number; course_id: string };
+type PaidOrder = { classroom:number; activatedWithPassword:number; email: string; title: string; amount: number; course_id: string };
 export type ReceiptStatus = 'sent' | 'pending' | 'unconfigured' | 'ineligible';
 
 export function activationPassword(id:string) {
@@ -21,7 +21,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
   try {
     const database = db();
     const order = await database.prepare(
-      "SELECT email,title,amount,course_id,EXISTS(SELECT 1 FROM settings WHERE id='order_activation:'||orders.id) AS activatedWithPassword FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live','sumup') AND user_id NOT LIKE 'withdrawn/%'"
+      "SELECT email,title,amount,course_id,EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||orders.id) AS classroom,EXISTS(SELECT 1 FROM settings WHERE id='order_activation:'||orders.id) AS activatedWithPassword FROM orders WHERE id=? AND status='paid' AND mode IN ('whatsapp','live','sumup') AND user_id NOT LIKE 'withdrawn/%'"
     ).bind(id).first<PaidOrder>();
     if (!order) return 'ineligible';
 
@@ -32,7 +32,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
       ? 'https://' + process.env.VERCEL_PROJECT_PRODUCTION_URL : '');
     const path = await paidInvitationPath(id);
     if (!path) return 'ineligible';
-    const instructions = base ? 'Open your private course: ' + new URL(path, base).href : 'Sign in to Savannah Sky and open My learning.';
+    const instructions = base ? (order.classroom?'Your classroom booking and available dates: ':'Open your private course: ') + new URL(path, base).href : 'Sign in to Savannah Sky and open My learning.';
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       signal: AbortSignal.timeout(5000),
@@ -46,7 +46,7 @@ export async function sendOrderReceipt(id: string): Promise<ReceiptStatus> {
         text: [
           'We’ve received your payment for ' + order.title + '.',
           'Amount paid: £' + (order.amount / 100).toFixed(2), 'Order reference: ' + id,
-          '', instructions, 'Student login: '+order.email, ...(order.activatedWithPassword ? ['One-time course password: '+activationPassword(id),'Verify your email and enter this password on your first visit.'] : ['Sign in with your order email to open your lessons.']), '', 'Savannah Sky Training Academy',
+          '', instructions, 'Student login: '+order.email, ...(order.activatedWithPassword ? ['One-time course password: '+activationPassword(id),'Verify your email and enter this password on your first visit.'] : [order.classroom?'Sign in with your order email for class dates and joining instructions. Agree your preferred date with Carla.':'Sign in with your order email to open your lessons.']), '', 'Savannah Sky Training Academy',
         ].join('\n'),
       }),
     });

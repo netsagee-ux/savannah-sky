@@ -119,9 +119,12 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
           </div>
         </>}
         {id==='plan'&&<>
+          <label>Course format<select name="format" defaultValue={course?.format||'classroom'}><option value="classroom">In person at the academy</option><option value="online">Online · coming soon</option></select></label>
+          <label>Class dates and joining instructions<textarea name="classDates" rows={4} maxLength={3000} defaultValue={course?.class_dates||''} placeholder="Available dates, class times, venue and how to confirm a place"/></label>
+          <small>Paid classroom students can read these details in their booking. Update them here as dates change.</small>
           <label>What students will learn<textarea name="outcomes" rows={3} maxLength={3000} defaultValue={course?.outcomes||''} placeholder="One learning outcome per line"/></label>
           <label>Entry requirements &amp; equipment<textarea name="requirements" rows={3} maxLength={3000} defaultValue={course?.requirements||''} placeholder="List any qualifications and kit students need"/></label>
-          <label>Duration<input name="duration" maxLength={200} defaultValue={course?.duration||''} placeholder="e.g. 6 hours, self-paced"/></label>
+          <label>Duration<input name="duration" maxLength={200} defaultValue={course?.duration||''} placeholder="e.g. 1 day at the salon"/></label>
           <label>Access &amp; support<textarea name="accessPolicy" rows={3} maxLength={1000} defaultValue={course?.access_policy||''} placeholder="How long can students access lessons and ask for help?"/></label>
         </>}
         {id==='publishing'&&<>

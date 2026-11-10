@@ -81,7 +81,9 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.ok(!JSON.stringify(settings).includes(key));assert.ok(!(await db.prepare("SELECT value FROM settings WHERE id='sumup:merchant:v1'").first()).value.includes(key));
   as('buyer');
   assert.equal((await checkout.POST(post('/api/checkout',{courseId:'gel'},'https://another.example'))).status,403);
-  assert.equal((await buy('empty')).status,409);
+  await db.prepare("INSERT INTO settings(id,value) VALUES('course-format:empty','online')").run();
+  assert.equal((await buy('empty')).status,409); // future online courses cannot be bought
+  await db.prepare("INSERT INTO settings(id,value) VALUES('class-dates:gel','Wednesday at the studio')").run();
   const [first,second]=await Promise.all([buy(),buy()]);
   assert.equal(first.status,200);assert.equal(second.status,200);
   const {path}=await first.json();assert.deepEqual(await second.json(),{path});assert.equal(remote.size,1);
@@ -90,6 +92,12 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.equal(original.redirect_url,site+path);assert.ok(original.return_url.endsWith('?order='+orderId));
   const notify=(id=original.id,order=orderId)=>callback.POST(post('/api/sumup/webhook?order='+order,{event_type:'CHECKOUT_STATUS_CHANGED',id,status:'PAID'}));
   const grants=async()=>(await db.prepare('SELECT COUNT(*) AS n FROM enrollments').first()).n;
+  const stub=moduleUrl('export default ()=>null');
+  const receiptPage=(await import(await compile('app/(website)/orders/[id]/page.tsx',{...imports,
+    'next/navigation':moduleUrl('export function notFound(){throw Error("not found")}'),
+    '@/components/activate-course':stub,'@/components/sumup-card':stub}))).default;
+  const receiptFor=async()=>renderToStaticMarkup(await receiptPage({params:Promise.resolve({id:orderId})}));
+  assert.doesNotMatch(await receiptFor(),/Wednesday at the studio/);
   await notify();assert.equal(await grants(),0);
   as('owner');assert.equal((await configure({action:'confirm-whatsapp',id:orderId})).status,400);
   assert.equal((await configure({action:'course-password',id:orderId})).status,409);
@@ -103,8 +111,9 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.equal(result.password,null);assert.match(result.path,/^\/orders\/s1_[\w-]+\/learn$/);
   const open=()=>entry.GET(new Request(site+result.path),{params:Promise.resolve({id:result.path.split('/')[2]})});
   as(null);assert.equal(new URL((await open()).headers.get('location')).pathname,'/sign-in');
-  as('stranger');assert.equal((await open()).status,404);
-  as('buyer');assert.equal(new URL((await open()).headers.get('location')).pathname,'/learn/video-gel');
+  as('stranger');assert.equal((await open()).status,404);await assert.rejects(receiptFor(),/not found/);
+  as('buyer');assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
+  assert.match(await receiptFor(),/Wednesday at the studio/);
   assert.deepEqual(await (await buy()).json(),{path:'/dashboard'});
   const firstArt=await (await buy('art')).json(),expired=[...remote.values()].at(-1);
   expired.status='EXPIRED';assert.equal((await notify(expired.id,firstArt.path.split('/')[2])).status,204);
@@ -114,6 +123,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.deepEqual(await salesSummary(),{sales:2,gross:9900,customers:1});
   await db.prepare("DELETE FROM enrollments WHERE course_id='gel'").run();
   await notify();assert.equal(await grants(),1);assert.equal(new URL((await open()).headers.get('location')).pathname,'/orders/'+orderId);
+  assert.doesNotMatch(await receiptFor(),/Wednesday at the studio/);
   await t.test('shop basket prices, private receipts, idempotent SumUp callbacks and dispatch',async()=>{
     const schema=await compile('lib/shop-schema.ts',{'./server':server});
     const shopUrl=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway});
@@ -172,6 +182,15 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const visible=await (await manage.GET()).json();assert.equal(visible.orders[0].tracking,'test-ref');assert.equal(visible.orders[0].delivery.postcode,'BA1 1AB');
   });
 
+  await t.test('a classroom without a recording can be booked and receives its own protected order',async()=>{
+    await db.prepare("DELETE FROM settings WHERE id='course-format:empty'").run();
+    as('classroom-student');const started=await buy('empty');assert.equal(started.status,200);
+    const id=(await started.json()).path.split('/').at(-1);
+    const part=[...remote.values()].find(v=>v.checkout_reference===id);
+    assert.equal(part.amount,49.5);part.status='PAID';await notify(part.id,id);
+    const html=renderToStaticMarkup(await receiptPage({params:Promise.resolve({id})}));
+    assert.match(html,/Class dates and joining details/);assert.match(html,/Arrange my class date/);
+  });
   await t.test('a learner can pay for written or quiz lectures even with an old unpaid enrolment',async()=>{
     const {enrolled}=await import(server);
     as('learner');

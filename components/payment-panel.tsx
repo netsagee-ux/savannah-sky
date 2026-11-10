@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import CourseInvitationActions from './course-invitation-actions';
-type Order={awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
+type Order={classroom:number;awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
 type Settings={receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};orders:Order[]};
 const pounds=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
 
@@ -63,7 +63,7 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
        return <article className="payment-record" key={order.id}><h3>{order.title}</h3>
          <p>{order.email} · {pounds.format(order.amount/100)} · {order.status}</p>
          <small>{new Date(order.created_at).toLocaleDateString('en-GB')} · {order.mode==='sumup'?'SumUp':order.mode==='test'?'Test':'Historical order'} · Ref {order.id}</small>
-         {order.status==='paid' && order.mode!=='test' && (active?<><CourseInvitationActions id={order.id} email={order.email} title={order.title}/>
+         {order.status==='paid' && order.mode!=='test' && (active?<><CourseInvitationActions id={order.id} email={order.email} title={order.title} classroom={Boolean(order.classroom)}/>
            {order.receiptSent?<small>Email accepted for sending</small>:data.receiptConfigured&&<button className="underlink" disabled={busy} onClick={()=>void save({action:'send-receipt',id:order.id})}>Send confirmation email</button>}</>:<small>Course access inactive</small>)}
          {Boolean(order.awaitingClaim)&&<button className="underlink" disabled={busy} onClick={()=>{if(confirm('Withdraw the unclaimed course invitation?'))void save({action:'withdraw-claim',id:order.id});}}>Withdraw invitation</button>}
          {order.status==='pending'&&order.mode==='sumup'&&<button className="button outline" disabled={busy} onClick={()=>void save({action:'verify-sumup',id:order.id})}>Check with SumUp</button>}

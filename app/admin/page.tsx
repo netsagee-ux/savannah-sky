@@ -1,6 +1,6 @@
 import {redirect} from 'next/navigation';
 import {staffDestination} from '@/lib/staff-navigation';
-import {isOwnerEmail} from '@/lib/server';
+import {isOwnerEmail,isSalonOwner,handoverComplete} from '@/lib/server';
 import {requireChatGPTUser} from '@/app/chatgpt-auth';
 import AdminPanel from '@/components/admin-panel';
 import './workspace.css';
@@ -16,8 +16,8 @@ export default async function Admin({searchParams}:{searchParams:Promise<{tab?:s
   if(typeof action==='string')query.set('action',action);
   const destination=staffDestination('/admin?'+query);
   const user=await requireChatGPTUser(destination);
-  if(!isOwnerEmail(user.email))redirect('/dashboard');
+  if(!await isOwnerEmail(user.email))redirect('/dashboard');
   const params=new URL(destination,'https://academy.local').searchParams;
-  return <AdminPanel initialTab={params.get('tab')||'Courses'} initialCourse={params.get('courseId')||''}
+  return <AdminPanel handover={await handoverComplete()?'complete':isSalonOwner(user.email)?'ready':'temporary'} initialTab={params.get('tab')||'Courses'} initialCourse={params.get('courseId')||''}
     startCreating={params.get('action')==='create'} email={user.email} displayName={user.fullName||''}/>;
 }
