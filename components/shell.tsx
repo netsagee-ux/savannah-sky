@@ -7,14 +7,11 @@ import MobileMenu from './mobile-menu';
 export function Header() {
   return <header className="academy-mast">
     <div className="mast-row">
-      <nav className="mast-nav" aria-label="Academy navigation">
-        {academyPages.slice(0, 3).map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
-      </nav>
       <a className="mast-brand" href="/" aria-label="Savannah Sky Training Academy home"><AcademyWordmark /></a>
+      <nav className="mast-nav" aria-label="Academy navigation">
+        {academyPages.map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
+      </nav>
       <div className="mast-actions">
-        <nav className="mast-nav" aria-label="Help and contact">
-          {academyPages.slice(3).map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
-        </nav>
         <a className="mast-account" href="/dashboard">
           My account <ArrowUpRight size={15} aria-hidden="true" />
         </a>
