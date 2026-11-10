@@ -1,34 +1,20 @@
 import {database} from './vercel-database';
 import {objectStorage} from './vercel-storage';
 import {createHash} from 'node:crypto';
-const env=process.env;
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 export function db(){return database();}
 export function bucket(){return objectStorage();}
 // Match the academy co-owner's verified address without publishing their inbox.
 const academyCoOwnerDigest='bb3bfec9796f93955bd0642392bd948619ce4dcb0aac8f6ba6c9b7bfb4038a4f';
 
-function isOwnerEmail(address:string){
+export function isOwnerEmail(address:string){
  const email=address.trim().toLowerCase();
  if(!email)return false;
- const primary=(env.ADMIN_EMAIL?.trim()||'netsagee@gmail.com').toLowerCase();
- return email===primary || createHash('sha256').update(email).digest('hex')===academyCoOwnerDigest;
-}
-export async function owner(){
- const user=await getChatGPTUser();
- return Boolean(user && isOwnerEmail(user.email));
-}
-export async function staffEmail(){
- return (await db().prepare("SELECT value FROM settings WHERE id='academy_staff_email'").first<{value:string}>())?.value||'';
-}
-export async function staffAccessFor(user:{email:string}){
- const email=user.email.trim().toLowerCase();
- if(!email)return false;
- return isOwnerEmail(email) || email===(await staffEmail()).trim().toLowerCase();
+ return email==='netsagee@gmail.com' || createHash('sha256').update(email).digest('hex')===academyCoOwnerDigest;
 }
 export async function admin(){
  const user=await getChatGPTUser();
- return user?staffAccessFor(user).catch(()=>false):false;
+ return Boolean(user && isOwnerEmail(user.email));
 }
 // An order-backed enrolment follows the verified buyer, including after an email change.
 export const enrolmentOwner = `(e.id='buyer/'||?||'/'||e.course_id OR

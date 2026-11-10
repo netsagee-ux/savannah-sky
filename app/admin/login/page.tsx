@@ -1,9 +1,8 @@
-import StaffEntry from '@/components/staff-entry';
-import './staff-entry.css';
+import {redirect} from 'next/navigation';
+import {chatGPTSignInPath} from '@/app/chatgpt-auth';
+import {accountReturn} from '@/lib/account-navigation';
 
-export const dynamic='force-dynamic';
-export const metadata={title:'Staff sign-in'};
-
-export default async function AdminLogin({searchParams}:{searchParams:Promise<{next?:string}>}){
-  return <StaffEntry next={(await searchParams).next}/>;
+export default async function LegacyLogin({searchParams}:{searchParams:Promise<{next?:string}>}){
+  const {next}=await searchParams;
+  redirect(next?chatGPTSignInPath(accountReturn(next)):'/sign-in');
 }

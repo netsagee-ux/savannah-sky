@@ -15,7 +15,7 @@ const sections:Record<string,{title:string;description:string}>={
   Payments:{title:'Payments',description:'Manage your SumUp connection, orders and course receipts.'},
   Shop:{title:'Academy shop',description:'Manage products, delivery and customer orders.'},
 };
-export default function AdminPanel({initialTab,initialCourse,startCreating,displayName,email,canManageStaff}:{initialTab:string;initialCourse:string;startCreating:boolean;displayName:string;email:string;canManageStaff:boolean}) {
+export default function AdminPanel({initialTab,initialCourse,startCreating,displayName,email}:{initialTab:string;initialCourse:string;startCreating:boolean;displayName:string;email:string}) {
   const [data,setData]=useState<any>({courses:[],lessons:[],enquiries:[],enrollments:[]});
   const [tab,setTab]=useState(initialTab), [selected,setSelected]=useState(initialCourse);
   const [editing,setEditing]=useState<StudioCourse|null>(null), [busy,setBusy]=useState(false), [status,setStatus]=useState('');
@@ -102,7 +102,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
   const returnParams=new URLSearchParams({tab});
   if(tab==='Lessons'&&selected)returnParams.set('courseId',selected);
   if(tab==='Courses'&&courseForm&&!editing)returnParams.set('action','create');
-  const signInUrl='/admin/login?next='+encodeURIComponent('/admin?'+returnParams);
+  const signInUrl='/sign-in?redirect_url='+encodeURIComponent('/admin?'+returnParams);
   const isEditor=tab==='Courses'&&courseForm;
   const section=sections[tab]||sections.Courses;
   const isBoard=!isEditor&&(tab==='Courses'||(tab==='Lessons'&&!selected));
@@ -114,11 +114,11 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
           {label:'Paying customers',value:data.metrics?.customers??'—',Icon:UsersRound}].map(({label,value,Icon})=><div key={label}><dt><Icon size={19} aria-hidden="true"/>{label}</dt><dd>{value}</dd></div>)}
       </dl>;
   return <div className={'studio-workspace'+(compact?' rail-compact':'')}>
-    <WorkspaceNavigation tab={tab} onSelect={openTab} busy={busy} displayName={displayName} email={email} canManageStaff={canManageStaff}
+    <WorkspaceNavigation tab={tab} onSelect={openTab} busy={busy} displayName={displayName} email={email}
       compact={compact} onCollapse={()=>setCompact(!compact)}/>
     <div className="studio-surface">
       <div className="studio-topbar">
-        <div className="studio-welcome"><span>Welcome back,</span><strong>{displayName||(canManageStaff?'Academy owner':'Educator')}</strong></div>
+        <div className="studio-welcome"><span>Welcome back,</span><strong>{displayName||'Academy owner'}</strong></div>
         {isBoard?<label className="studio-search"><Search size={18} aria-hidden="true"/>
           <input ref={searchInput} type="search" aria-label="Find a course" placeholder="Search your courses…" value={search} onChange={e=>setSearch(e.target.value)}/>
           {search?<button type="button" aria-label="Clear search" onClick={()=>{setSearch('');searchInput.current?.focus();}}><X size={16}/></button>:<kbd>Ctrl / ⌘ K</kbd>}</label>:
@@ -132,7 +132,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
         <h1 ref={heading} tabIndex={-1}>{isBoard?(tab==='Lessons'?'Lesson board':'Course board'):isEditor?(editing?'Edit course':'Create a course'):section.title}</h1>
         {!isEditor&&<p>{isBoard?'Open a course to manage its lessons, videos and quizzes.':tab==='Lessons'?'Manage lesson order, recordings and knowledge checks for this course.':section.description}</p>}
       </div></header>
-      {needsSignIn&&<p className="notice"><a className="underlink" href={signInUrl} target="_blank" rel="noopener noreferrer">Open staff sign-in in a new tab</a>. Keep this workspace open to resume your work.</p>}
+      {needsSignIn&&<p className="notice"><a className="underlink" href={signInUrl} target="_blank" rel="noopener noreferrer">Sign in in a new tab</a>. Keep this workspace open to resume your work.</p>}
       {tab==='Payments'&&totals}
       {tab!=='Lessons'&&!isEditor&&<p role="status" className="status-message">{status}</p>}{loadError&&<div className="notice" role="alert">{loadError} <button className="underlink" onClick={()=>void refresh()}>Try again</button></div>}{loadedView!==view?<p role="status">{loadError?'':'Loading workspace…'}</p>:<>{tab==='Shop'&&<ShopManager onChange={refresh}/>}{tab==='Enquiries'&&<EnquiryInbox enquiries={data.enquiries||[]}/>}{tab==='Payments'&&<PaymentPanel onChange={refresh}/>}{tab==='Reviews'&&<ReviewManager/>}{tab==='Courses'&&!isEditor&&<>
         {board}

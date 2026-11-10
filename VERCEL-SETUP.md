@@ -7,7 +7,6 @@ Production configuration
 - Turso/libSQL: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
 - Clerk: `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Enable email verification. Only a verified primary email can receive course access. Existing Sites identity headers are no longer trusted.
 - For larger recordings, connect the private `savannah-sky-private` store to this project. Vercel supplies `BLOB_READ_WRITE_TOKEN`. The adapter preserves object paths and serves files through the existing access-checked routes. Never create a public store for course files. R2/S3 remains an optional fallback when Blob is not configured (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`).
-- `ADMIN_EMAIL`: academy administrator's verified email.
 - `APP_ENCRYPTION_KEY`: base64-encoded 32-byte key. Preserve this key when moving the deployment. It protects invitations, activation codes, private database uploads, playback and historical payment credentials.
 - Course checkout uses the existing SumUp merchant. Save the live credentials under Admin → Payments, or configure SUMUP_MERCHANT_CODE and SUMUP_API_KEY as server-only production variables.
 
@@ -22,7 +21,7 @@ Admin → Lessons sends MP4 and WebM recordings up to 1 GiB directly to the conn
 Production release gates: Next build passes; deployment homepage responds successfully; configured login works; admin is denied to other accounts; course thumbnails load; unpaid users cannot access course links; a verified SumUp payment grants exactly one enrolment; revocation removes access.
 
 ## Storefront follow-up
-The primary owner defaults to Netsagee@gmail.com. `ADMIN_EMAIL` overrides that primary address. The academy co-owner is matched separately by verified email. Both owners can approve staff access requests through Staff sign-in. Changing the additional educator in the dashboard only affects the educator role.
+Everyone signs in at `/sign-in`. The two designated owners are matched against their verified primary email on the server and enter the academy workspace. Other accounts open My learning. Previously saved staff assignments do not grant access.
 
 After schema migration, run `node --env-file=.env.local scripts/seed-academy.mjs` to add three unpublished draft courses, with proposed GBP prices of £49, £79 and £39. This never overwrites existing courses. Add real training content, thumbnail, prerequisites and access terms before publication.
 

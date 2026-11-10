@@ -69,7 +69,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         <option value="1">Remove existing video</option>
         </select>
         </label>}{lesson?.video_url&&!lesson.video_key&&<p>Upload this lesson’s original recording to enable private playback.</p>}<QuizEditor initial={readQuiz(lesson)}/>
-        <p className="status-message" role="status">{status}</p>{status.includes('staff session')&&<a className="underlink" target="_blank" rel="noreferrer" href="/admin/login">Open staff sign-in</a>}
+        <p className="status-message" role="status">{status}</p>{status.includes('staff session')&&<a className="underlink" target="_blank" rel="noreferrer" href="/sign-in">Sign in</a>}
         <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button></form></>}
     </>}
   </section>;

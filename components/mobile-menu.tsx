@@ -19,7 +19,7 @@ export default function MobileMenu() {
         <nav aria-label="Mobile navigation">{academyPages.map(page =>
           <a href={page.href} key={page.href} onClick={close}>{page.label}<ArrowUpRight size={18} aria-hidden="true" /></a>
         )}</nav>
-        <a className="drawer-signin" href="/dashboard">My learning <ArrowRight size={17}/></a>
+        <a className="drawer-signin" href="/dashboard">My account <ArrowRight size={17}/></a>
       </div>
     </dialog>
   </>;

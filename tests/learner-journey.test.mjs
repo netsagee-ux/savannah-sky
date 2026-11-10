@@ -38,7 +38,7 @@ test('student library, quizzes, lesson return links and certificate follow the v
   const submit=(lessonId,answer)=>progress.POST(new Request(base+'/api/progress',{method:'POST',headers:{origin:base,'content-type':'application/json'},body:JSON.stringify({lessonId,answer})}));
   const params=id=>({params:Promise.resolve({id})});
   const record=async()=>renderToStaticMarkup(await cert(params('gel')));
-  const home=async()=>renderToStaticMarkup(await dashboard());
+  const home=async()=>renderToStaticMarkup(await dashboard({searchParams:Promise.resolve({})}));
   await db.batch([db.prepare("INSERT INTO courses(id,title,description,level,published) VALUES('gel','Gel studio','','Beginner',1)"),
     db.prepare("INSERT INTO lessons(id,course_id,title,body,question,options,answer,position) VALUES('intro','gel','Preparation','Notes','Choose the answer','[\"A\",\"B\",\"C\"]',1,1),('finish','gel','Finish','Notes',NULL,NULL,NULL,2)"),
     db.prepare("INSERT INTO enrollments(id,email,course_id) VALUES('buyer/learner/gel','learner@example.test','gel')")]);

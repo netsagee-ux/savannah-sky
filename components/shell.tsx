@@ -16,7 +16,7 @@ export function Header() {
           {academyPages.slice(3).map(page => <a href={page.href} key={page.href}>{page.label}</a>)}
         </nav>
         <a className="mast-account" href="/dashboard">
-          My learning <ArrowUpRight size={15} aria-hidden="true" />
+          My account <ArrowUpRight size={15} aria-hidden="true" />
         </a>
         <MobileMenu />
       </div>
@@ -34,7 +34,7 @@ export function Footer() {
             <p>Where nail techs come to grow, not just to learn.</p>
           </div>
           <div><h2>The academy</h2>{academyPages.map(({href, label}) => <a href={href} key={href}>{label}</a>)}</div>
-          <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/shop/orders">My shop orders</a><a href="/admin/login">Staff sign-in</a></div>
+          <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/shop/orders">My shop orders</a></div>
           <div><h2>Follow the salon</h2>
             <a href="https://www.instagram.com/savannahskyaromasandbeauty/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>
             <a href="https://www.facebook.com/Savannahskyaromas/" target="_blank" rel="noopener noreferrer">Facebook <ArrowUpRight size={14} /></a>

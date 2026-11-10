@@ -7,7 +7,7 @@ import {compile,moduleUrl} from './compile-fixture.mjs';
 
 test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-ledger metrics',async t=>{
   const folder=await mkdtemp(join(tmpdir(),'academy-card-'));
-  const vars={TURSO_DATABASE_URL:'file:'+join(folder,'db.sqlite'),TURSO_AUTH_TOKEN:'fixture',ADMIN_EMAIL:'owner@example.test',
+  const vars={TURSO_DATABASE_URL:'file:'+join(folder,'db.sqlite'),TURSO_AUTH_TOKEN:'fixture',
     APP_ENCRYPTION_KEY:'test-purpose-only',SUMUP_MERCHANT_CODE:'',SUMUP_API_KEY:'',RESEND_API_KEY:'',ACADEMY_PUBLIC_URL:'https://academy.example'};
   const previous=Object.keys(vars).map(k=>[k,process.env[k]]);
   Object.assign(process.env,vars);
@@ -36,7 +36,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const post=(path,body,origin=site)=>new Request(site+path,{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
   const buy=(courseId='gel')=>checkout.POST(post('/api/checkout',{courseId,price:1,email:'stranger@example.test'}));
   const configure=body=>staff.POST(post('/api/payments',body));
-  const as=(id)=>{globalThis.sumupTestUser=id?{userId:id,email:id+'@example.test',sessionId:'browser'}:null;};
+  const as=(id)=>{globalThis.sumupTestUser=id?{userId:id,email:id==='owner'?'netsagee@gmail.com':id+'@example.test',sessionId:'browser'}:null;};
   const code='MTEST123',key='sup_sk_abcdefghijklmnop';
   const remote=new Map();let tamper={},sandbox=true,denyWrite=false,denyRead=false,closedChecks=0;
   t.mock.method(globalThis,'fetch',async(url,options)=>{
@@ -65,8 +65,9 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   as(null);assert.equal((await buy()).status,401);
   as('buyer');assert.equal((await buy()).status,503);assert.equal((await configure({action:'connect-sumup',code,key})).status,403);
   as('owner');assert.equal((await configure({action:'connect-sumup',code,key})).status,400);
-  assert.equal((await configure({action:'staff-access',email:'educator@example.test'})).status,200);
+  assert.equal((await configure({action:'staff-access',email:'educator@example.test'})).status,400);
   as('educator');assert.equal((await configure({action:'staff-access',email:'buyer@example.test'})).status,403);
+  as('owner');
   sandbox=false;denyWrite=true;
   assert.match((await (await configure({action:'connect-sumup',code,key})).json()).error,/denied access to online checkouts/);
   denyWrite=false;denyRead=true;
@@ -89,7 +90,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const notify=(id=original.id,order=orderId)=>callback.POST(post('/api/sumup/webhook?order='+order,{event_type:'CHECKOUT_STATUS_CHANGED',id,status:'PAID'}));
   const grants=async()=>(await db.prepare('SELECT COUNT(*) AS n FROM enrollments').first()).n;
   await notify();assert.equal(await grants(),0);
-  as('educator');assert.equal((await configure({action:'confirm-whatsapp',id:orderId})).status,400);
+  as('owner');assert.equal((await configure({action:'confirm-whatsapp',id:orderId})).status,400);
   assert.equal((await configure({action:'course-password',id:orderId})).status,409);
   original.status='PAID';
   for(const invalid of [{merchant_code:'WRONG'},{amount:1},{currency:'EUR'},{checkout_reference:'other'},{id:'tampered'}]){
@@ -127,7 +128,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const basket={attempt,delivery,items:[{id:product,quantity:2},{id:second,quantity:1}],total:4300};
     const purchase=(body=basket)=>checkout.POST(post('/api/shop/checkout',body));
     as('buyer');assert.equal((await manage.GET()).status,403);
-    as('educator');assert.equal((await save('product',{id:product,title:'Practice kit',description:'Fixture',price:'15.00',published:'1'})).status,200);
+    as('owner');assert.equal((await save('product',{id:product,title:'Practice kit',description:'Fixture',price:'15.00',published:'1'})).status,200);
     assert.equal((await save('product',{id:second,title:'File set',description:'Fixture',price:'10',published:'1'})).status,200);
     assert.equal((await save('postage',{postage:'3.00'})).status,200);
     as(null);assert.equal((await purchase()).status,401);
@@ -139,7 +140,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const saved=await lib.shopOrder(attempt,'buyer');assert.ok(!saved.delivery.includes('Example Road'));assert.deepEqual(lib.deliveryFor(saved),delivery);
     assert.equal(await lib.shopOrder(attempt,'other'),null);
     as('other');assert.equal((await purchase()).status,409);assert.equal((await manage.GET()).status,403);
-    as('educator');assert.equal((await save('dispatch',{id:attempt})).status,400);
+    as('owner');assert.equal((await save('dispatch',{id:attempt})).status,400);
     const notifyShop=()=>hook.POST(post('/api/shop/webhook?order='+attempt,{event_type:'CHECKOUT_STATUS_CHANGED',id:payment.id,status:'PAID'}));
     await notifyShop();assert.equal((await lib.shopOrder(attempt)).status,'pending');
     payment.status='PAID';tamper={merchant_code:'BAD'};assert.equal((await notifyShop()).status,400);tamper={};

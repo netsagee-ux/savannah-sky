@@ -7,7 +7,7 @@ import {compile, moduleUrl} from './compile-fixture.mjs';
 
 test('staff can publish fifteen recordings and earlier paid guest orders still activate once', async t => {
   const dir=await mkdtemp(join(tmpdir(),'academy-authoring-'));
-  const env={TURSO_DATABASE_URL:'file:'+join(dir,'academy.db'), TURSO_AUTH_TOKEN:'test', ADMIN_EMAIL:'teacher@example.test',
+  const env={TURSO_DATABASE_URL:'file:'+join(dir,'academy.db'), TURSO_AUTH_TOKEN:'test',
     CLERK_SECRET_KEY:'test',NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:'test',APP_ENCRYPTION_KEY:'private-test-key',
     ACADEMY_WHATSAPP_NUMBER:'',BLOB_READ_WRITE_TOKEN:'',BLOB_STORE_ID:'',RESEND_API_KEY:'',STRIPE_SECRET_KEY:''};
   const previous=Object.fromEntries(Object.keys(env).map(k=>[k,process.env[k]]));
@@ -58,27 +58,18 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const post=(path,fields)=>new Request(origin+path,{method:'POST',headers:{origin,...(fields instanceof FormData?{}:{'Content-Type':'application/json'})},body:fields instanceof FormData?fields:JSON.stringify(fields)});
   const save=(action,data)=>{const form=new FormData();form.set('action',action);for(const [k,v] of Object.entries(data))form.set(k,v);return author.POST(post('/api/admin',form));};
   const payment=data=>pay.POST(post('/api/payments',data));
-  const owner={userId:'teacher',email:'teacher@example.test',sessionId:'staff'};
+  const owner={userId:'teacher',email:'netsagee@gmail.com',sessionId:'staff'};
   const buyer={userId:'student-a',email:'learner@example.test',sessionId:'phone'};
   const stranger={userId:'student-b',email:'other@example.test',sessionId:'tablet'};
   const course={title:'Studio practice',description:'A private training demonstration.',level:'Beginner',price:'49.50',published:'0'};
   assert.equal((await save('course',course)).status,403);
   const educator={userId:'educator',email:'educator@example.test',sessionId:'studio'};
-  const staffRoute=await route('app/api/staff-access/route.ts');
-  const requestStaff=(action,fields={})=>staffRoute.POST(post('/api/staff-access',{action,...fields}));
-  assert.equal((await requestStaff('request')).status,401);
+  // A historical educator assignment can no longer open or change academy records.
+  await db.prepare("INSERT INTO settings(id,value) VALUES('academy_staff_email',?)").bind(educator.email).run();
   state.user=educator;
-  const request='staff-request:'+educator.userId;
-  assert.equal((await requestStaff('request',{email:owner.email})).status,200);
-  assert.equal((await requestStaff('request')).status,200);
-  assert.equal((await db.prepare('SELECT value FROM settings WHERE id=?').bind(request).first()).value,educator.email);
-  assert.equal((await requestStaff('approve',{request,current:''})).status,403);
   assert.equal((await author.GET(new Request(origin+'/api/admin'))).status,403);
+  assert.equal((await save('course',course)).status,403);
   state.user=owner;
-  assert.equal((await requestStaff('approve',{request,current:'stale@example.test'})).status,409);
-  assert.equal((await requestStaff('approve',{request,current:''})).status,200);
-  assert.equal((await requestStaff('approve',{request,current:''})).status,409);
-  state.user=educator;
   const creationId=crypto.randomUUID();
   const create=()=>save('course',{...course,creationId});
   const courseId=(await (await create()).json()).courseId;

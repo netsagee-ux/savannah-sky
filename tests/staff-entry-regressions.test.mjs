@@ -22,34 +22,6 @@ test('a staff login link copied from a message recovers its path and keeps the r
   }
 });
 
-test('new and returning staff stay in their workspace flow, and access failures can be retried',async t=>{
-  const state={user:null,allowed:false};
-  globalThis.staffEntryState=state;
-  const envKeys=['NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY','CLERK_SECRET_KEY'];
-  const previous=envKeys.map(key=>process.env[key]);
-  envKeys.forEach(key=>{process.env[key]='test';});
-  t.after(()=>{delete globalThis.staffEntryState;envKeys.forEach((k,i)=>{if(previous[i]===undefined)delete process.env[k];else process.env[k]=previous[i];});});
-  const page=await import(await compile('components/staff-entry.tsx',{
-    '@clerk/nextjs':moduleUrl('export const SignIn=({signUpUrl})=>"Sign-in to "+signUpUrl; export const SignUp=({forceRedirectUrl})=>"Activate to "+forceRedirectUrl;'),
-    'next/navigation':moduleUrl('export const redirect=path=>{throw Error(path)};'),
-    '@/app/chatgpt-auth':moduleUrl('export const getChatGPTUser=async()=>globalThis.staffEntryState.user'),
-    '@/lib/server':moduleUrl('export const staffAccessFor=async()=>{if(globalThis.staffEntryState.outage)throw Error();return globalThis.staffEntryState.allowed};export const db=()=>({prepare:()=>({bind:()=>({first:async()=>null})})})'),
-    '@/lib/staff-navigation':await compile('lib/staff-navigation.ts',{}),
-    '@/components/staff-request':moduleUrl('export default ()=> "Request staff access";'),
-  }));
-  const next='/admin?tab=Lessons&courseId=gel-foundations';
-  const render=async activate=>renderToStaticMarkup(await page.default({next,activate}));
-  assert.match(await render(false),/Set up staff sign-in/);
-  assert.match(await render(true),/Activate to \/admin\?tab=Lessons&amp;courseId=gel-foundations/);
-  state.user={email:'staff@example.test',userId:'user1'};
-  assert.match(await render(false),/Request staff access/);
-  state.outage=true;
-  const failure=await render(false);
-  assert.match(failure,/Try again/); assert.doesNotMatch(failure,/Request staff access/);
-  state.outage=false;state.allowed=true;
-  await assert.rejects(render(true),err=>err.message===next);
-});
-
 test('a temporary account lookup error leaves only the published course outline available',async t=>{
   const state={published:1};
   globalThis.courseOutline=state;

@@ -2,7 +2,7 @@
 import {useEffect,useRef,useState} from 'react';
 import CourseInvitationActions from './course-invitation-actions';
 type Order={awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
-type Settings={receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};canManageStaff:boolean;staffEmail:string;orders:Order[]};
+type Settings={receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};orders:Order[]};
 const pounds=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
 
 export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
@@ -35,7 +35,7 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
    finally{setBusy(false);}
  }
  return <><p role="status">{message}</p>
-   {loadError&&<div role="alert">{loadError} <button type="button" className="underlink" onClick={()=>void refresh(applied)}>Try again</button>{' '}<a className="underlink" href="/admin/login?next=%2Fadmin%3Ftab%3DPayments">Staff sign-in</a></div>}
+   {loadError&&<div role="alert">{loadError} <button type="button" className="underlink" onClick={()=>void refresh(applied)}>Try again</button>{' '}<a className="underlink" href="/sign-in?redirect_url=%2Fadmin%3Ftab%3DPayments">Sign in</a></div>}
    {!data?(loading&&<p role="status">Loading payments…</p>):<>
    <div className="admin-grid"><section className="admin-section"><h2>SumUp payments</h2>
      <p>{data.merchant.code?'Connected merchant · '+data.merchant.code:'Connect the existing academy merchant account to take card payments on this website.'}</p>
@@ -51,13 +51,7 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
          <p>We’ll check that this account can create and confirm a GBP checkout. No card is charged.</p>
          <button className="button" disabled={busy}>Verify and save</button>
        </form></details>}
-   </section>{data.canManageStaff&&<section className="admin-section"><h2>Staff access</h2>
-     <p>The approved educator can manage courses, upload videos and review sales. They sign in with their own verified email.</p>
-     <form className="form" onSubmit={e=>{e.preventDefault();void save({action:'staff-access',email:new FormData(e.currentTarget).get('email')});}}>
-       <label>Educator email<input key={data.staffEmail} name="email" type="email" required defaultValue={data.staffEmail}/></label>
-       <button className="button" disabled={busy}>Save staff access</button>
-       {data.staffEmail&&<button className="underlink" disabled={busy} type="button" onClick={()=>{if(confirm('Remove staff access for '+data.staffEmail+'?'))void save({action:'staff-access',email:''});}}>Remove educator access</button>}
-     </form></section>}</div>
+   </section></div>
    <section className="admin-section"><h2>Course orders</h2>
      <form className="form" onSubmit={e=>{e.preventDefault();const term=search.trim();setApplied(term);void refresh(term);}}>
        <label>Find by order reference or student email<input type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label>

@@ -4,7 +4,7 @@ import { ArrowUpRight } from 'lucide-react';
 export default function AuthFrame({children}: {children: ReactNode}) {
   return <div className="student-entry">
     <div className="entry-spread">
-      <section className="entry-form" aria-label="Student account">{children}</section>
+      <section className="entry-form" aria-label="Your account">{children}</section>
       <a className="entry-courses" href="/courses">
         <picture>
           <source media="(max-width: 760px)" srcSet="/nail-floral-480.webp" />

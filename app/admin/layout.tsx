@@ -6,10 +6,10 @@ import './dashboard.css';
 
 export default async function AdminLayout({children}:{children:React.ReactNode}){
   const user=await getChatGPTUser().catch(()=>null);
-  return <AccountLayout staff><div className="admin-area">
+  return <AccountLayout><div className="admin-area">
     <header className="workspace-mast"><div className="workspace-mast-inner">
       <a className="workspace-brand" href="/" aria-label="Savannah Sky Training Academy home"><AcademyWordmark/></a>
-      <a className="workspace-account" href={user?'/sign-out?staff=1':'/sign-in'}>{user?'Sign out':'Student sign-in'}<ArrowUpRight size={16} aria-hidden="true"/></a>
+      <a className="workspace-account" href={user?'/sign-out':'/sign-in'}>{user?'Sign out':'Sign in'}<ArrowUpRight size={16} aria-hidden="true"/></a>
     </div></header>
     <main id="main">{children}</main>
   </div></AccountLayout>;
