@@ -5,37 +5,26 @@ const env=process.env;
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 export function db(){return database();}
 export function bucket(){return objectStorage();}
-function ownerEmail(){return (env.ADMIN_EMAIL||'Netsagee@gmail.com').trim().toLowerCase();}
+// Match the academy co-owner's verified address without publishing their inbox.
+const academyCoOwnerDigest='bb3bfec9796f93955bd0642392bd948619ce4dcb0aac8f6ba6c9b7bfb4038a4f';
+
+function isOwnerEmail(address:string){
+ const email=address.trim().toLowerCase();
+ if(!email)return false;
+ const primary=(env.ADMIN_EMAIL?.trim()||'netsagee@gmail.com').toLowerCase();
+ return email===primary || createHash('sha256').update(email).digest('hex')===academyCoOwnerDigest;
+}
 export async function owner(){
  const user=await getChatGPTUser();
- return Boolean(user && user.email.toLowerCase()===ownerEmail());
+ return Boolean(user && isOwnerEmail(user.email));
 }
 export async function staffEmail(){
  return (await db().prepare("SELECT value FROM settings WHERE id='academy_staff_email'").first<{value:string}>())?.value||'';
 }
-// The owner-approved invitation is bound to a verified inbox. Keep the address out of public source.
-export const educatorInviteKey='educator-invite:'+'bb3bfec9796f93955bd0642392bd948619ce4dcb0aac8f6ba6c9b7bfb4038a4f';
-export async function educatorInvite(){
- const database=db();
- await database.prepare("INSERT OR IGNORE INTO settings(id,value) VALUES(?,'invited')").bind(educatorInviteKey).run();
- return (await database.prepare('SELECT value FROM settings WHERE id=?').bind(educatorInviteKey).first<{value:string}>())?.value;
-}
 export async function staffAccessFor(user:{email:string}){
  const email=user.email.trim().toLowerCase();
- if(email===ownerEmail())return true;
- const invited='educator-invite:'+createHash('sha256').update(email).digest('hex')===educatorInviteKey;
- if(!invited)return email===(await staffEmail()).trim().toLowerCase();
- const store=db();
- const row=await store.prepare(`SELECT
-   (SELECT value FROM settings WHERE id='academy_staff_email') AS staff,
-   (SELECT value FROM settings WHERE id=?) AS invitation`).bind(educatorInviteKey)
-   .first<{staff:string|null;invitation:string|null}>();
- if(row?.staff?.trim().toLowerCase()===email || row?.invitation===email)return true;
- if(row?.invitation!=null && row.invitation!=='invited')return false;
- // A concurrent revocation must take precedence over claiming an invitation.
- await store.prepare(`INSERT INTO settings(id,value) VALUES(?,?)
-   ON CONFLICT(id) DO UPDATE SET value=excluded.value WHERE settings.value='invited'`).bind(educatorInviteKey,email).run();
- return (await store.prepare('SELECT value FROM settings WHERE id=?').bind(educatorInviteKey).first<{value:string}>())?.value===email;
+ if(!email)return false;
+ return isOwnerEmail(email) || email===(await staffEmail()).trim().toLowerCase();
 }
 export async function admin(){
  const user=await getChatGPTUser();
