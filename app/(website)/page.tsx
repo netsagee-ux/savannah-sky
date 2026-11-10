@@ -1,128 +1,121 @@
-import { ArrowRight, ArrowUpRight, BookOpen, Check, MonitorPlay, NotebookPen, Plus, UserRound } from 'lucide-react';
-import { NailTool, type ToolName } from '@/components/academy-icons';
-import { courseImage } from '@/components/ui';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BookOpen, CreditCard, Play, Plus } from 'lucide-react';
+import CourseEdit, { type CourseEntry } from '@/components/home-course-edit';
 import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
 import StudentStory from '@/components/student-story';
-import { type Course } from '@/lib/data';
+import { courseFee, isConversion, type Course } from '@/lib/data';
 import { catalog } from '@/lib/server';
 import './atelier-home.css';
-import './silk-home.css';
 
 export const revalidate = 60;
 
-const techniques: { name: string; tool: ToolName }[] = [
-  { name: 'Gel polish', tool: 'polish' }, { name: 'Builder gel', tool: 'builder' },
-  { name: 'Fine-line art', tool: 'liner' }, { name: 'French tips', tool: 'swatches' },
+const questions = [
+  ['Do I need a qualification to start?', 'Our beginner courses are open to complete beginners. Conversion courses are for nail technicians who already hold a relevant qualification. You’ll find the entry requirements on each course page.'],
+  ['Can I watch the lessons on my phone?', 'Yes. Sign in to My learning on your phone, tablet or laptop. You’ll need an internet connection to stream your lessons.'],
+  ['How long can I access my course?', 'The access period and support available depend on the course. Read the course details before enrolling, or get in touch with Carla.'],
+  ['Is my course CPD accredited?', 'Look for the CPD accreditation details on the course page. You can also view your completion record in My learning once you finish your lessons and knowledge checks.'],
 ];
 
-const questions = [
-  ['Can I learn on my phone?', 'Yes. Open My learning on your phone, tablet or computer. You’ll need an internet connection to stream lessons.'],
-  ['How long will I have access?', 'Access and support vary by course. Check the course details or ask Carla before you enrol.'],
-  ['Will I receive a certificate?', 'Finishing all published lessons and knowledge checks gives you a completion record. CPD accreditation is listed on each accredited course page.'],
+const enrolment = [
+  { icon: BookOpen, title: 'Find your level', text: 'Open a course to see its entry requirements, kit list and lesson plan.' },
+  { icon: CreditCard, title: 'Enrol online', text: 'When enrolment is open, sign in with your student email and pay securely by card through SumUp.' },
+  { icon: Play, title: 'Start practising', text: 'Once payment is confirmed, your lessons are ready in My learning. Come back to the same account to carry on.' },
 ];
+
+async function courseEntries(): Promise<CourseEntry[]> {
+  try {
+    const rows = await catalog() as Course[];
+    return rows.map(course => ({
+      id: course.id, title: course.title,
+      level: isConversion(course) ? 'Conversion' : course.level || 'Online course',
+      fee: course.price != null ? courseFee(course.price) : null,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 export default async function Home() {
-  let courses: Course[] = [];
-  try {
-    const published = await catalog();
-    courses = published as Course[];
-  } catch { /* The directory link remains available when the course service is offline. */ }
-
-  return (
-    <>
-      <section className="silk-hero" aria-labelledby="silk-title">
-        <div className="silk-photo">
-          <img src="/salon-mint-tips-640.webp" srcSet="/salon-mint-tips-640.webp 640w, /salon-mint-tips-1200.webp 1200w"
-            sizes="(max-width: 760px) 100vw, 51vw" width={1200} height={1175} fetchPriority="high"
-            alt="Mint and pink square nails with hand-painted black stripes at Savannah Sky" />
+  const courses = await courseEntries();
+  return <div className="salon-home">
+    <section className="cover" aria-labelledby="home-title">
+      <div className="cover-layout">
+        <div className="cover-copy">
+          <span className="folio-label">Online nail training with Carla</span>
+          <h1 id="home-title">The art of<br /><em>doing nails.</em></h1>
+          <p>Pull up a chair. Learn the shape, the finish and the little details that make a set your own.</p>
+          <a className="folio-button" href="#collection">Discover the courses <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
-        <div className="silk-layout"><div className="silk-copy">
-          <span className="silk-kicker">Online nail training</span>
-          <h1 id="silk-title">Nail artistry,<br /><em>step by step.</em></h1>
-          <p>Join Carla at the nail desk. Learn gel polish, shaping and hand-painted details at your own pace.</p>
-          <a className="silk-button" href="#collection">Explore courses <ArrowRight size={18} aria-hidden="true" /></a>
-        </div></div>
-      </section>
+        <figure className="cover-photo cover-small">
+          <div><img src="/salon-pink-glaze-480.webp" srcSet="/salon-pink-glaze-480.webp 480w, /salon-pink-glaze-960.webp 960w"
+            sizes="(max-width: 720px) 39vw, 21vw" width={960} height={1280}
+            alt="A soft pink glazed manicure from Savannah Sky Salon" /></div>
+          <figcaption>Blush glaze</figcaption>
+        </figure>
+        <figure className="cover-photo cover-main">
+          <div><img src="/nail-sculpted-960.webp" srcSet="/nail-sculpted-480.webp 480w, /nail-sculpted-960.webp 960w, /nail-sculpted-1440.webp 1440w"
+            sizes="(max-width: 720px) 55vw, 31vw" width={960} height={955} fetchPriority="high"
+            alt="Sculpted almond nails with white French tips and hand-painted gold scrollwork" /></div>
+          <figcaption>Sculpted French</figcaption>
+        </figure>
+      </div>
+    </section>
 
-      <div className="technique-band"><div className="technique-window" aria-label="Nail techniques">
-          <div className="technique-track">{[0, 1, 2, 3].map(copy =>
-            <ul className="technique-repeat" key={copy} aria-hidden={copy !== 0 || undefined}>
-              {techniques.map(item => <li key={item.name}><NailTool name={item.tool} size={24} />{item.name}</li>)}
-            </ul>
-          )}</div>
-        </div></div>
+    <nav className="home-index" aria-label="Explore the homepage"><div>
+      <a href="#collection">Courses <ArrowDownRight size={14} aria-hidden="true" /></a>
+      <a href="#salon-work">Portfolio <ArrowDownRight size={14} aria-hidden="true" /></a>
+      <a href="#educator">Meet Carla <ArrowDownRight size={14} aria-hidden="true" /></a>
+    </div></nav>
 
-      <section id="collection" className="course-edit studio-wrap" aria-labelledby="collection-title">
-        <div className="course-edit-heading"><h2 id="collection-title">The course <em>collection.</em></h2>
-          <a className="studio-text-link" href="/courses">All courses <ArrowUpRight size={16} aria-hidden="true" /></a>
-        </div>
-        <div className="course-edit-list">{!courses.length&&<p>Visit the course directory for current programmes.</p>}{courses.slice(0, 3).map((course, index) =>
-          <a className="course-edit-piece" key={course.id} href={'/courses/' + encodeURIComponent(course.id)}>
-            <div className="course-edit-photo"><img src={courseImage(course,index,480)}
-              srcSet={course.thumbnail_key || course.thumbnail_id ? undefined : courseImage(course,index,480)+' 480w, '+courseImage(course,index,960)+' 960w'}
-              sizes="(max-width: 650px) 26vw, 30vw" width={480} height={480} loading="lazy" alt=""
-              style={course.id === 'builder-gel' ? {objectPosition: '50% 50%'} : undefined} /></div>
-            <div className="course-edit-info"><span>{course.level}</span><h3>{course.title}</h3></div>
-            <span className="course-edit-arrow" aria-hidden="true"><ArrowUpRight size={19}/></span>
-          </a>
-        )}</div>
-      </section>
+    <section className="folio-wrap folio-section" id="collection" aria-labelledby="course-edit-title">
+      <div className="folio-heading">
+        <div><span className="folio-label">The curriculum</span><h2 id="course-edit-title">Find your <em>course.</em></h2></div>
+        <a className="folio-link" href="/courses">All courses <ArrowUpRight size={16} aria-hidden="true" /></a>
+      </div>
+      <CourseEdit courses={courses} />
+    </section>
 
-      <section id="educator" className="carla-studio" aria-labelledby="carla-title">
-        <div className="studio-wrap carla-layout">
-          <div className="carla-pictures">
-            <img className="educator-photo" src="/academy-graduation-960.webp" srcSet="/academy-graduation-480.webp 480w, /academy-graduation-960.webp 960w"
-              sizes="(max-width: 750px) 90vw, 43vw" width={960} height={1598} loading="lazy" alt="A Savannah Sky graduation, with a student holding her certificate" />
-            <img className="studio-glimpse" src="/salon-reception-480.webp" width={480} height={496} loading="lazy" alt="The reception desk at Savannah Sky" />
-          </div>
-          <div className="carla-note"><span className="studio-kicker">Meet your educator</span><h2 id="carla-title">At the table<br /><em>with Carla.</em></h2>
-            <p>I left school without a single GCSE. Today I own a salon and teach the craft I love. I want you to feel you can pull up a chair, ask a question and try again.</p>
-            <a className="studio-button light-button" href="/about">Read my story <ArrowUpRight size={17} /></a>
-          </div>
-        </div>
-      </section>
+    <NailStudy />
 
-      <NailStudy />
+    <section className="folio-wrap founder folio-section" id="educator" aria-labelledby="founder-title">
+      <figure className="founder-photo">
+        <img src="/academy-graduation-960.webp" srcSet="/academy-graduation-480.webp 480w, /academy-graduation-960.webp 960w" sizes="(max-width: 720px) 92vw, 44vw" width={960} height={1598} loading="lazy" alt="Carla and a student celebrating her certificate at Savannah Sky" />
+        <figcaption>Graduation day at Savannah Sky</figcaption>
+      </figure>
+      <div className="founder-copy"><span className="folio-label">Meet your educator</span><h2 id="founder-title">A seat at<br /><em>Carla’s table.</em></h2>
+        <p>Carla left school without a GCSE. Today she runs her own salon and teaches the craft that changed her life.</p>
+        <p>She built Savannah Sky for anyone who wants a place to ask questions, make mistakes and grow in confidence. There’s room for you here.</p>
+        <a className="folio-link" href="/about">Carla’s story <ArrowUpRight size={16} aria-hidden="true" /></a>
+      </div>
+    </section>
 
-      <section className="studio-wrap kit-section home-space" aria-labelledby="kit-title">
-        <div><span className="studio-kicker">Before your first class</span><h2 id="kit-title">Set up your <em>desk.</em></h2><p>A little preparation gives you room to concentrate on the technique.</p></div>
-        <div className="kit-list">
-          <p><Check aria-hidden="true" /><span><strong>Check your kit list</strong>Read the equipment and experience requirements on your chosen course before buying supplies.</span></p>
-          <p><Check aria-hidden="true" /><span><strong>Give yourself a clear view</strong>Set your screen beside your practice space so you can pause a close-up and try it yourself.</span></p>
-          <p><Check aria-hidden="true" /><span><strong>Keep your questions nearby</strong>Make a note of anything you want to ask Carla as you practise.</span></p>
-        </div>
-      </section>
+    <StudentStory />
 
-      <StudentStory />
-      <Reviews />
+    <section className="folio-wrap folio-section" aria-labelledby="lessons-title">
+      <div className="folio-heading"><div><span className="folio-label">Learning online</span><h2 id="lessons-title">Your first <em>lesson.</em></h2></div></div>
+      <ol className="lesson-path">{enrolment.map(({ icon: Icon, title, text }) => <li key={title}>
+        <Icon aria-hidden="true" size={24} strokeWidth={1.45} /><h3>{title}</h3><p>{text}</p>
+      </li>)}</ol>
+    </section>
 
-      <section className="studio-wrap enrol-guide home-space" aria-labelledby="enrol-title">
-        <div className="edit-head"><div><span className="studio-kicker">Enrolment</span><h2 id="enrol-title">From course to <em>first lesson.</em></h2></div></div>
-        <ol className="enrol-steps">
-          <li><BookOpen /><h3>Choose a course</h3><p>Check the level, price and lesson plan.</p></li>
-          <li><UserRound /><h3>Pay by card</h3><p>Sign in with your student email and pay securely with SumUp.</p></li>
-          <li><MonitorPlay /><h3>Open your lessons</h3><p>Once payment is confirmed, open your course in My learning.</p></li>
-        </ol>
-      </section>
+    <section className="home-shop" aria-labelledby="shop-title"><div className="folio-wrap shop-spread">
+      <div><span className="folio-label">The academy shop</span><h2 id="shop-title">At your <em>nail desk.</em></h2>
+        <p>Check your course kit list first, then visit the shop for student kits and nail supplies.</p>
+        <a className="folio-button" href="/shop">Visit the shop <ArrowUpRight size={17} aria-hidden="true" /></a></div>
+      <img src="/salon-colour-swatches-960.webp" srcSet="/salon-colour-swatches-480.webp 480w, /salon-colour-swatches-960.webp 960w" sizes="(max-width: 720px) 92vw, 46vw" width={960} height={1023} loading="lazy" alt="Fans of warm-toned polish swatches at Savannah Sky Salon" />
+    </div></section>
 
-      <section className="returning-students" aria-labelledby="returning-title"><div className="studio-wrap returning-inner">
-        <NotebookPen size={32} strokeWidth={1.4} /><div><h2 id="returning-title">Already a student?</h2><p>Pick up your next lesson or find your purchase history.</p></div>
-        <a className="studio-text-link" href="/dashboard">My learning <ArrowUpRight size={16} /></a>
-      </div></section>
+    <Reviews />
 
-      <section className="studio-wrap home-questions home-space" aria-labelledby="questions-title">
-        <div><h2 id="questions-title">Course <em>questions.</em></h2><a className="studio-text-link" href="/faq">Read all FAQs <ArrowRight size={16} /></a></div>
-        <div className="question-list">{questions.map(([question, answer]) =>
-          <details key={question}><summary>{question}<Plus size={17} /></summary><p>{answer}</p></details>
-        )}</div>
-      </section>
+    <section className="folio-wrap folio-section course-questions" aria-labelledby="questions-title">
+      <div><span className="folio-label">Before you enrol</span><h2 id="questions-title">Good to <em>know.</em></h2>
+        <a className="folio-link" href="/faq">All course FAQs <ArrowUpRight size={16} aria-hidden="true" /></a></div>
+      <div>{questions.map(([q, a]) => <details key={q}><summary>{q}<Plus size={18} aria-hidden="true" /></summary><p>{a}</p></details>)}</div>
+    </section>
 
-      <section className="home-contact" aria-labelledby="support-title"><div className="studio-wrap home-contact-inner">
-        <img src="/salon-reception-480.webp" alt="Reception at Savannah Sky Salon" width={480} height={640} loading="lazy" />
-        <div><span className="studio-kicker">Course advice</span><h2 id="support-title">Which course <em>fits you?</em></h2><p>Compare course levels, techniques and lesson plans.</p>
-          <a className="studio-button" href="/courses">Find my course <ArrowUpRight size={17} /></a></div>
-      </div></section>
-    </>
-  );
+    <section className="student-door" aria-labelledby="student-title"><div className="folio-wrap">
+      <div><span className="folio-label">Student workspace</span><h2 id="student-title">Back for your <em>next lesson?</em></h2></div>
+      <a className="folio-button" href="/dashboard">My learning <ArrowRight size={17} aria-hidden="true" /></a>
+    </div></section>
+  </div>;
 }
