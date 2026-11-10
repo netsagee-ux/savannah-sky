@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, BookOpen, CreditCard, Play, Plus } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BookOpen, CreditCard, Play, Plus } from 'lucide-react';
 import CourseEdit, { type CourseEntry } from '@/components/home-course-edit';
 import HomeSalonPhotos from '@/components/home-salon-photos';
 import NailStudy from '@/components/nail-study';
@@ -39,18 +39,24 @@ async function courseEntries(): Promise<CourseEntry[]> {
 export default async function Home() {
   const courses = await courseEntries();
   return <div className="salon-home">
-    <section className="campaign" aria-labelledby="home-title">
-      <div className="campaign-copy">
-        <span className="campaign-label">Nail training with Carla</span>
-        <h1 id="home-title">Nail artistry,<br/><em>by hand.</em></h1>
-        <p>From your first gel set to intricate nail art. Learn with Carla at Savannah Sky Training Academy.</p>
-        <div className="campaign-actions">
-          <a className="folio-button" href="/courses">Explore courses <ArrowRight size={17} aria-hidden="true"/></a>
-          <a href="#educator">Meet Carla <ArrowUpRight size={15} aria-hidden="true"/></a>
+    <section className="cover" aria-labelledby="home-title">
+      <div className="cover-layout">
+        <div className="cover-copy">
+          <span className="folio-label">Online nail training with Carla</span>
+          <h1 id="home-title">The art of<br /><em>doing nails.</em></h1>
+          <p>Pull up a chair. Learn the shape, the finish and the little details that make a set your own.</p>
+          <a className="folio-button" href="#collection">Discover the courses <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
+        <HomeSalonPhotos />
       </div>
-      <HomeSalonPhotos />
     </section>
+
+    <nav className="home-index" aria-label="Explore the homepage"><div>
+      <a href="#collection">Courses <ArrowDownRight size={14} aria-hidden="true" /></a>
+      <a href="#salon-work">Portfolio <ArrowDownRight size={14} aria-hidden="true" /></a>
+      <a href="#educator">Meet Carla <ArrowDownRight size={14} aria-hidden="true" /></a>
+    </div></nav>
+
     <section className="folio-wrap folio-section" id="collection" aria-labelledby="course-edit-title">
       <div className="folio-heading">
         <div><span className="folio-label">The curriculum</span><h2 id="course-edit-title">Find your <em>course.</em></h2></div>

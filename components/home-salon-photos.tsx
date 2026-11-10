@@ -1,28 +1,38 @@
 'use client';
 
-import {useState} from 'react';
-import {ArrowLeft, ArrowRight} from 'lucide-react';
-
-const looks = [
-  {file:'nail-sculpted', title:'Sculpted French', alt:'White almond tips with raised gold scrollwork on a blush base', large:1440},
-  {file:'nail-red', title:'Red lacquer', alt:'Glossy red and black nail art edged in metallic silver', large:1440},
-  {file:'nail-botanical', title:'Botanical ink', alt:'Fine black botanical detailing on a natural manicure', large:1368},
-];
+import { useRef, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 
 export default function HomeSalonPhotos() {
-  const [index, setIndex] = useState(0);
-  const look = looks[index];
-  const move = (step:number) => setIndex(current => (current + step + looks.length) % looks.length);
-  return <figure className="campaign-look" aria-label="Salon portfolio">
-    <img key={look.file} src={'/'+look.file+'-960.webp'}
-      srcSet={'/'+look.file+'-480.webp 480w, /'+look.file+'-960.webp 960w, /'+look.file+'-'+look.large+'.webp '+look.large+'w'}
-      sizes="(max-width: 700px) 100vw, 53vw" width={960} height={955} fetchPriority={index===0?'high':'auto'} alt={look.alt}/>
-    <figcaption>
-      <div className="look-name" aria-live="polite" aria-atomic="true"><small>From the salon portfolio</small><strong>{look.title}</strong></div>
-      <div className="look-buttons">
-        <button type="button" aria-label="Previous salon photo" onClick={()=>move(-1)}><ArrowLeft size={18}/></button>
-        <button type="button" aria-label="Next salon photo" onClick={()=>move(1)}><ArrowRight size={18}/></button>
-      </div>
-    </figcaption>
-  </figure>;
+  const strip = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(0);
+
+  function nextPhoto() {
+    const el = strip.current;
+    if (!el) return;
+    const next = el.scrollLeft < el.clientWidth / 2 ? el.clientWidth : 0;
+    el.scrollTo({ left: next, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }
+
+  return <div className="cover-photos">
+    <div className="cover-prints" id="cover-prints" ref={strip} onScroll={event => {
+      const el = event.currentTarget;
+      if (el.clientWidth) setVisible(Math.round(el.scrollLeft / el.clientWidth));
+    }}>
+      <figure className="cover-photo cover-main">
+        <div><img src="/nail-sculpted-960.webp" srcSet="/nail-sculpted-480.webp 480w, /nail-sculpted-960.webp 960w, /nail-sculpted-1440.webp 1440w"
+          sizes="(max-width: 660px) 90vw, (max-width: 980px) 47vw, (max-width: 1450px) 29vw, 420px"
+          width={960} height={955} fetchPriority="high" alt="Sculpted almond nails with white French tips and hand-painted gold scrollwork" /></div>
+        <figcaption>Sculpted French</figcaption>
+      </figure>
+      <figure className="cover-photo cover-small">
+        <div><img src="/salon-pink-glaze-480.webp" srcSet="/salon-pink-glaze-480.webp 480w, /salon-pink-glaze-960.webp 960w"
+          sizes="(max-width: 660px) 90vw, (max-width: 980px) 47vw, (max-width: 1300px) 24vw, 310px"
+          width={960} height={1280} alt="A soft pink glazed manicure from Savannah Sky Salon" /></div>
+        <figcaption>Blush glaze</figcaption>
+      </figure>
+    </div>
+    <button className="cover-next" type="button" aria-controls="cover-prints" onClick={nextPhoto}>Next photo <ArrowRight size={15} aria-hidden="true" /></button>
+    <span className="cover-current sr-only" role="status">{visible ? 'Blush glaze' : 'Sculpted French'}</span>
+  </div>;
 }
