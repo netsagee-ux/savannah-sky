@@ -1,15 +1,18 @@
+import Link from 'next/link';
+import CourseLink from './course-link';
 import { ArrowRight, BookOpen, Lightbulb, Play } from 'lucide-react';
 import { isConversion,accredited,type Course } from '@/lib/data';
 import { NailTool, type ToolName } from './academy-icons';
 
-type IntroProps = { kicker: string; title: string; text?: string; image?: { src: string; alt: string } };
+type IntroProps = { kicker: string; title: string; text?: string; image?: { src: string; smallSrc?:string; alt: string } };
 
 export function Intro({ kicker, title, text, image }: IntroProps) {
   return (
     <section className={'intro-band' + (image ? ' has-image' : '')}>
       <div className="studio-wrap intro-inner">
         <div><span className="overline">{kicker}</span><h1>{title}</h1>{text && <p>{text}</p>}</div>
-        {image && <img src={image.src} alt={image.alt} width={780} height={510} />}
+        {image && <img src={image.src} srcSet={image.smallSrc ? image.smallSrc+' 480w, '+image.src+' 960w' : undefined}
+          sizes="(max-width: 720px) 92vw, 42vw" fetchPriority="high" alt={image.alt} width={780} height={510} />}
       </div>
     </section>
   );
@@ -34,7 +37,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
   const hasThumbnail = Boolean(course.thumbnail_key || course.thumbnail_id);
   const image = courseImage(course,index,480);
   return (
-    <a className="programme" href={'/courses/' + course.id}>
+    <CourseLink className="programme" href={'/courses/' + course.id}>
       <div className="programme-image">
         <img src={image} style={image.startsWith('/nail-botanical-') ? {objectPosition: '50% 50%'} : undefined}
           srcSet={hasThumbnail ? undefined : courseImage(course, index, 480) + ' 480w, ' + courseImage(course, index, 960) + ' 960w'}
@@ -49,7 +52,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
           <span className="programme-open" aria-hidden="true"><ArrowRight size={17} /></span>
         </div>
       </div>
-    </a>
+    </CourseLink>
   );
 }
 
@@ -69,7 +72,7 @@ export function CTA() {
   return (
     <section className="studio-invitation"><div className="studio-wrap">
       <div><span className="overline">Student support</span><h2>Talk to the academy.</h2></div>
-      <a className="studio-button cream" href="/contact">Get in touch <ArrowRight size={17} /></a>
+      <Link className="studio-button cream" href="/contact">Get in touch <ArrowRight size={17} /></Link>
     </div></section>
   );
 }

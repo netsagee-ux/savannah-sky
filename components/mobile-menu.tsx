@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef } from 'react';
 import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react';
 import AcademyWordmark from './academy-wordmark';
@@ -14,10 +15,10 @@ export default function MobileMenu() {
     </button>
     <dialog className="atlas-drawer" ref={drawer} aria-label="Academy menu" onClick={e => { if (e.target === e.currentTarget) close(); }}>
       <div className="atlas-drawer-inner">
-        <div className="atlas-drawer-head"><a href="/" onClick={close} aria-label="Academy home"><AcademyWordmark /></a>
+        <div className="atlas-drawer-head"><Link href="/" onClick={close} aria-label="Academy home"><AcademyWordmark /></Link>
           <button type="button" aria-label="Close menu" onClick={close}><X size={22} /></button></div>
         <nav aria-label="Mobile navigation">{academyPages.map(page =>
-          <a href={page.href} key={page.href} onClick={close}>{page.label}<ArrowUpRight size={18} aria-hidden="true" /></a>
+          <Link href={page.href} key={page.href} onClick={close}>{page.label}<ArrowUpRight size={18} aria-hidden="true" /></Link>
         )}</nav>
         <a className="drawer-signin" href="/dashboard">My account <ArrowRight size={17}/></a>
       </div>

@@ -29,6 +29,7 @@ test('a temporary account lookup error leaves only the published course outline 
   const empty=moduleUrl('export default ()=>null');
   const page=await import(await compile('app/(website)/courses/[id]/page.tsx',{
     'next/navigation':moduleUrl('export const notFound=()=>{throw Error("404")}'),
+    'next/link':moduleUrl('export default ({children})=>children'),
     'lucide-react':moduleUrl('export const ArrowLeft=()=>null,LockKeyhole=()=>null,Play=()=>null;'),
     '@/components/checkout-button':empty,'@/components/qualification-form':empty,
     '@/components/ui':moduleUrl('export const courseImage=()=>"/course.webp"'),

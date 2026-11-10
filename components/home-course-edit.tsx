@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import CourseLink from './course-link';
 import { useState } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 
@@ -17,7 +19,7 @@ function coverFor(title: string, index: number) {
 
 export default function CourseEdit({ courses }: { courses: CourseEntry[] }) {
   const [level, setLevel] = useState('');
-  if (!courses.length) return <p className="course-note">Visit the <a href="/courses">course directory</a> for the latest courses and enrolment details.</p>;
+  if (!courses.length) return <p className="course-note">Visit the <Link href="/courses">course directory</Link> for the latest courses and enrolment details.</p>;
   const levels = [...new Set(courses.map(course => course.level))];
   const filtered = courses.filter(course => !level || course.level === level);
   const selected = level ? filtered : filtered.slice(0, 3);
@@ -34,13 +36,13 @@ export default function CourseEdit({ courses }: { courses: CourseEntry[] }) {
     <div className="edit-cards">{selected.map(course => {
       const cover = coverFor(course.title, courses.indexOf(course));
       const [small, large] = cover === 'salon-mint-tips' ? [640, 1200] : [480, 960];
-      return <a key={course.id} className="edit-card" href={'/courses/' + encodeURIComponent(course.id)}>
+      return <CourseLink key={course.id} className="edit-card" href={'/courses/' + encodeURIComponent(course.id)}>
         <div className="card-photo" data-look={cover}><img src={'/' + cover + '-' + small + '.webp'}
           srcSet={'/' + cover + '-' + small + '.webp ' + small + 'w, /' + cover + '-' + large + '.webp ' + large + 'w'}
           sizes="(max-width: 560px) 90vw, (max-width: 980px) 44vw, (max-width: 1580px) 28vw, 450px" width={480} height={410} loading="lazy" alt="" /></div>
         <div className="card-info"><div className="card-meta"><span>{course.level}</span>{course.fee && <span>{course.fee}</span>}</div>
           <h3>{course.title}</h3></div><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" />
-      </a>;
+      </CourseLink>;
     })}</div>
   </>;
 }

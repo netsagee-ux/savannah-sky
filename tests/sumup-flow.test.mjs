@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {renderToStaticMarkup} from 'react-dom/server';
 import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -18,7 +19,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   for(const file of (await readdir('drizzle')).filter(f=>f.endsWith('.sql')).sort()){
     for(const query of (await readFile('drizzle/'+file,'utf8')).split('--> statement-breakpoint'))if(query.trim())await db.prepare(query).run();
   }
-  const auth=moduleUrl("export const getChatGPTUser=async()=>globalThis.sumupTestUser;export const chatGPTSignInPath=p=>'/sign-in?redirect_url='+encodeURIComponent(p)");
+  const auth=moduleUrl("export const getChatGPTUser=async()=>globalThis.sumupTestUser; export const requireChatGPTUser=async()=>{if(!globalThis.sumupTestUser)throw Error('login');return globalThis.sumupTestUser};export const chatGPTSignInPath=p=>'/sign-in?redirect_url='+encodeURIComponent(p)");
   const server=await compile('lib/server.ts',{'./vercel-database':adapter,'./vercel-storage':moduleUrl("export const objectStorage=()=>({head:async k=>k==='private'?{size:2}:null})"),'@/app/chatgpt-auth':auth});
   const urls=await compile('lib/student-course-link.ts',{});
   const invitations=await compile('lib/course-invitation.ts',{'./server':server,'./student-course-link':urls});
@@ -121,6 +122,14 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const manage=await import(await compile('app/api/shop/admin/route.ts',extra));
     const checkout=await import(await compile('app/api/shop/checkout/route.ts',extra));
     const hook=await import(await compile('app/api/shop/webhook/route.ts',extra));
+    const receiptImports={...extra,'@/lib/shop-types':await compile('lib/shop-types.ts',{}),
+      'next/navigation':moduleUrl("export function notFound(){throw Error('not found')}"),
+      '@/components/sumup-card':moduleUrl("export default function Card(){return 'Card payment form'}"),
+      '@/components/shop-order-basket-reset':moduleUrl('export default ()=>null'),
+      '../../shop.css':moduleUrl(''),'../shop.css':moduleUrl('')};
+    const receiptPage=(await import(await compile('app/(website)/shop/orders/[id]/page.tsx',receiptImports))).default;
+    const historyPage=(await import(await compile('app/(website)/shop/orders/page.tsx',receiptImports))).default;
+    const receiptFor=async id=>renderToStaticMarkup(await receiptPage({params:Promise.resolve({id})}));
     const product=crypto.randomUUID(),second=crypto.randomUUID(),attempt=crypto.randomUUID();
     const save=(action,fields)=>{const f=new FormData();for(const [k,v] of Object.entries({action,...fields}))f.set(k,v);
       return manage.POST(new Request(site+'/api/shop/admin',{method:'POST',headers:{origin:site},body:f}));};
@@ -141,6 +150,12 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     assert.equal(await lib.shopOrder(attempt,'other'),null);
     as('other');assert.equal((await purchase()).status,409);assert.equal((await manage.GET()).status,403);
     as('owner');assert.equal((await save('dispatch',{id:attempt})).status,400);
+    as('buyer');
+    const unpaidReceipt=await receiptFor(attempt);
+    assert.match(unpaidReceipt,/Card payment form/);
+    assert.doesNotMatch(unpaidReceipt,/Payment confirmed/);
+    as('stranger');await assert.rejects(receiptFor(attempt),/not found/);
+    as('owner');
     const notifyShop=()=>hook.POST(post('/api/shop/webhook?order='+attempt,{event_type:'CHECKOUT_STATUS_CHANGED',id:payment.id,status:'PAID'}));
     await notifyShop();assert.equal((await lib.shopOrder(attempt)).status,'pending');
     payment.status='PAID';tamper={merchant_code:'BAD'};assert.equal((await notifyShop()).status,400);tamper={};
@@ -148,6 +163,12 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     assert.equal((await lib.shopOrder(attempt)).status,'paid');assert.deepEqual(await salesSummary(),{sales:3,gross:14200,customers:1});
     assert.equal((await save('dispatch',{id:attempt,tracking:'test-ref'})).status,200);
     assert.equal((await save('dispatch',{id:attempt})).status,400);
+    as('buyer');
+    const paidReceipt=await receiptFor(attempt);
+    for(const expected of ['Payment confirmed','£43.00','Your order has been dispatched','test-ref'])assert.ok(paidReceipt.includes(expected));
+    assert.doesNotMatch(paidReceipt,/Card payment form/);
+    assert.match(renderToStaticMarkup(await historyPage()),/Dispatched/);
+    as('owner');
     const visible=await (await manage.GET()).json();assert.equal(visible.orders[0].tracking,'test-ref');assert.equal(visible.orders[0].delivery.postcode,'BA1 1AB');
   });
 

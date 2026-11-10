@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play} from 'lucide-react';
 import CheckoutButton from '@/components/checkout-button';
@@ -17,15 +18,19 @@ type Lesson = {id:string;title:string;has_video:number;has_quiz:number;position:
 export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
   const database=db();
-  const [course,lessonRows]=await Promise.all([
+  const authConfigured=Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const [course,lessonRows,account,merchant]=await Promise.all([
     database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id).first<Course>(),
     database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
+    getChatGPTUser().then(user=>({user})).catch(()=>null),
+    authConfigured?merchantStatus().catch(()=>null):null,
   ]);
   if(!course)notFound();
   const conversion=isConversion(course);
   // The public outline remains readable while account services recover.
   const viewer=await (async()=>{
-    const user=await getChatGPTUser();
+    if(!account)return null;
+    const {user}=account;
     const access=user?await enrolled(id):false;
     const proof=conversion&&user&&!access?await qualification(id,user.userId):null;
     return {user,access,proof};
@@ -36,15 +41,14 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
-  const merchant=viewer && !access && priced && lessons.length>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-    ? await merchantStatus().catch(()=>null) : null;
-  const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
+  const paymentsOpen=Boolean(viewer && !access && priced && lessons.length && merchant?.code)
+    && await hasCourseDelivery(course).catch(()=>false);
   const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
   const firstLesson=lessons[0];
   const learning=firstLesson?'/learn/'+encodeURIComponent(firstLesson.id):'/dashboard';
 
   const detail=<section className="studio-wrap practice-detail">
-    <a className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</a>
+    <Link className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</Link>
     <header className="practice-heading"><span className="studio-kicker">{conversion?'Conversion · Qualified nail technicians only':course.level==='Beginner'?'Beginner friendly · No previous experience needed':course.level}{accredited(course)?' · CPD accredited':''}</span>
       <h1>{course.title}</h1><p>{course.description}</p>
     </header>
