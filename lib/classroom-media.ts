@@ -34,6 +34,8 @@ export async function storeMediaPart(id:string,meta:Metadata,part:number,bytes:B
     // Clear abandoned uploads without touching any referenced video or thumbnail.
     const stale=`SELECT id FROM classroom_files f WHERE created_at<? AND NOT EXISTS(SELECT 1 FROM lessons WHERE video_key=f.id OR thumbnail_key=f.id)
       AND NOT EXISTS(SELECT 1 FROM courses WHERE thumbnail_key=f.id)
+      AND (f.id NOT LIKE 'classroom-assets/diagrams/%' OR NOT EXISTS(
+        SELECT 1 FROM settings WHERE id GLOB 'lesson-photo/*' AND json_extract(value,'$.key')=f.id))
       AND (f.id NOT LIKE 'classroom-assets/qualifications/%' OR NOT EXISTS(
         SELECT 1 FROM settings WHERE id LIKE 'qualification:%' AND json_extract(value,'$.proof')=f.id))`;
     const cutoff=Date.now()-7*86400000;

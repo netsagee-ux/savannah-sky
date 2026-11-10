@@ -1,11 +1,12 @@
 "use client";
+import LessonPhotos from './lesson-photos';
 import QuizEditor from './quiz-editor';
 import {readQuiz} from '@/lib/lesson-quiz';
 import {useState, type FormEvent} from 'react';
 
 type Lesson = {
   id:string; course_id:string; title:string; position:number; body:string; video_key:string|null;
-  video_url:string|null; thumbnail_key:string|null; question:string|null; options:string|null; answer:number|null;
+  photos_json?:string; video_url:string|null; thumbnail_key:string|null; question:string|null; options:string|null; answer:number|null;
 };
 type Props = {
   courses:{id:string;title:string}[]; lessons:Lesson[]; selected:string; onSelect:(id:string)=>void;
@@ -33,7 +34,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         {!editorOpen && <button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button>}
       </div>
       {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
-        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':item.body?'Lesson notes':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
+        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':item.body?'Lesson notes':JSON.parse(item.photos_json||'[]').length?'Private lesson photos':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
         <div className="lesson-actions"><button type="button" className="edit-link" disabled={busy} aria-label={'Edit '+item.title} onClick={()=>{setLesson(item);setEditorOpen(true);}}>Edit</button>
         <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)} aria-label={'Preview '+item.title}>Preview</a></div>
       </li>)}</ol> : <p>Add the first lesson to start your course library.</p>)}
@@ -48,23 +49,25 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
         <label>Position<input type="number" name="position" min="0" max="1000" defaultValue={lesson?.position??nextPosition}/>
         </label>
         </div>
-        <label>Lesson notes (optional with a video or quiz)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
+        <label>Lesson notes (optional with photos, video or a quiz)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
         </label>
+        <LessonPhotos lessonId={lesson?.id} photos={JSON.parse(lesson?.photos_json||'[]')}/>
         <div className="notice">
         <strong>Private video hosting</strong>
         <p>New recordings are saved in {directUpload?'private Vercel Blob storage':'the encrypted academy database'}. Students watch here after signing in. MP4 (H.264) is recommended.</p>
         </div>
         <label>Private training video (MP4 or WebM, up to {directUpload?'1 GB':'256 MB'})<input name="video" type="file" accept="video/mp4,video/webm"/>
         </label>
-        <label>Video thumbnail (JPG, PNG or WebP, up to 3 MB)<input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"/>
+        <label>Public preview thumbnail (JPG, PNG or WebP, up to 3 MB)<input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"/>
         </label>{lesson?.thumbnail_key&&<div className="admin-thumbnail">
         <img src={'/api/thumbnail/'+lesson.id} alt="Current lesson thumbnail" width={320} height={180}/>
         <label>Existing thumbnail<select name="removeThumbnail">
         <option value="0">Keep (or replace with upload)</option>
+        <option value="private">Move to private lesson photos</option>
         <option value="1">Remove thumbnail</option>
         </select>
         </label>
-        </div>}<p className="quiet">Thumbnails may be visible before enrolment. Do not upload private material as a thumbnail.</p>{lesson?.video_key&&<label>Existing uploaded video<select name="removeVideo">
+        </div>}<p className="quiet">This preview may appear on the public course listing. Use Private lesson photos for teaching materials.</p>{lesson?.video_key&&<label>Existing uploaded video<select name="removeVideo">
         <option value="0">Keep video (or replace with upload above)</option>
         <option value="1">Remove existing video</option>
         </select>

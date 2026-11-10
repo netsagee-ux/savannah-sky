@@ -28,10 +28,14 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const adapter=await compile('lib/vercel-database.ts',{'@libsql/client':import.meta.resolve('@libsql/client')});
   const parts=await compile('lib/lesson-upload.ts',{});
   const mediaModule=await compile('lib/classroom-media.ts',{'./vercel-database':adapter,'./lesson-upload':parts});
-  const {classroomGet,classroomHead}=await import(mediaModule);
+  const {classroomGet,classroomHead,storeMediaPart}=await import(mediaModule);
   const store=globalThis.authoringTest.storage, previousGet=store.get, previousHead=store.head;
-  store.get=(id,options)=>id.startsWith('classroom/')?classroomGet(id,options):previousGet(id,options);
-  store.head=id=>id.startsWith('classroom/')?classroomHead(id):previousHead(id);
+  const encrypted=id=>id.startsWith('classroom/')||id.startsWith('classroom-assets/diagrams/');
+  const originalPut=store.put;
+  store.put=(id,bytes,opts)=>id.startsWith('classroom-assets/diagrams/')?
+    storeMediaPart(id,{size:bytes.byteLength,type:opts.httpMetadata.contentType},0,Buffer.from(bytes)):originalPut(id,bytes,opts);
+  store.get=(id,options)=>encrypted(id)?classroomGet(id,options):previousGet(id,options);
+  store.head=id=>encrypted(id)?classroomHead(id):previousHead(id);
   const db=(await import(adapter)).database();
   for(const path of (await readdir('drizzle')).filter(path=>path.endsWith('.sql')).sort()){
     for(const sql of (await readFile('drizzle/'+path,'utf8')).split('--> statement-breakpoint')){
@@ -50,6 +54,9 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const modules={'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
+  const photoTypes=await compile('lib/lesson-photos.ts',{});
+  modules['@/lib/lesson-photos']=photoTypes;
+  modules['@/lib/save-lesson-photos']=await compile('lib/save-lesson-photos.ts',{'./server':server,'./lesson-photos':photoTypes});
   const route=async path=>import(await compile(path,modules));
   const author=await route('app/api/admin/route.ts'), checkout=await route('app/api/checkout/route.ts');
   const pay=await route('app/api/payments/route.ts'), entry=await route('app/(website)/orders/[id]/learn/route.ts');
@@ -87,6 +94,45 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.ok((await Promise.all([createLesson(),createLesson()])).every(response=>response.ok));
   const lessonId=(await db.prepare('SELECT id FROM lessons WHERE course_id=?').bind(courseId).first()).id;
   assert.equal((await save('lesson',{...lesson,id:lessonId,removeVideo:'1'})).status,400);
+  const uploadPhoto=await route('app/api/admin/lesson-photos/route.ts');
+  const viewPhoto=await route('app/api/lesson-photos/[lessonId]/[photoId]/route.ts');
+  const thumb=await route('app/api/thumbnail/[id]/route.ts');
+  const photoId=crypto.randomUUID(), secondId=crypto.randomUUID();
+  const picture=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNicAAAAASUVORK5CYII=','base64');
+  const pushPhoto=(image,bytes=picture,toLesson=lessonId)=>uploadPhoto.POST(new Request(origin+'/api/admin/lesson-photos?'+new URLSearchParams({lesson:toLesson,course:courseId,image}),{method:'POST',headers:{origin},body:bytes}));
+  const readPhoto=(id=photoId,target=lessonId)=>viewPhoto.GET(new Request(origin+'/photo'),{params:Promise.resolve({lessonId:target,photoId:id})});
+  const readThumb=()=>thumb.GET(new Request(origin+'/thumb'),{params:Promise.resolve({id:lessonId})});
+  assert.equal((await pushPhoto(photoId,Buffer.from('this is not a photo'))).status,415);
+  assert.ok((await pushPhoto(photoId)).ok);
+  assert.equal((await readPhoto()).status,404);
+  assert.ok((await pushPhoto(secondId)).ok);
+  const edits={...lesson,id:lessonId,addPhotos:JSON.stringify([{id:photoId,caption:'Gel layers'},{id:secondId,caption:'Nail anatomy'}])};
+  assert.ok((await save('lesson',{...edits,thumbnail:new File([picture],'cover.png',{type:'image/png'})})).ok);
+  assert.ok((await save('lesson',edits)).ok);
+  assert.equal((await save('lesson',{...edits,addPhotos:JSON.stringify([{id:crypto.randomUUID(),caption:''}])})).status,400);
+  const listPhotos=async()=>JSON.parse((await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+courseId))).json()).lessons.find(l=>l.id===lessonId).photos_json);
+  assert.deepEqual(await listPhotos(),[{id:photoId,caption:'Gel layers'},{id:secondId,caption:'Nail anatomy'}]);
+  assert.ok((await save('visibility',{id:courseId,published:'1'})).ok);
+  state.user=null;
+  assert.equal((await pushPhoto(photoId)).status,403);
+  assert.ok((await readThumb()).ok);
+  assert.equal((await readPhoto()).status,404);
+  state.user=owner;
+  assert.ok((await save('lesson',{...lesson,id:lessonId,removeThumbnail:'private',removePhoto:secondId})).ok);
+  const gallery=await listPhotos();assert.equal(gallery.length,2);
+  assert.equal((await readThumb()).status,404); assert.equal((await readPhoto(secondId)).status,404);
+  assert.deepEqual(Buffer.from(await (await readPhoto(gallery[1].id)).arrayBuffer()),picture);
+  const photoOnly=crypto.randomUUID(), standalone=crypto.randomUUID();
+  assert.ok((await pushPhoto(standalone,picture,photoOnly)).ok);
+  assert.ok((await save('lesson',{courseId,creationId:photoOnly,title:'Anatomy diagrams',position:'20',addPhotos:JSON.stringify([{id:standalone,caption:'Anatomy'}])})).ok);
+  assert.equal((await save('lesson',{id:photoOnly,courseId,title:'Anatomy diagrams',position:'20',removePhoto:standalone})).status,400);
+  assert.equal((await readPhoto(photoId,photoOnly)).status,404);
+  // Simulate a later upload triggering the normal abandoned-file cleanup.
+  await db.prepare("UPDATE classroom_files SET created_at=0 WHERE id LIKE 'classroom-assets/diagrams/%'").run();
+  assert.ok((await pushPhoto(crypto.randomUUID())).ok);
+  assert.equal((await readPhoto()).status,200);
+  assert.equal((await readPhoto(gallery[1].id)).status,200);
+  assert.equal(await classroomHead('classroom-assets/diagrams/'+courseId+'/'+lessonId+'/'+secondId),null);
   const partRoute=await route('app/api/admin/video-part/route.ts');
   const {mediaPartBytes}=await import(parts);
   const partRequest=(key,size,index,bytes)=>partRoute.POST(new Request(origin+'/api/admin/video-part?'+new URLSearchParams({key,size:String(size),part:String(index)}),{
@@ -113,15 +159,15 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const roster=(await db.prepare('SELECT id,position FROM lessons WHERE course_id=? AND video_key IS NOT NULL ORDER BY position').bind(courseId).all()).results;
   assert.deepEqual(roster.map(row=>row.position),Array.from({length:15},(_,i)=>i+1));
   const lessonTab=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+courseId))).json();
-  assert.equal(lessonTab.lessons.length,15);
+  assert.equal(lessonTab.lessons.length,16);
   const library=await (await author.GET(new Request(origin+'/api/admin?tab=Lessons'))).json();
   assert.equal(library.lessons.length,0);
-  assert.equal(library.courses.find(c=>c.id===courseId).lesson_count,15);
+  assert.equal(library.courses.find(c=>c.id===courseId).lesson_count,16);
   assert.equal(library.metrics,null);
   assert.equal(lessonTab.enquiries.length,0);
   const courseTab=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
   assert.equal(courseTab.lessons.length,0);
-  assert.equal(courseTab.courses.find(c=>c.id===courseId).lesson_count,15);
+  assert.equal(courseTab.courses.find(c=>c.id===courseId).lesson_count,16);
   assert.equal(courseTab.courses.find(c=>c.id===courseId).videos,15);
   const watch=()=>token.POST(post('/api/video-access',{lessonId}));
   state.user=owner;
@@ -160,6 +206,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   state.user=null;
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/sign-in');
   state.user=stranger;
+  assert.equal((await readPhoto()).status,404);
   assert.equal((await openInvite()).status,404);
   assert.equal((await unlock(password)).status,403);
   assert.equal((await open()).status,404);
@@ -176,6 +223,10 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.ok(activations.every(result=>result.ok));
   assert.equal(new URL((await open()).headers.get('location')).pathname,'/learn/'+lessonId);
   assert.equal(new URL((await openInvite()).headers.get('location')).pathname,'/learn/'+lessonId);
+  const privateResponse=await readPhoto();
+  assert.equal(privateResponse.status,200);assert.equal(privateResponse.headers.get('Content-Type'),'image/png');
+  assert.match(privateResponse.headers.get('Cache-Control'),/no-store/);
+  assert.deepEqual(Buffer.from(await privateResponse.arrayBuffer()),picture);
   for(const row of roster){
     const result=await token.POST(post('/api/video-access',{lessonId:row.id}));
     assert.equal(result.status,200);
@@ -211,6 +262,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   assert.equal((await payment({action:'course-password',id:orderId})).status,409);
   state.user=buyer;
   await claimPaidOrders(buyer);
+  assert.equal((await readPhoto()).status,404);
   assert.equal((await play()).status,403);
   assert.equal((await checkpoint(savePlace)).status,403);
   assert.ok(await db.prepare('SELECT id FROM enrollments WHERE id=?').bind('buyer/former-owner/'+courseId).first());

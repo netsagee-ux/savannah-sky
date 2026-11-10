@@ -1,4 +1,5 @@
 "use client";import EnquiryInbox from './enquiry-inbox';import {StaffSessionError,uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
+import {stageLessonPhotos} from './lesson-photos';
 import CourseEditor from './course-editor';
 import QualificationReviews from './qualification-reviews';
 import ShopManager from './shop-manager';
@@ -74,6 +75,8 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
       if(action==='lesson'){
         const file=(form.elements.namedItem('video') as HTMLInputElement|null)?.files?.[0];
         if(file)fields.set('video',file);
+        const photos=(form.elements.namedItem('privatePhotos') as HTMLInputElement|null)?.files;
+        await stageLessonPhotos(fields,Array.from(photos||[]),setStatus);
         await uploadLessonVideo(fields,setStatus,Boolean(data.directVideoUpload));
       }
       const response=await fetch('/api/admin',{method:'POST',body:fields});

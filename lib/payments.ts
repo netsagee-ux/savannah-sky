@@ -24,7 +24,7 @@ export async function hasCourseDelivery(course: { id: string; course_url?: strin
  // external recording link is not a private lesson that we can sell access to.
  const lecture = await db().prepare(`SELECT id FROM lessons WHERE course_id=?
    AND NULLIF(TRIM(video_url),'') IS NULL
-   AND (NULLIF(TRIM(body),'') IS NOT NULL OR NULLIF(TRIM(question),'') IS NOT NULL) LIMIT 1`)
+   AND (NULLIF(TRIM(body),'') IS NOT NULL OR NULLIF(TRIM(question),'') IS NOT NULL OR EXISTS(SELECT 1 FROM settings WHERE id GLOB 'lesson-photo/'||lessons.id||'/*')) LIMIT 1`)
    .bind(course.id).first();
  return Boolean(lecture);
 }

@@ -20,7 +20,9 @@ export default async function Learn({params}:{params:Promise<{id:string}>}) {
     FROM lessons l WHERE l.course_id=? ORDER BY l.position,l.id`).bind(user.userId,lesson.course_id).all()).results as {id:string;title:string;completed:number}[];
   const index=list.findIndex(item=>item.id===id);
   if (index===-1) notFound();
-  const safe={id,title:lesson.title,body:lesson.body,questions:readQuiz(lesson).map(({question,options})=>({question,options})),hasVideo:!!lesson.video_key,hasThumbnail:!!lesson.thumbnail_key};
+  const photos=(await db().prepare("SELECT substr(id,-36) AS id,json_extract(value,'$.caption') AS caption FROM settings WHERE id GLOB ? ORDER BY rowid")
+    .bind('lesson-photo/'+id+'/*').all<{id:string;caption:string}>()).results;
+  const safe={id,photos,title:lesson.title,body:lesson.body,questions:readQuiz(lesson).map(({question,options})=>({question,options})),hasVideo:!!lesson.video_key,hasThumbnail:!!lesson.thumbnail_key};
   return <CoursePlaylist title={lesson.course_title} courseId={lesson.course_id} list={list} index={index}>
     <LessonPlayer key={id} lesson={safe} completed={Boolean(list[index].completed)}/>
   </CoursePlaylist>;
