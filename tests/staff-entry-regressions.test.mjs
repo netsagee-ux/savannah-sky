@@ -38,9 +38,11 @@ test('a temporary account lookup error leaves only the published course outline 
     '@/lib/sumup':moduleUrl('export const merchantStatus=()=>{throw Error("checkout should stay closed")}'),
     '@/lib/payments':moduleUrl('export const hasCourseDelivery=()=>true,hasCoursePrice=()=>true;'),
     '@/app/chatgpt-auth':moduleUrl('export const getChatGPTUser=async()=>{throw Error("unavailable")}'),
-    '@/lib/server':moduleUrl(`export const enrolled=async()=>false;export const db=()=>({prepare:()=>({bind:()=>({
-      first:async()=>({id:'test',title:'Example course',level:'Beginner',price:5000,published:globalThis.courseOutline.published}),
-      all:async()=>({results:[{id:'lesson',title:'Example lesson',has_video:1}]})})})})`),
+    '@/lib/server':moduleUrl(`export const enrolled=async()=>false;export const db=()=>({
+      prepare:()=>({bind:()=>({})}),batch:async()=>[
+        {results:[{id:'test',title:'Example course',level:'Beginner',price:5000,published:globalThis.courseOutline.published}]},
+        {results:[{id:'lesson',title:'Example lesson',has_video:1}]}
+      ]})`),
     './course.css':moduleUrl(''),
   }));
   const request={params:Promise.resolve({id:'test'})};

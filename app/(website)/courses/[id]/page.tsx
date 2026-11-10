@@ -19,12 +19,15 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
   const database=db();
   const authConfigured=Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  const [course,lessonRows,account,merchant]=await Promise.all([
-    database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id).first<Course>(),
-    database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id).all<Lesson>(),
+  const [outline,account,merchant]=await Promise.all([
+    database.batch([
+      database.prepare("SELECT courses.*,(SELECT value FROM settings WHERE id='cpd:'||courses.id) AS cpd FROM courses WHERE id=?").bind(id),
+      database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id),
+    ],'read'),
     getChatGPTUser().then(user=>({user})).catch(()=>null),
     authConfigured?merchantStatus().catch(()=>null):null,
   ]);
+  const course=outline[0].results[0] as Course|undefined;
   if(!course)notFound();
   const conversion=isConversion(course);
   // The public outline remains readable while account services recover.
@@ -37,7 +40,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   })().catch(()=>null);
   const access=viewer?.access===true, user=viewer?.user, proof=viewer?.proof;
   if(!course.published && !access)notFound();
-  const lessons=lessonRows.results;
+  const lessons=outline[1].results as Lesson[];
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);

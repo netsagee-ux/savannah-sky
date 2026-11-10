@@ -37,7 +37,7 @@ export function CourseCard({ course, index = 0 }: { course: Course; index?: numb
   const hasThumbnail = Boolean(course.thumbnail_key || course.thumbnail_id);
   const image = courseImage(course,index,480);
   return (
-    <CourseLink className="programme" href={'/courses/' + course.id}>
+    <CourseLink featured={index<2} className="programme" href={'/courses/' + course.id}>
       <div className="programme-image">
         <img src={image} style={image.startsWith('/nail-botanical-') ? {objectPosition: '50% 50%'} : undefined}
           srcSet={hasThumbnail ? undefined : courseImage(course, index, 480) + ' 480w, ' + courseImage(course, index, 960) + ' 960w'}

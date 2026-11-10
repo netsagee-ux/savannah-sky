@@ -15,5 +15,5 @@ class Statement{
 export function database(){return {
  prepare:(sql:string)=>new Statement(sql),
  // libSQL write batches are atomic: payment and enrolment either both commit or both roll back.
- batch:async(statements:Statement[])=> (await connection().batch(statements.map(s=>({sql:s.sql,args:s.args})),'write')).map(result),
+ batch:async(statements:Statement[],mode:'read'|'write'='write')=> (await connection().batch(statements.map(s=>({sql:s.sql,args:s.args})),mode)).map(result),
 };}

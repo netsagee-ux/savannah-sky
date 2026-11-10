@@ -33,10 +33,10 @@ export default function CourseEdit({ courses }: { courses: CourseEntry[] }) {
       {level === 'Beginner' && <p>No previous nail qualification needed.</p>}
     </div>
     <span className="sr-only" role="status">{selected.length} {level.toLowerCase() || 'featured'} courses shown</span>
-    <div className="edit-cards">{selected.map(course => {
+    <div className="edit-cards">{selected.map((course, index) => {
       const cover = coverFor(course.title, courses.indexOf(course));
       const [small, large] = cover === 'salon-mint-tips' ? [640, 1200] : [480, 960];
-      return <CourseLink key={course.id} className="edit-card" href={'/courses/' + encodeURIComponent(course.id)}>
+      return <CourseLink featured={index===0} key={course.id} className="edit-card" href={'/courses/' + encodeURIComponent(course.id)}>
         <div className="card-photo" data-look={cover}><img src={'/' + cover + '-' + small + '.webp'}
           srcSet={'/' + cover + '-' + small + '.webp ' + small + 'w, /' + cover + '-' + large + '.webp ' + large + 'w'}
           sizes="(max-width: 560px) 90vw, (max-width: 980px) 44vw, (max-width: 1580px) 28vw, 450px" width={480} height={410} loading="lazy" alt="" /></div>
