@@ -20,11 +20,12 @@ export default async function Reviews() {
       <div className="review-spread">
         <div className="review-cover">
           <img src="/salon-team-480.webp" srcSet="/salon-team-480.webp 480w, /salon-team-960.webp 960w"
-            sizes="(max-width: 720px) 95vw, 38vw" width={480} height={671} loading="lazy"
+            sizes="(max-width: 720px) 90vw, (max-width: 1580px) 35vw, 550px" width={480} height={671} loading="lazy"
             alt="The Savannah Sky team together on the pink sofa in the salon" />
-          <h2 id="salon-review-title">Studio <em>reviews.</em></h2>
         </div>
-        <StudioReview reviews={reviews} />
+        <div className="review-copy"><h2 id="salon-review-title">Studio <em>reviews.</em></h2>
+          <StudioReview reviews={reviews} />
+        </div>
       </div>
     </section>
   );

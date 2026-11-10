@@ -27,7 +27,7 @@ export default function NailStudy() {
       <div className="work-prints">{looks.map((item, i) =>
         <button className="work-print" key={item.file} type="button" aria-label={'Enlarge ' + item.name} aria-haspopup="dialog"
           onClick={() => { setActive(i); dialog.current?.showModal(); }}>
-          <span className="print-image"><img src={'/nail-' + item.file + '-480.webp'} srcSet={'/nail-' + item.file + '-480.webp 480w, /nail-' + item.file + '-960.webp 960w'} sizes="(max-width: 620px) 46vw, 23vw" loading="lazy" width={480} height={560} alt={item.detail} /></span>
+          <span className="print-image" data-look={'nail-' + item.file}><img src={'/nail-' + item.file + '-480.webp'} srcSet={'/nail-' + item.file + '-480.webp 480w, /nail-' + item.file + '-960.webp 960w'} sizes="(max-width: 479px) 78vw, (max-width: 980px) 44vw, (max-width: 1580px) 21vw, 330px" loading="lazy" width={480} height={560} alt={item.detail} /></span>
           <span className="print-caption">{item.name}<Maximize2 size={15} aria-hidden="true" /></span>
         </button>
       )}</div>

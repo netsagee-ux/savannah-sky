@@ -35,9 +35,9 @@ export default function CourseEdit({ courses }: { courses: CourseEntry[] }) {
       const cover = coverFor(course.title, courses.indexOf(course));
       const [small, large] = cover === 'salon-mint-tips' ? [640, 1200] : [480, 960];
       return <a key={course.id} className="edit-card" href={'/courses/' + encodeURIComponent(course.id)}>
-        <div className="card-photo"><img src={'/' + cover + '-' + small + '.webp'}
+        <div className="card-photo" data-look={cover}><img src={'/' + cover + '-' + small + '.webp'}
           srcSet={'/' + cover + '-' + small + '.webp ' + small + 'w, /' + cover + '-' + large + '.webp ' + large + 'w'}
-          sizes="(max-width: 620px) 28vw, 31vw" width={480} height={410} loading="lazy" alt="" /></div>
+          sizes="(max-width: 560px) 90vw, (max-width: 980px) 44vw, (max-width: 1580px) 28vw, 450px" width={480} height={410} loading="lazy" alt="" /></div>
         <div className="card-info"><div className="card-meta"><span>{course.level}</span>{course.fee && <span>{course.fee}</span>}</div>
           <h3>{course.title}</h3></div><ArrowUpRight className="card-arrow" size={18} aria-hidden="true" />
       </a>;

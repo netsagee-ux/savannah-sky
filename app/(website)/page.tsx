@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, BookOpen, CreditCard, Play, Plus } from 'lucide-react';
 import CourseEdit, { type CourseEntry } from '@/components/home-course-edit';
+import HomeSalonPhotos from '@/components/home-salon-photos';
 import NailStudy from '@/components/nail-study';
 import Reviews from '@/components/reviews';
 import StudentStory from '@/components/student-story';
@@ -46,18 +47,7 @@ export default async function Home() {
           <p>Pull up a chair. Learn the shape, the finish and the little details that make a set your own.</p>
           <a className="folio-button" href="#collection">Discover the courses <ArrowRight size={18} aria-hidden="true" /></a>
         </div>
-        <figure className="cover-photo cover-small">
-          <div><img src="/salon-pink-glaze-480.webp" srcSet="/salon-pink-glaze-480.webp 480w, /salon-pink-glaze-960.webp 960w"
-            sizes="(max-width: 720px) 39vw, 21vw" width={960} height={1280}
-            alt="A soft pink glazed manicure from Savannah Sky Salon" /></div>
-          <figcaption>Blush glaze</figcaption>
-        </figure>
-        <figure className="cover-photo cover-main">
-          <div><img src="/nail-sculpted-960.webp" srcSet="/nail-sculpted-480.webp 480w, /nail-sculpted-960.webp 960w, /nail-sculpted-1440.webp 1440w"
-            sizes="(max-width: 720px) 55vw, 31vw" width={960} height={955} fetchPriority="high"
-            alt="Sculpted almond nails with white French tips and hand-painted gold scrollwork" /></div>
-          <figcaption>Sculpted French</figcaption>
-        </figure>
+        <HomeSalonPhotos />
       </div>
     </section>
 
@@ -79,7 +69,7 @@ export default async function Home() {
 
     <section className="folio-wrap founder folio-section" id="educator" aria-labelledby="founder-title">
       <figure className="founder-photo">
-        <img src="/academy-graduation-960.webp" srcSet="/academy-graduation-480.webp 480w, /academy-graduation-960.webp 960w" sizes="(max-width: 720px) 92vw, 44vw" width={960} height={1598} loading="lazy" alt="Carla and a student celebrating her certificate at Savannah Sky" />
+        <img src="/academy-graduation-960.webp" srcSet="/academy-graduation-480.webp 480w, /academy-graduation-960.webp 960w" sizes="(max-width: 720px) 90vw, (max-width: 1580px) 40vw, 620px" width={960} height={1598} loading="lazy" alt="Carla and a student celebrating her certificate at Savannah Sky" />
         <figcaption>Graduation day at Savannah Sky</figcaption>
       </figure>
       <div className="founder-copy"><span className="folio-label">Meet your educator</span><h2 id="founder-title">A seat at<br /><em>Carla’s table.</em></h2>
@@ -102,7 +92,7 @@ export default async function Home() {
       <div><span className="folio-label">The academy shop</span><h2 id="shop-title">At your <em>nail desk.</em></h2>
         <p>Check your course kit list first, then visit the shop for student kits and nail supplies.</p>
         <a className="folio-button" href="/shop">Visit the shop <ArrowUpRight size={17} aria-hidden="true" /></a></div>
-      <img src="/salon-colour-swatches-960.webp" srcSet="/salon-colour-swatches-480.webp 480w, /salon-colour-swatches-960.webp 960w" sizes="(max-width: 720px) 92vw, 46vw" width={960} height={1023} loading="lazy" alt="Fans of warm-toned polish swatches at Savannah Sky Salon" />
+      <img src="/salon-colour-swatches-960.webp" srcSet="/salon-colour-swatches-480.webp 480w, /salon-colour-swatches-960.webp 960w" sizes="(max-width: 720px) 90vw, (max-width: 1580px) 42vw, 650px" width={960} height={1023} loading="lazy" alt="Fans of warm-toned polish swatches at Savannah Sky Salon" />
     </div></section>
 
     <Reviews />
