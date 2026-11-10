@@ -12,7 +12,7 @@ Production configuration
 
 After connecting the production database, run `node --env-file=.env.local scripts/migrate-vercel.mjs`. This applies schema migrations transactionally and records each one. Existing production content must be exported and imported separately; migrations do not copy existing student records or purchases.
 
-Existing profiles/progress/order ownership must be mapped from old platform user IDs to Clerk IDs during data migration; paid enrolments follow the verified buyer account, and manually assigned legacy enrolments match verified email addresses.
+Existing profiles/progress/order ownership must be mapped from old platform user IDs to Clerk IDs during data migration; paid enrolments follow the verified buyer account, and older email-keyed enrolments require a matching paid order belonging to the signed-in buyer.
 
 Use the configured academy host for checkout. The old savannah-sky.vercel.app hostname redirects course and sign-in paths to savannah-sky-k4rz-three.vercel.app.
 

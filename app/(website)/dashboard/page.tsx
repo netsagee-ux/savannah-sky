@@ -25,7 +25,7 @@ export default async function Dashboard({searchParams}:{searchParams:Promise<{vi
         (SELECT COUNT(*) FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE l.course_id=c.id AND p.user_id=?) AS completed,
         (SELECT l.id FROM lessons l WHERE l.course_id=c.id ORDER BY EXISTS
           (SELECT 1 FROM progress p WHERE p.user_id=? AND p.lesson_id=l.id),l.position,l.id LIMIT 1) AS next_lesson
-        FROM courses c JOIN enrollments e ON e.course_id=c.id WHERE `+enrolmentOwner).bind(uid,uid,uid,uid,email).all<DeskCourse>(),
+        FROM courses c JOIN enrollments e ON e.course_id=c.id WHERE `+enrolmentOwner).bind(uid,uid,uid).all<DeskCourse>(),
       database.prepare(`SELECT id,title,amount,status,mode,created_at,session_id,
         (SELECT value FROM settings WHERE id='course_invite:'||orders.id) AS invitation
         FROM orders WHERE user_id=? OR (user_id LIKE 'guest/%' AND email=? AND status IN ('paid','requested','pending'))

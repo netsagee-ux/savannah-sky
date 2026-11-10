@@ -151,4 +151,21 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const visible=await (await manage.GET()).json();assert.equal(visible.orders[0].tracking,'test-ref');assert.equal(visible.orders[0].delivery.postcode,'BA1 1AB');
   });
 
+  await t.test('a learner can pay for written or quiz lectures even with an old unpaid enrolment',async()=>{
+    const {enrolled}=await import(server);
+    as('learner');
+    for(const [id,body,question] of [['notes','A written lecture',null],['quiz','','Select the correct tool']]){
+      await db.prepare("INSERT INTO courses(id,title,description,level,price,published) VALUES(?,?, 'Course','Beginner',2500,1)").bind(id,id).run();
+      await db.prepare("INSERT INTO lessons(id,course_id,title,position,body,question,options,answer) VALUES(?,?,?,1,?,?,?,?)")
+        .bind('lecture-'+id,id,'Lecture',body,question,question?'["File","Brush"]':null,question?0:null).run();
+      await db.prepare('INSERT INTO enrollments(id,email,course_id) VALUES(?,?,?)').bind('buyer/learner/'+id,'learner@example.test',id).run();
+      assert.equal(await enrolled(id),false);
+      const res=await buy(id);assert.equal(res.status,200);
+      const order=(await res.json()).path.split('/').at(-1),payment=[...remote.values()].find(v=>v.checkout_reference===order);
+      assert.equal(payment.amount,25);
+      await notify(payment.id,order);assert.equal(await enrolled(id),false);
+      payment.status='PAID';await notify(payment.id,order);assert.equal(await enrolled(id),true);
+      as('other');assert.equal(await enrolled(id),false);as('learner');
+    }
+  });
 });

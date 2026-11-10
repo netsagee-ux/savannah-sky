@@ -19,7 +19,14 @@ export async function hasCourseDelivery(course: { id: string; course_url?: strin
  for(const lesson of videos.results) {
   if((await bucket().head(lesson.video_key))?.size) return true;
  }
- return false;
+ if (videos.results.length) return false;
+ // Reading and quiz courses are deliverable without a video upload. An old
+ // external recording link is not a private lesson that we can sell access to.
+ const lecture = await db().prepare(`SELECT id FROM lessons WHERE course_id=?
+   AND NULLIF(TRIM(video_url),'') IS NULL
+   AND (NULLIF(TRIM(body),'') IS NOT NULL OR NULLIF(TRIM(question),'') IS NOT NULL) LIMIT 1`)
+   .bind(course.id).first();
+ return Boolean(lecture);
 }
 
 export async function fulfill(session: {id: string}) {

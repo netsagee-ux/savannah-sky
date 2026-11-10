@@ -47,6 +47,10 @@ test('student library, quizzes, lesson return links and certificate follow the v
   await assert.rejects(cert(params('gel')),/login \/certificate\/gel/);
   assert.equal((await submit('intro',1)).status,401);
   globalThis.journeyUser={userId:'learner',email:'learner@example.test',displayName:'Test Learner',fullName:'Test Learner',sessionId:'one'};
+  assert.doesNotMatch(await home(),/href="\/learn\/intro"/);
+  assert.match(renderToStaticMarkup(await lesson(params('intro'))),/Private course/);
+  assert.equal((await submit('intro',1)).status,403);
+  await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,status,mode,created_at) VALUES('verified','learner','learner@example.test','gel','Gel studio',3500,'paid','sumup','2026-01-01')").run();
   assert.match(await home(),/href="\/learn\/intro"/);
   assert.match(await record(),/0 of 2 lessons complete/);
   assert.equal((await submit('intro',0)).status,400);

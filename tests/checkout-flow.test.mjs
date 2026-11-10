@@ -52,7 +52,7 @@ test('course checkout checks availability, charges the listed price and grants a
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',
     'CREATE TABLE progress(id TEXT PRIMARY KEY,user_id TEXT,lesson_id TEXT,completed_at TEXT)',
     'CREATE TABLE courses(id TEXT PRIMARY KEY, title TEXT, price INTEGER, course_url TEXT, published INTEGER, level TEXT)',
-    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER,options TEXT)',
+    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER,options TEXT,body TEXT)',
     'CREATE TABLE enrollments(id TEXT PRIMARY KEY, email TEXT, course_id TEXT)',
     'CREATE TABLE orders(id TEXT PRIMARY KEY,user_id TEXT,email TEXT,course_id TEXT,title TEXT,amount INTEGER,currency TEXT,status TEXT,mode TEXT,created_at TEXT,session_id TEXT,paid_at TEXT)',
     "INSERT INTO courses VALUES('gel','Gel Foundations',6500,NULL,0,'Beginner')",
@@ -200,15 +200,20 @@ test('course checkout checks availability, charges the listed price and grants a
 test('a paid enrolment follows the buyer’s account and rejects another account with the former email', async () => {
   const {DatabaseSync}=await import('node:sqlite');
   const db=new DatabaseSync(':memory:');
-  db.exec("CREATE TABLE orders(email TEXT, course_id TEXT, user_id TEXT, status TEXT, mode TEXT); CREATE TABLE enrollments(id TEXT, email TEXT, course_id TEXT); INSERT INTO enrollments VALUES('access','original@example.test','gel');");
+  db.exec("CREATE TABLE orders(email TEXT, course_id TEXT, user_id TEXT, status TEXT, mode TEXT, amount INTEGER); CREATE TABLE enrollments(id TEXT, email TEXT, course_id TEXT); INSERT INTO enrollments VALUES('access','original@example.test','gel');");
   const adapter=moduleUrl('export const database = () => ({prepare: sql => ({ bind: (...args) => ({first: () => globalThis.enrolmentDb.prepare(sql).get(...args)}) })});');
   const identity=moduleUrl('export const getChatGPTUser=async()=>globalThis.enrolmentUser');
   globalThis.enrolmentDb=db;
   try {
     const {enrolled}=await import(await compile('lib/server.ts',{'./vercel-database':adapter,'./vercel-storage':moduleUrl('export const objectStorage = () => ({})'),'@/app/chatgpt-auth':identity}));
     globalThis.enrolmentUser={userId:'original',email:'original@example.test'};
+    assert.equal(await enrolled('gel'),false);
+    db.exec("INSERT INTO orders VALUES('original@example.test','gel','original','pending','sumup',6500)");
+    assert.equal(await enrolled('gel'),false);
+    db.exec("UPDATE orders SET status='paid',mode='test'");
+    assert.equal(await enrolled('gel'),false);
+    db.exec("UPDATE orders SET mode='whatsapp'");
     assert.equal(await enrolled('gel'),true);
-    db.exec("INSERT INTO orders VALUES('original@example.test','gel','original','paid','whatsapp')");
     globalThis.enrolmentUser={userId:'new-account',email:'original@example.test'};
     assert.equal(await enrolled('gel'),false);
     globalThis.enrolmentUser={userId:'original',email:'updated@example.test'};

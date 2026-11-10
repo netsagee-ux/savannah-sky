@@ -16,16 +16,19 @@ export async function admin(){
  const user=await getChatGPTUser();
  return Boolean(user && isOwnerEmail(user.email));
 }
-// An order-backed enrolment follows the verified buyer, including after an email change.
-export const enrolmentOwner = `(e.id='buyer/'||?||'/'||e.course_id OR
- (e.id NOT LIKE 'buyer/%' AND (EXISTS (SELECT 1 FROM orders o WHERE o.email=e.email AND o.course_id=e.course_id AND o.status='paid' AND o.mode IN ('live','whatsapp','sumup') AND o.user_id=?) OR
- (e.email=? AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.email=e.email AND o.course_id=e.course_id AND o.status='paid' AND o.mode IN ('live','whatsapp','sumup') AND o.user_id NOT LIKE 'guest/%' AND o.user_id NOT LIKE 'withdrawn/%')))))`;
+// Both the paid order and its active enrolment must belong to this learner.
+// Match older email-keyed enrolments through the original buyer's paid order.
+export const enrolmentOwner = `EXISTS (
+ SELECT 1 FROM orders paid WHERE paid.user_id=? AND paid.course_id=e.course_id
+ AND paid.status='paid' AND paid.amount>0 AND paid.mode IN ('sumup','live','whatsapp')
+ AND (e.id='buyer/'||paid.user_id||'/'||paid.course_id OR
+      (e.id NOT LIKE 'buyer/%' AND e.email=paid.email)))`;
 export async function enrolled(courseId:string) {
  const user=await getChatGPTUser();
  if(!user)return false;
- if(await admin())return true;
+ if(isOwnerEmail(user.email))return true;
  return Boolean(await db().prepare('SELECT e.id FROM enrollments e WHERE e.course_id=? AND '+enrolmentOwner)
-  .bind(courseId,user.userId,user.userId,user.email.toLowerCase()).first());
+  .bind(courseId,user.userId).first());
 }
 export async function catalog(){return (await db().prepare(`SELECT c.id,c.title,c.description,c.level,c.price,
  (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,

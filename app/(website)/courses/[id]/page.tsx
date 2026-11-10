@@ -36,11 +36,12 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const firstVideo=lessons.find(lesson=>lesson.has_video);
   const videos=lessons.filter(lesson=>lesson.has_video).length;
   const priced=hasCoursePrice(course.price);
-  const merchant=viewer && !access && priced && videos>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  const merchant=viewer && !access && priced && lessons.length>0 && process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     ? await merchantStatus().catch(()=>null) : null;
   const paymentsOpen=Boolean(merchant?.code) && await hasCourseDelivery(course).catch(()=>false);
   const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
-  const learning=firstVideo?'/learn/'+encodeURIComponent(firstVideo.id):'/dashboard';
+  const firstLesson=lessons[0];
+  const learning=firstLesson?'/learn/'+encodeURIComponent(firstLesson.id):'/dashboard';
 
   const detail=<section className="studio-wrap practice-detail">
     <a className="studio-text-link" href="/courses"><ArrowLeft size={16}/>All courses</a>
@@ -49,7 +50,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
     </header>
     <div className="practice-grid">
       <section className="practice-lessons" aria-label="Course lessons">
-        {firstVideo && <a className="practice-film" href={access?learning:'#enrol'} aria-label={access?'Watch '+firstVideo.title:'Enrol to watch '+firstVideo.title}>
+        {firstVideo && <a className="practice-film" href={access?'/learn/'+encodeURIComponent(firstVideo.id):'#enrol'} aria-label={access?'Watch '+firstVideo.title:'Enrol to watch '+firstVideo.title}>
           <img src={courseImage(course)} width={960} height={560} alt="" />
           <div className="practice-film-caption"><span className="practice-indicator">{access?<Play size={17}/>:<LockKeyhole size={17}/>}</span><div>
             <small>{access?'Watch lesson':'Private video lesson'}</small><strong>{firstVideo.title}</strong></div></div>
@@ -71,7 +72,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
         </>:paymentsOpen?<>
           <p>Pay securely by card with SumUp. Your lessons open in your student account as soon as payment is confirmed.</p>
           {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to enrol</a>}
-        </>:<><p>{videos?'Online enrolment opens soon.':'Online lessons are in preparation.'}</p><a className="underlink" href={enquiry}>Ask the academy about this course</a></>}
+        </>:<><p>{!lessons.length?'Online lessons are in preparation.':merchant && !merchant.code?'Card enrolment will open once the academy connects SumUp.':'Online enrolment opens soon.'}</p><a className="underlink" href={enquiry}>Ask the academy about this course</a></>}
 
       </aside>
       {(course.outcomes||course.requirements||course.access_policy||course.duration)&&<section className="practice-notes">

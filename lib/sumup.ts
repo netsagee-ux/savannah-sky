@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,createHmac,randomBytes} from 'node:crypto';
-import {db} from './server';
+import {db,enrolmentOwner} from './server';
 import {recordVerifiedPayment,type AcademyOrder} from './course-orders';
 import {paidInvitationPath} from './course-invitation';
 
@@ -169,8 +169,8 @@ export async function startSumUp(user:{userId:string;email:string},course:{id:st
   await dbh.batch([
     dbh.prepare(`INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at)
       SELECT ?,?,?,?,?,?,'gbp','pending','sumup',? WHERE NOT EXISTS(SELECT 1 FROM orders WHERE `+pending+
-      ") AND NOT EXISTS(SELECT 1 FROM enrollments WHERE id='buyer/'||?||'/'||?)")
-      .bind(id,user.userId,email,course.id,course.title,course.price,new Date().toISOString(),user.userId,course.id,user.userId,course.id),
+      ") AND NOT EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=? AND "+enrolmentOwner+")")
+      .bind(id,user.userId,email,course.id,course.title,course.price,new Date().toISOString(),user.userId,course.id,course.id,user.userId),
     dbh.prepare("INSERT INTO settings(id,value) SELECT 'sumup:order:'||id,? FROM orders WHERE id=?").bind(merchant.code,id),
   ]);
   const order=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
