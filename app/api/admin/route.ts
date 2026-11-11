@@ -1,3 +1,4 @@
+import {courseInformationColumns,extraCourseFields} from '@/lib/course-information';
 import {sameSiteOrigin} from '@/lib/request-origin';
 import {prepareLessonPhotos} from '@/lib/save-lesson-photos';
 import {readQuiz,validateQuiz} from '@/lib/lesson-quiz';
@@ -12,7 +13,7 @@ export async function GET(request:Request){
     const params=new URL(request.url).searchParams;
     const tab=params.get('tab'),courseId=params.get('courseId');
     const all=!tab,store=db();
-    const fullCourses=`SELECT c.*,(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
+    const fullCourses=`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
       (SELECT value FROM settings WHERE id='class-dates:'||c.id) AS class_dates,(SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,
       (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count,
       (SELECT count(*) FROM lessons l WHERE l.course_id=c.id AND nullif(l.video_key,'') IS NOT NULL) AS videos
@@ -50,11 +51,17 @@ function creationResult(){
 }
 if(await wasCreated())return creationResult();
 if(action==='course'){
+for(const [name,{label}] of Object.entries(extraCourseFields)){
+  if(s(name).length>3000)throw Error(`Keep ${label} within 3,000 characters.`);
+}
 if(f.has('format')&&!['classroom','online'].includes(s('format')))throw Error('Choose a course format.');
 if(s('classDates').length>3000)throw Error('Keep class dates and joining instructions within 3,000 characters.');
 if(!s('title')||s('title').length>120||!s('description')||s('description').length>2000)throw Error('Please add a title and description.');if(s('outcomes').length>3000||s('requirements').length>3000||s('duration').length>200||s('accessPolicy').length>1000)throw Error('Please shorten the course information.');const url=s('paymentUrl');if(url&&(!url.startsWith('https://buy.stripe.com/')||new URL(url).hostname!=='buy.stripe.com'))throw Error('Use a Stripe payment link beginning https://buy.stripe.com/.');const price=s('price')?Math.round(Number(s('price'))*100):null;if(price!==null&&(!Number.isFinite(price)||price<0||price>1000000))throw Error('Please check the price.');if(!['Beginner','Intermediate','Creative','Conversion'].includes(s('level')))throw Error('Choose a valid course level.');const courseUrl=safeHttps(s('courseUrl'));const id=s('id')||creationId||crypto.randomUUID();const old=s('id')?await db().prepare('SELECT thumbnail_key,course_url,payment_url FROM courses WHERE id=?').bind(id).first<any>():null;if(s('id')&&!old)throw Error('Course not found.');let thumbnailKey=s('removeCourseThumbnail')==='1'?null:old?.thumbnail_key||null;let uploaded:string|null=null;const thumbnail=f.get('courseThumbnail');if(thumbnail instanceof File&&thumbnail.size){if(thumbnail.size>3*1024*1024)throw Error('Use a thumbnail up to 3 MB.');const bytes=await thumbnail.arrayBuffer();const type=imageContentType(new Uint8Array(bytes));if(!type)throw Error('Use a JPG, PNG or WebP thumbnail.');uploaded=newAssetKey('course-thumbnails');await bucket().put(uploaded,bytes,{httpMetadata:{contentType:type}});thumbnailKey=uploaded;}try{const values=[s('title'),s('description'),s('level'),price,url||old?.payment_url||null,s('outcomes')||null,s('requirements')||null,s('duration')||null,s('accessPolicy')||null,s('published')==='1'?1:0,courseUrl||old?.course_url||null,thumbnailKey];const details=s('id')?db().prepare('UPDATE courses SET title=?,description=?,level=?,price=?,payment_url=?,outcomes=?,requirements=?,duration=?,access_policy=?,published=?,course_url=?,thumbnail_key=? WHERE id=?').bind(...values,id):db().prepare('INSERT INTO courses (title,description,level,price,payment_url,outcomes,requirements,duration,access_policy,published,course_url,thumbnail_key,id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(...values,id);const statements=[details];
 for(const [field,prefix] of [['format','course-format:'],['classDates','class-dates:']]){
   if(f.has(field))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind(prefix+id,s(field)));
+}
+for(const name of Object.keys(extraCourseFields)){
+  if(f.has(name))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('course-info:'+name+':'+id,s(name)));
 }
 if(f.has('cpd'))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('cpd:'+id,s('cpd')==='1'?'1':'0'));await db().batch(statements);}catch(e){if(uploaded)await bucket().delete(uploaded);if(await wasCreated())return creationResult();throw e;}if(old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey){try{await bucket().delete(old.thumbnail_key)}catch{console.error('Old course thumbnail cleanup failed')}}revalidateListings();return Response.json({ok:true,courseId:id});}else if(action==='visibility'){await db().prepare('UPDATE courses SET published=? WHERE id=?').bind(s('published')==='1'?1:0,s('id')).run();}else if(action==='enrol'){return Response.json({error:'Confirm the student’s paid order in Payments to activate access.'},{status:409});}else if(action==='revoke'){await db().prepare('DELETE FROM enrollments WHERE id=?').bind(s('id')).run();}else if(action==='lesson'){const c=await db().prepare('SELECT id FROM courses WHERE id=?').bind(s('courseId')).first();if(!c||!s('title')||s('title').length>120||s('body').length>20000)throw Error('Choose a course and add lesson content.');const position=Number(s('position'));
 if(!Number.isInteger(position)||position<0||position>1000)throw Error('Check the lesson position.');

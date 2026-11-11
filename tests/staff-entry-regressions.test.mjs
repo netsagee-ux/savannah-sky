@@ -27,21 +27,23 @@ test('a temporary account lookup error leaves only the published course outline 
   globalThis.courseOutline=state;
   t.after(()=>{delete globalThis.courseOutline;});
   const empty=moduleUrl('export default ()=>null');
+  const courseData=await compile('lib/data.ts',{});
   const page=await import(await compile('app/(website)/courses/[id]/page.tsx',{
     'next/navigation':moduleUrl('export const notFound=()=>{throw Error("404")}'),
     'next/link':moduleUrl('export default ({children})=>children'),
-    'lucide-react':moduleUrl('export const ArrowLeft=()=>null,LockKeyhole=()=>null,Play=()=>null;'),
+    'lucide-react':moduleUrl('export const ArrowLeft=()=>null,LockKeyhole=()=>null,Play=()=>null,Plus=()=>null;'),
     '@/components/checkout-button':empty,'@/components/qualification-form':empty,
     '@/components/ui':moduleUrl('export const courseImage=()=>"/course.webp"'),
     '@/lib/qualifications':moduleUrl('export const qualification=()=>null'),
-    '@/lib/data':await compile('lib/data.ts',{}),
+    '@/lib/data':courseData,
+    '@/lib/course-information':await compile('lib/course-information.ts',{'./data':courseData}),
     '@/lib/sumup':moduleUrl('export const merchantStatus=()=>{throw Error("checkout should stay closed")}'),
     '@/lib/payments':moduleUrl('export const hasCourseDelivery=()=>true,hasCoursePrice=()=>true;'),
     '@/app/chatgpt-auth':moduleUrl('export const getChatGPTUser=async()=>{throw Error("unavailable")}'),
     '@/lib/staff-navigation':await compile('lib/staff-navigation.ts',{}),
     '@/lib/server':moduleUrl(`export const isOwnerEmail=async()=>false;export const enrolled=async()=>false;export const db=()=>({
       prepare:()=>({bind:()=>({})}),batch:async()=>[
-        {results:[{id:'test',title:'Example course',level:'Beginner',price:5000,published:globalThis.courseOutline.published}]},
+        {results:[{id:'test',title:'Example course',level:'Beginner',price:5000,published:globalThis.courseOutline.published,description:'Studio training',requirements:'No previous experience needed.\\n\\nA student kit is included.',class_dates:'Private entry code 12345',progression:'Develop your nail art portfolio.'}]},
         {results:[{id:'lesson',title:'Example lesson',has_video:1}]}
       ]})`),
     './course.css':moduleUrl(''),
@@ -50,6 +52,10 @@ test('a temporary account lookup error leaves only the published course outline 
   const outline=renderToStaticMarkup(await page.default(request));
   assert.match(outline,/Example lesson/);assert.match(outline,/Check access again/);
   assert.doesNotMatch(outline,/href="\/learn\/|Continue to payment/);
+  assert.match(outline,/<summary>Kit Options/);
+  assert.match(outline,/A student kit is included/);
+  assert.match(outline,/Develop your nail art portfolio/);
+  assert.doesNotMatch(outline,/Private entry code/);
   state.published=0;
   await assert.rejects(page.default(request),/404/);
 });

@@ -25,9 +25,20 @@
 .practice-enrol .form {gap:14px;margin-top:18px;}
 .practice-enrol label small {font-weight:400;font-size:.82rem;display:block;}
 .practice-enrol input {width:100%;min-width:0;font-size:16px;}
-.practice-notes {grid-column:1;}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){.practice-film:hover img {transform:scale(1.025);}}
 @media(max-width:750px){.practice-grid {display:flex;flex-direction:column;gap:20px;}.practice-grid>*{width:100%;}.practice-film {aspect-ratio:1.75;}.practice-film-caption {inset:auto 14px 15px;}.practice-heading {margin-bottom:20px;}}
 
 .practice-lessons .class-cover { display:block; width:100%; height:auto; max-height:24rem; object-fit:cover; border-radius:1rem; margin-bottom:1.5rem; }
 .practice-lessons > p { margin:.6rem 0 1.5rem; }
+
+.course-information details {border-bottom:1px solid var(--brand-line);}
+.course-information details:first-child {border-top:1px solid var(--brand-line);}
+.course-information summary {display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:52px;padding:12px 4px;list-style:none;cursor:pointer;font-weight:600;line-height:1.4;}
+.course-information summary::-webkit-details-marker {display:none;}
+.course-information summary:focus-visible {outline:2px solid currentColor;outline-offset:2px;}
+.course-information summary svg {flex:none;color:var(--brand-taupe);}
+.course-information details[open] summary svg path:last-child {display:none;}
+.course-information-body {padding:0 4px 1rem;overflow-wrap:anywhere;}
+.course-information-body p {margin:.35rem 0 .75rem;white-space:pre-line;}
+.course-information-body ul {padding-left:1.3rem;margin:.35rem 0 .75rem;list-style:disc;}
+.course-information-body li+li {margin-top:.35rem;}

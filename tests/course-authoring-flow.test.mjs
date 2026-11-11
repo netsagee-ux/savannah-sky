@@ -54,6 +54,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const modules={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
+  modules['@/lib/course-information']=await compile('lib/course-information.ts',{'./data':modules['@/lib/data']});
   const photoTypes=await compile('lib/lesson-photos.ts',{});
   modules['@/lib/lesson-photos']=photoTypes;
   modules['@/lib/save-lesson-photos']=await compile('lib/save-lesson-photos.ts',{'./server':server,'./lesson-photos':photoTypes});
@@ -87,6 +88,18 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const edited=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
   assert.equal(edited.courses[0].format,'classroom');
   assert.equal(edited.courses[0].class_dates,'Private classroom joining notes');
+  await t.test('public course sections can be saved, reopened and cleared without changing missing fields',async()=>{
+    const information={audience:'Qualified technicians',inclusions:'Classroom tuition',kit_options:'Tools provided for the day',progression:'Practise structured overlays'};
+    const readCourse=async()=>(await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json()).courses[0];
+    assert.ok((await save('course',{...course,id:courseId,...information})).ok);
+    const loaded=await readCourse();
+    for(const [name,value] of Object.entries(information))assert.equal(loaded[name],value);
+    assert.ok((await save('course',{...course,id:courseId,kit_options:''})).ok);
+    assert.equal((await readCourse()).kit_options,'');
+    assert.equal((await readCourse()).inclusions,information.inclusions);
+    assert.equal((await save('course',{...course,id:courseId,inclusions:'x'.repeat(3001)})).status,400);
+    assert.equal((await readCourse()).inclusions,information.inclusions);
+  });
   const directory=(await import(server)).catalog;
   assert.ok((await save('visibility',{id:courseId,published:'1'})).ok);
   assert.ok((await directory()).some(item=>item.id===courseId));

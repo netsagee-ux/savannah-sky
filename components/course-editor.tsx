@@ -3,12 +3,13 @@
 import {useEffect, useRef, useState, type FormEvent, type KeyboardEvent} from 'react';
 import {ArrowRight, BookOpen, Check, ChevronDown, Eye, ImagePlus, Layers3, NotebookPen, Upload, Wallet, X} from 'lucide-react';
 import {accredited, courseFee, courseSummary, isConversion, type Course} from '@/lib/data';
+import {courseInformationDefaults,extraCourseFields} from '@/lib/course-information';
 import {courseImage} from './ui';
 import './course-editor.css';
 
 const panels = [
   {id:'details', label:'Details', heading:'Course details', icon:NotebookPen},
-  {id:'plan', label:'Learning plan', heading:'Learning plan', icon:Layers3},
+  {id:'plan', label:'Course information', heading:'Course information', icon:Layers3},
   {id:'publishing', label:'Publishing', heading:'Pricing & visibility', icon:Wallet},
 ] as const;
 type Panel = typeof panels[number]['id'];
@@ -43,10 +44,17 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
     return ()=>URL.revokeObjectURL(url);
   },[file]);
 
+  const suggestedInfo=course?courseInformationDefaults(course):null;
   const existingCover=Boolean(course?.thumbnail_key)&&!removed;
   const fallbackCourse={id:course?.id||'',title,description,level,price:null,thumbnail_key:existingCover?course?.thumbnail_key:null,thumbnail_id:course?.thumbnail_id};
   const cover=imageUrl||courseImage(fallbackCourse,0,480);
   const previewLevel=isConversion(fallbackCourse)?'Conversion':level;
+
+  function extraField(name:keyof typeof extraCourseFields) {
+    const {label,hint}=extraCourseFields[name];
+    return <label key={name}>{label}<textarea name={name} rows={3} maxLength={3000}
+      defaultValue={course?.[name]||''} placeholder={suggestedInfo?.[name]||hint}/></label>;
+  }
 
   function selectCover(input:HTMLInputElement) {
     const chosen=input.files?.[0]||null;
@@ -108,7 +116,7 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
           <label htmlFor="ce-title">Course title <span className="ce-required" aria-hidden="true">*</span>
             <input id="ce-title" name="title" required maxLength={120} value={title} placeholder="e.g. Gel Polish Foundations"
               onChange={e=>{e.target.setCustomValidity('');setTitle(e.target.value);}}/></label>
-          <label htmlFor="ce-description">Description <span className="ce-required" aria-hidden="true">*</span>
+          <label htmlFor="ce-description">Course Overview <span className="ce-required" aria-hidden="true">*</span>
             <textarea id="ce-description" name="description" required maxLength={2000} rows={4} value={description}
               placeholder="What will students learn on this course?" onChange={e=>{e.target.setCustomValidity('');setDescription(e.target.value);}}/></label>
           <div className="ce-pair">
@@ -122,10 +130,15 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
           <label>Course format<select name="format" defaultValue={course?.format||'classroom'}><option value="classroom">In person at the academy</option><option value="online">Online · coming soon</option></select></label>
           <label>Class dates and joining instructions<textarea name="classDates" rows={4} maxLength={3000} defaultValue={course?.class_dates||''} placeholder="Available dates, class times, venue and how to confirm a place"/></label>
           <small>Paid classroom students can read these details in their booking. Update them here as dates change.</small>
-          <label>What students will learn<textarea name="outcomes" rows={3} maxLength={3000} defaultValue={course?.outcomes||''} placeholder="One learning outcome per line"/></label>
-          <label>Entry requirements &amp; equipment<textarea name="requirements" rows={3} maxLength={3000} defaultValue={course?.requirements||''} placeholder="List any qualifications and kit students need"/></label>
           <label>Duration<input name="duration" maxLength={200} defaultValue={course?.duration||''} placeholder="e.g. 1 day at the salon"/></label>
-          <label>Access &amp; support<textarea name="accessPolicy" rows={3} maxLength={1000} defaultValue={course?.access_policy||''} placeholder="How long can students access lessons and ask for help?"/></label>
+          <p className="ce-public-hint">Students can expand these sections before booking. Leave optional wording blank to use the existing course details. Edit the overview under Details.</p>
+          {extraField('audience')}
+          <label>Course Content<textarea name="outcomes" rows={4} maxLength={3000} defaultValue={course?.outcomes||''} placeholder="One learning outcome per line"/></label>
+          {extraField('inclusions')}
+          <label>Certification &amp; Support<textarea name="accessPolicy" rows={4} maxLength={1000} defaultValue={course?.access_policy||''} placeholder="Describe assessment, certification and support after training"/></label>
+          {extraField('kit_options')}
+          <label>Course Requirements<textarea name="requirements" rows={4} maxLength={3000} defaultValue={course?.requirements||''} placeholder="List any qualifications or equipment students need"/></label>
+          {extraField('progression')}
         </>}
         {id==='publishing'&&<>
           <label htmlFor="ce-price">Course fee<span className="ce-currency"><span aria-hidden="true">£</span>
