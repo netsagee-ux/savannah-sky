@@ -230,3 +230,13 @@
 @media(prefers-reduced-motion:reduce) {
   .studio-workspace * { scroll-behavior:auto; transition:none!important; }
 }
+
+.studio-course-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.studio-course-actions :is(a,button) { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:7px 12px; border-radius:7px; font:600 14px/1.2 var(--body); color:var(--deep); cursor:pointer; }
+.studio-course-actions .studio-edit-link { background:white; border:1px solid var(--line); text-decoration:none; }
+.studio-course-actions .studio-lessons-link { background:transparent; border:0; text-decoration:underline; text-underline-offset:3px; }
+.studio-course-actions .studio-edit-link:hover { box-shadow:0 1px 4px #27324b26; }
+.is-list .studio-course-actions { margin:0; }
+@media(min-width:601px){
+  .is-list .studio-course-card { grid-template-columns:minmax(80px,.75fr) minmax(100px,1.3fr) minmax(135px,1fr) auto; }
+}

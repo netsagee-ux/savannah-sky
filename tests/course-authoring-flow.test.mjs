@@ -51,7 +51,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const security=await compile('lib/payment-security.ts',{});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':security});
   const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orders,'./course-invitation':inviteModule});
-  const modules={'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
+  const modules={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
   const photoTypes=await compile('lib/lesson-photos.ts',{});

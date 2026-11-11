@@ -34,6 +34,10 @@ test('the shared account form routes verified owners and customers and protects 
   const finish=await page('app/(website)/account/continue/page.tsx');
   const legacy=await page('app/admin/login/page.tsx');
   const signup=await page('app/(website)/sign-up/[[...sign-up]]/page.tsx');
+  const {courseEditPath,staffDestination}=await import(staffNav);
+  const editPath=courseEditPath('gel-foundations');
+  assert.equal(staffDestination(editPath),editPath);
+  assert.equal(staffDestination('/admin?tab=Courses&action=edit&courseId=%2F..%2F'),'/admin?tab=Courses');
   const workspace=await page('app/admin/page.tsx',{'@/lib/staff-navigation':staffNav,'@/components/admin-panel':placeholder,'./workspace.css':moduleUrl('')});
   const dashboard=await page('app/(website)/dashboard/page.tsx',{'@/components/student-desk':placeholder,'@/lib/course-orders':moduleUrl('export const claimPaidOrders=async()=>null')});
   const {admin}=await import(server);

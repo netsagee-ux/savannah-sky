@@ -1,11 +1,12 @@
+import {courseEditPath} from '@/lib/staff-navigation';
 import {useState, type FormEvent} from 'react';
-import {ArrowUpRight, BookOpen, Check, Columns3, Ellipsis, LayoutList, Plus, SearchX, SlidersHorizontal, Video, X} from 'lucide-react';
+import {BookOpen, Check, Columns3, Ellipsis, LayoutList, Plus, SearchX, SlidersHorizontal, Video, X} from 'lucide-react';
 import {accredited, courseFee, courseSummary, isConversion, type Course} from '@/lib/data';
 import {courseImage} from './ui';
 
 export type StudioCourse = Course & {videos?:number; lesson_count?:number};
 type Props = {courses:StudioCourse[]; search:string; busy:boolean; onLessons:(id:string)=>void;
-  onEdit:(course:StudioCourse)=>void; onCreate:()=>void; onVisibility:(e:FormEvent<HTMLFormElement>)=>void};
+  onCreate:()=>void; onVisibility:(e:FormEvent<HTMLFormElement>)=>void};
 const lanes = [
   {key:'core', name:'Core training', colours:['blue','lilac','rose']},
   {key:'art', name:'Nail artistry', colours:['apricot','rose']},
@@ -20,7 +21,7 @@ function subject(course:StudioCourse) {
   return 'core';
 }
 
-export default function WorkspaceLibrary({courses,search,busy,onLessons,onEdit,onCreate,onVisibility}:Props) {
+export default function WorkspaceLibrary({courses,search,busy,onLessons,onCreate,onVisibility}:Props) {
   const [mode,setMode]=useState<'board'|'list'>('board');
   const [status,setStatus]=useState('all');
   const [showFilter,setShowFilter]=useState(false);
@@ -32,8 +33,7 @@ export default function WorkspaceLibrary({courses,search,busy,onLessons,onEdit,o
     onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.open=false;e.currentTarget.querySelector('summary')?.focus();}}}
     onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.open=false;}}>
     <summary aria-label={'More actions for '+c.title} title="Course actions"><Ellipsis size={17}/></summary>
-    <div><button type="button" disabled={busy} onClick={e=>{e.currentTarget.closest('details')?.removeAttribute('open');onEdit(c);}}>Edit course</button>
-    <form onSubmit={e=>{e.currentTarget.closest('details')?.removeAttribute('open');onVisibility(e);}}>
+    <div><form onSubmit={e=>{e.currentTarget.closest('details')?.removeAttribute('open');onVisibility(e);}}>
       <input type="hidden" name="id" value={c.id}/><input type="hidden" name="published" value={c.published?'0':'1'}/>
       <button disabled={busy}>{c.published?'Unpublish':'Publish'}</button></form></div></details>;
 
@@ -78,10 +78,13 @@ export default function WorkspaceLibrary({courses,search,busy,onLessons,onEdit,o
               {c.price!=null&&<p className="studio-card-fee"><span>Course fee</span><strong>{courseFee(c.price)}</strong></p>}
               {total>0&&<div className="studio-video-coverage"><div><span>Video lessons</span><span>{videos} of {total}</span></div>
                 <div className="studio-meter" aria-hidden="true"><span style={{width:Math.min(100,videos/total*100)+'%'}}/></div></div>}
+              <div className="studio-course-actions" inert={busy}>
+                <a className="studio-edit-link" href={courseEditPath(c.id)} aria-label={'Edit course: '+c.title}>Edit course</a>
+                <button type="button" disabled={busy} className="studio-lessons-link" onClick={()=>onLessons(c.id)} aria-label={'Lessons: '+c.title}>Lessons</button>
+              </div>
               <footer><span className="studio-publish-state">{c.published?<Check size={14}/>:<span className="studio-draft-dot"/>}{c.published?'Published':'Draft'}</span>
                 <span className="studio-card-stat" title={total+' lessons'}><BookOpen size={15}/><span>{total}</span><span className="sr-only"> lessons</span></span>
                 <span className="studio-card-stat" title={videos+' videos'}><Video size={15}/><span>{videos}</span><span className="sr-only"> videos</span></span>
-                <button type="button" disabled={busy} className="studio-card-open" aria-label={'Open '+c.title} title="Open lessons" onClick={()=>onLessons(c.id)}><ArrowUpRight size={16}/></button>
               </footer>
             </article>;
           })}

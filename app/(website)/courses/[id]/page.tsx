@@ -9,7 +9,8 @@ import {isConversion,accredited,type Course} from '@/lib/data';
 import {merchantStatus} from '@/lib/sumup';
 import {hasCoursePrice} from '@/lib/payments';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
-import {db,enrolled} from '@/lib/server';
+import {courseEditPath} from '@/lib/staff-navigation';
+import {db,enrolled,isOwnerEmail} from '@/lib/server';
 import './course.css';
 
 export const dynamic='force-dynamic';
@@ -34,9 +35,10 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const viewer=await (async()=>{
     if(!account)return null;
     const {user}=account;
-    const access=user?await enrolled(id):false;
+    const owner=user?await isOwnerEmail(user.email):false;
+    const access=owner||Boolean(user&&await enrolled(id));
     const proof=conversion&&user&&!access?await qualification(id,user.userId):null;
-    return {user,access,proof};
+    return {user,access,proof,owner};
   })().catch(()=>null);
   const access=viewer?.access===true, user=viewer?.user, proof=viewer?.proof;
   if(!course.published && !access)notFound();
@@ -68,7 +70,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
         <h2>{access?'Your course':!classroom?'Coming soon':priced?'£'+(course.price!/100).toFixed(2):'Ask about this class'}</h2>
         {conversion&&!access&&<p>A nail qualification is required. The academy reviews your certificate before you can pay.</p>}
         {!viewer?<><p role="status">Your account access couldn’t be checked just now.</p><form method="get" action={'/courses/'+encodeURIComponent(id)+'#enrol'}><button className="underlink" type="submit">Check access again</button></form></>:
-          access?<><a className="button" href="/dashboard?view=student">My bookings</a>{firstLesson&&<a className="underlink" href={learning}>Open supporting materials</a>}</>:
+          access?<>{viewer.owner?<a className="button" href={courseEditPath(id)}>Edit course</a>:<a className="button" href="/dashboard?view=student">My bookings</a>}{firstLesson&&<a className="underlink" href={learning}>Open supporting materials</a>}</>:
           !classroom?<p>Online courses are coming soon.</p>:
           conversion&&proof?.status!=='approved'?<>
             {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}

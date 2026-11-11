@@ -12,6 +12,7 @@ test('direct lesson uploads require the academy administrator, a same-origin req
   let source = await readFile('app/api/admin/video-upload/route.ts','utf8');
   source = source.replace(/import \{ handleUpload, type HandleUploadBody \} from '@vercel\/blob\/client';/,'const {handleUpload}=globalThis.uploadFixture;')
     .replace("import { admin, db } from '@/lib/server';",'const {admin,db}=globalThis.uploadFixture;')
+    .replace("'@/lib/request-origin'",JSON.stringify(pathToFileURL(process.cwd()+'/lib/request-origin.ts').href))
     .replace("'@/lib/lesson-upload'",JSON.stringify(pathToFileURL(process.cwd()+'/lib/lesson-upload.ts').href));
   const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
   let isAdmin=false;

@@ -1,9 +1,10 @@
+import {sameSiteOrigin} from '@/lib/request-origin';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { admin, db } from '@/lib/server';
 import { lessonUploadCourse, lessonVideoTypes, maxLessonBytes } from '@/lib/lesson-upload';
 
 export async function POST(request: Request) {
-  if (request.headers.get('origin') !== new URL(request.url).origin || !await admin()) {
+  if (!sameSiteOrigin(request) || !await admin()) {
     return Response.json({error: 'Administrator access required.'}, {status: 403});
   }
   try {

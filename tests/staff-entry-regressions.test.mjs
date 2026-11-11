@@ -38,7 +38,8 @@ test('a temporary account lookup error leaves only the published course outline 
     '@/lib/sumup':moduleUrl('export const merchantStatus=()=>{throw Error("checkout should stay closed")}'),
     '@/lib/payments':moduleUrl('export const hasCourseDelivery=()=>true,hasCoursePrice=()=>true;'),
     '@/app/chatgpt-auth':moduleUrl('export const getChatGPTUser=async()=>{throw Error("unavailable")}'),
-    '@/lib/server':moduleUrl(`export const enrolled=async()=>false;export const db=()=>({
+    '@/lib/staff-navigation':await compile('lib/staff-navigation.ts',{}),
+    '@/lib/server':moduleUrl(`export const isOwnerEmail=async()=>false;export const enrolled=async()=>false;export const db=()=>({
       prepare:()=>({bind:()=>({})}),batch:async()=>[
         {results:[{id:'test',title:'Example course',level:'Beginner',price:5000,published:globalThis.courseOutline.published}]},
         {results:[{id:'lesson',title:'Example lesson',has_video:1}]}
@@ -51,4 +52,14 @@ test('a temporary account lookup error leaves only the published course outline 
   assert.doesNotMatch(outline,/href="\/learn\/|Continue to payment/);
   state.published=0;
   await assert.rejects(page.default(request),/404/);
+});
+
+test('an editor save uses the public host while rejecting foreign origins',async()=>{
+  const {sameSiteOrigin}=await import(await compile('lib/request-origin.ts',{}));
+  const url='https://deployment.example/api/admin';
+  const request=headers=>new Request(url,{method:'POST',headers});
+  assert.ok(sameSiteOrigin(request({host:'academy.example',origin:'https://academy.example'})));
+  assert.equal(sameSiteOrigin(request({host:'academy.example',origin:'https://attacker.example','x-forwarded-host':'attacker.example'})),false);
+  assert.equal(sameSiteOrigin(request({host:'academy.example',origin:'http://academy.example'})),false);
+  assert.equal(sameSiteOrigin(request({host:'academy.example'})),false);
 });

@@ -1,5 +1,9 @@
 const tabs=['Courses','Lessons','Students','Enquiries','Reviews','Payments','Shop'];
 
+export function courseEditPath(id:string) {
+  return '/admin?'+new URLSearchParams({tab:'Courses',action:'edit',courseId:id});
+}
+
 export function staffDestination(value?:string){
   if(typeof value!=='string' || !value.startsWith('/admin') || value.length>300)return '/admin?tab=Lessons';
   const url=new URL(value,'https://academy.local');
@@ -11,6 +15,7 @@ export function staffDestination(value?:string){
   const params=new URLSearchParams({tab});
   if(tab==='Courses'&&url.searchParams.get('action')==='create')params.set('action','create');
   const course=url.searchParams.get('courseId');
+  if(tab==='Courses'&&url.searchParams.get('action')==='edit'&&course&&/^[a-zA-Z0-9_-]{1,128}$/.test(course))return courseEditPath(course);
   if(tab==='Lessons'&&course&&/^[a-zA-Z0-9_-]{1,128}$/.test(course))params.set('courseId',course);
   return '/admin?'+params;
 }

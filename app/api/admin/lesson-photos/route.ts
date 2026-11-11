@@ -1,9 +1,10 @@
+import {sameSiteOrigin} from '@/lib/request-origin';
 import {admin, bucket, db} from '@/lib/server';
 import {maxPhotoBytes, photoKey} from '@/lib/lesson-photos';
 import {imageContentType} from '@/lib/video-security';
 
 export async function POST(request: Request) {
-  if (!await admin() || request.headers.get('origin') !== new URL(request.url).origin) {
+  if (!await admin() || !sameSiteOrigin(request)) {
     return Response.json({error: 'Staff sign-in required.'}, {status: 403});
   }
   const params = new URL(request.url).searchParams;

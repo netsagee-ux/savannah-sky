@@ -1,4 +1,5 @@
 "use client";
+import {courseEditPath} from '@/lib/staff-navigation';
 import LessonPhotos from './lesson-photos';
 import QuizEditor from './quiz-editor';
 import {readQuiz} from '@/lib/lesson-quiz';
@@ -31,7 +32,7 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
     {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
       <div className="library-heading">
         <div><h2>{course.title}</h2><p>{list.length} {list.length===1?'lesson':'lessons'} · {videos} private {videos===1?'video':'videos'}</p></div>
-        {!editorOpen && <button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button>}
+        {!editorOpen && <div className="lesson-actions" inert={busy}><a className="underlink" href={courseEditPath(selected)}>Edit course</a><button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button></div>}
       </div>
       {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
         <div><strong>{item.title}</strong><small>{item.video_key?'Private video':item.body?'Lesson notes':JSON.parse(item.photos_json||'[]').length?'Private lesson photos':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>

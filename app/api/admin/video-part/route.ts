@@ -1,3 +1,4 @@
+import {sameSiteOrigin} from '@/lib/request-origin';
 import {admin, db} from '@/lib/server';
 import {classroomVideoCourse, classroomVideoLimit, lessonVideoTypes, mediaPartBytes} from '@/lib/lesson-upload';
 import {storeMediaPart} from '@/lib/classroom-media';
@@ -5,7 +6,7 @@ import {storeMediaPart} from '@/lib/classroom-media';
 export async function POST(request:Request) {
   if(!await admin())return Response.json({error:'Administrator access required.'},{status:403});
   const url=new URL(request.url);
-  if(request.headers.get('origin')!==url.origin)return Response.json({error:'Invalid origin.'},{status:403});
+  if(!sameSiteOrigin(request))return Response.json({error:'Invalid origin.'},{status:403});
   const id=url.searchParams.get('key')||'', course=classroomVideoCourse(id);
   const size=Number(url.searchParams.get('size')),part=Number(url.searchParams.get('part'));
   const type=request.headers.get('Content-Type')||'';
