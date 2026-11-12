@@ -1,3 +1,4 @@
+import {lessonAssignmentChanges,linkToCourse} from '@/lib/lesson-assignments';
 import {courseInformationColumns,extraCourseFields} from '@/lib/course-information';
 import {sameSiteOrigin} from '@/lib/request-origin';
 import {prepareLessonPhotos} from '@/lib/save-lesson-photos';
@@ -15,25 +16,38 @@ export async function GET(request:Request){
     const all=!tab,store=db();
     const fullCourses=`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
       (SELECT value FROM settings WHERE id='class-dates:'||c.id) AS class_dates,(SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,
-      (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count,
-      (SELECT count(*) FROM lessons l WHERE l.course_id=c.id AND nullif(l.video_key,'') IS NOT NULL) AS videos
+      (SELECT count(*) FROM course_lessons l WHERE l.course_id=c.id) AS lesson_count,
+      (SELECT count(*) FROM course_lessons l WHERE l.course_id=c.id AND nullif(l.video_key,'') IS NOT NULL) AS videos
       FROM courses c ORDER BY c.title`;
-    const lessons=store.prepare("SELECT l.*,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json,(SELECT json_group_array(json_object('id',substr(id,-36),'caption',json_extract(value,'$.caption'))) FROM (SELECT id,value FROM settings WHERE id GLOB 'lesson-photo/'||l.id||'/*' ORDER BY rowid)) AS photos_json,c.title AS course_title FROM lessons l JOIN courses c ON c.id=l.course_id "+
-      (all?'':'WHERE l.course_id=? ')+'ORDER BY c.title,l.position,l.id');
-    const students=`SELECT e.*,c.title,(SELECT COUNT(*) FROM lessons l WHERE l.course_id=e.course_id) AS total,
-      (SELECT COUNT(*) FROM progress p JOIN lessons l ON l.id=p.lesson_id WHERE
+    const lessons=store.prepare(`SELECT l.*,c.title AS course_title,
+      (SELECT json_group_array(course_id) FROM (SELECT course_id FROM lesson_assignments
+       WHERE lesson_id=l.source_id AND active=1 ORDER BY course_id)) AS assigned_courses,
+      coalesce((SELECT value FROM settings WHERE id='lesson-revision:'||l.source_id),'0') AS revision,
+      (SELECT value FROM settings WHERE id='quiz:'||l.source_id) AS quiz_json,
+      (SELECT json_group_array(json_object('id',substr(id,-36),'caption',json_extract(value,'$.caption')))
+       FROM (SELECT id,value FROM settings WHERE id GLOB 'lesson-photo/'||l.source_id||'/*' ORDER BY rowid)) AS photos_json
+      FROM course_lessons l JOIN courses c ON c.id=l.course_id
+      ${all?'':'WHERE l.course_id=?'} ORDER BY c.title,l.position,l.id`);
+    const students=`SELECT e.*,c.title,(SELECT COUNT(*) FROM course_lessons l WHERE l.course_id=e.course_id) AS total,
+      (SELECT COUNT(*) FROM progress p JOIN course_lessons l ON l.id=p.lesson_id WHERE
         (e.id='buyer/'||p.user_id||'/'||e.course_id OR (e.id NOT LIKE 'buyer/%' AND EXISTS(SELECT 1 FROM profiles u WHERE u.id=p.user_id AND u.email=e.email)))
         AND l.course_id=e.course_id) AS completed FROM enrollments e JOIN courses c ON c.id=e.course_id`;
-    const [merchant,metrics,courses,enquiries,enrollments,recordings]=await Promise.all([
+    const [merchant,metrics,courses,enquiries,enrollments,recordings,reusable]=await Promise.all([
       all||tab==='Courses'?merchantStatus().catch(()=>null):null,all||tab==='Courses'||tab==='Payments'?salesSummary().catch(()=>null):null,
       all||tab==='Courses'||(tab==='Lessons'&&!courseId)?store.prepare(fullCourses).all():tab==='Lessons'?store.prepare(`SELECT c.id,c.title,c.level,c.published,c.thumbnail_key,
-        (SELECT count(*) FROM lessons l WHERE l.course_id=c.id) AS lesson_count FROM courses c ORDER BY c.title`).all():null,
+        (SELECT count(*) FROM course_lessons l WHERE l.course_id=c.id) AS lesson_count FROM courses c ORDER BY c.title`).all():null,
       all||tab==='Enquiries'?store.prepare('SELECT * FROM enquiries ORDER BY created_at DESC LIMIT 100').all():null,
       all||tab==='Students'?store.prepare(students).all():null,
       all?lessons.all():tab==='Lessons'&&courseId?lessons.bind(courseId).all():null,
+      tab==='Lessons'&&courseId?store.prepare(`SELECT l.id,l.title,
+        (SELECT c.title FROM lesson_assignments a JOIN courses c ON c.id=a.course_id
+         WHERE a.lesson_id=l.id AND a.active=1 ORDER BY c.title LIMIT 1) AS course_title
+        FROM lessons l
+        WHERE NOT EXISTS(SELECT 1 FROM lesson_assignments a WHERE a.lesson_id=l.id AND a.course_id=? AND a.active=1)
+        ORDER BY l.title,course_title,l.id`).bind(courseId).all():null,
     ]);
     return Response.json({sumupReady:merchant?Boolean(merchant.code):undefined,metrics,courses:courses?.results||[],
-      enquiries:enquiries?.results||[],enrollments:enrollments?.results||[],lessons:recordings?.results||[],
+      enquiries:enquiries?.results||[],enrollments:enrollments?.results||[],lessons:recordings?.results||[],reusableLessons:reusable?.results||[],
       directVideoUpload:Boolean(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID)},{headers:{'Cache-Control':'private, no-store'}});
   }catch{return Response.json({error:'Academy data could not be loaded.'},{status:503});}
 }
@@ -63,9 +77,23 @@ for(const [field,prefix] of [['format','course-format:'],['classDates','class-da
 for(const name of Object.keys(extraCourseFields)){
   if(f.has(name))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('course-info:'+name+':'+id,s(name)));
 }
-if(f.has('cpd'))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('cpd:'+id,s('cpd')==='1'?'1':'0'));await db().batch(statements);}catch(e){if(uploaded)await bucket().delete(uploaded);if(await wasCreated())return creationResult();throw e;}if(old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey){try{await bucket().delete(old.thumbnail_key)}catch{console.error('Old course thumbnail cleanup failed')}}revalidateListings();return Response.json({ok:true,courseId:id});}else if(action==='visibility'){await db().prepare('UPDATE courses SET published=? WHERE id=?').bind(s('published')==='1'?1:0,s('id')).run();}else if(action==='enrol'){return Response.json({error:'Confirm the student’s paid order in Payments to activate access.'},{status:409});}else if(action==='revoke'){await db().prepare('DELETE FROM enrollments WHERE id=?').bind(s('id')).run();}else if(action==='lesson'){const c=await db().prepare('SELECT id FROM courses WHERE id=?').bind(s('courseId')).first();if(!c||!s('title')||s('title').length>120||s('body').length>20000)throw Error('Choose a course and add lesson content.');const position=Number(s('position'));
+if(f.has('cpd'))statements.push(db().prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('cpd:'+id,s('cpd')==='1'?'1':'0'));await db().batch(statements);}catch(e){if(uploaded)await bucket().delete(uploaded);if(await wasCreated())return creationResult();throw e;}if(old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey){try{await bucket().delete(old.thumbnail_key)}catch{console.error('Old course thumbnail cleanup failed')}}revalidateListings();return Response.json({ok:true,courseId:id});}else if(action==='visibility'){await db().prepare('UPDATE courses SET published=? WHERE id=?').bind(s('published')==='1'?1:0,s('id')).run();}else if(action==='enrol'){return Response.json({error:'Confirm the student’s paid order in Payments to activate access.'},{status:409});}else if(action==='revoke'){await db().prepare('DELETE FROM enrollments WHERE id=?').bind(s('id')).run();}else if(action==='linkLesson'){
+  const database=db(), courseId=s('courseId'), lessonId=s('lessonId');
+  const available=await database.prepare('SELECT l.id FROM lessons l JOIN courses c ON c.id=? WHERE l.id=?').bind(courseId,lessonId).first();
+  if(!available)throw Error('Choose an existing lesson and course.');
+  await linkToCourse(lessonId,courseId).run();
+  revalidateListings();
+}else if(action==='lesson'){const c=await db().prepare('SELECT id FROM courses WHERE id=?').bind(s('courseId')).first();if(!c||!s('title')||s('title').length>120||s('body').length>20000)throw Error('Choose a course and add lesson content.');const position=Number(s('position'));
 if(!Number.isInteger(position)||position<0||position>1000)throw Error('Check the lesson position.');
-const videoUrl=safeHttps(s('videoUrl')),resourceUrl=safeHttps(s('resourceUrl'));const old=s('id')?await db().prepare("SELECT l.*,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json FROM lessons l WHERE id=?").bind(s('id')).first<any>():null;if(s('id')&&!old)throw Error('Lesson not found.');if(old&&old.course_id!==s('courseId'))throw Error('An existing lesson cannot be moved between courses.');const video=f.get('video'),thumbnail=f.get('thumbnail');let key:string|null=(old?.video_key as string)||null,thumbnailKey:string|null=(old?.thumbnail_key as string)||null;const uploaded:string[]=[];
+const videoUrl=safeHttps(s('videoUrl')),resourceUrl=safeHttps(s('resourceUrl'));
+const id=s('id')||creationId||crypto.randomUUID();
+const old=s('id')?await db().prepare(`SELECT l.*,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json,
+  coalesce((SELECT value FROM settings WHERE id='lesson-revision:'||l.id),'0') AS revision
+  FROM lessons l JOIN lesson_assignments a ON a.lesson_id=l.id
+  WHERE l.id=? AND a.course_id=? AND a.active=1`).bind(id,s('courseId')).first<any>():null;
+if(s('id')&&!old)throw Error('This lesson is no longer assigned to this course. Reopen the lesson list.');
+const assignments=await lessonAssignmentChanges(f,id,s('courseId'),position,!old);
+const video=f.get('video'),thumbnail=f.get('thumbnail');let key:string|null=(old?.video_key as string)||null,thumbnailKey:string|null=(old?.thumbnail_key as string)||null;const uploaded:string[]=[];
 if(s('removeVideo')==='1')key=null;if(['1','private'].includes(s('removeThumbnail')))thumbnailKey=null;
 if(video instanceof File&&video.size&&(video.size>3*1024*1024||!['video/mp4','video/webm'].includes(video.type)))throw Error('Upload an MP4 or WebM video up to 3 MB.');
 const staged=s('uploadedVideoKey');
@@ -81,7 +109,6 @@ if(staged && classroomVideoCourse(staged)){
   if(await db().prepare('SELECT id FROM lessons WHERE video_key=? AND id<>?').bind(staged,s('id')||creationId).first())throw Error('This upload is already attached to another lesson.');
   key=staged;
 }
-const id=s('id')||creationId||crypto.randomUUID();
 const previous=readQuiz(old);
 const quiz=f.has('quiz')?validateQuiz(JSON.parse(s('quiz'))):f.has('question')?
   validateQuiz([...(s('question')?[{question:s('question'),options:[s('option0'),s('option1'),s('option2')],answer:Number(s('answer'))}]:[]),...previous.slice(1)]):previous;
@@ -93,12 +120,17 @@ if(thumbnail instanceof File&&thumbnail.size){if(thumbnail.size>3*1024*1024)thro
 try{
 if(video instanceof File&&video.size){key=newAssetKey('lessons');uploaded.push(key);await bucket().put(key,video.stream(),{httpMetadata:{contentType:video.type}});}
 if(thumbnailBytes&&thumbnailType){thumbnailKey=newAssetKey('thumbnails');uploaded.push(thumbnailKey);await bucket().put(thumbnailKey,thumbnailBytes,{httpMetadata:{contentType:thumbnailType}});}
-const values=[s('title'),s('body'),key,thumbnailKey,videoUrl||old?.video_url||null,resourceUrl||old?.resource_url||null,first?.question||null,first?JSON.stringify(first.options):null,first?.answer??null,position];
+const values=[s('title'),s('body'),key,thumbnailKey,videoUrl||old?.video_url||null,resourceUrl||old?.resource_url||null,first?.question||null,first?JSON.stringify(first.options):null,first?.answer??null];
 const database=db();
-const details=old?database.prepare('UPDATE lessons SET title=?,body=?,video_key=?,thumbnail_key=?,video_url=?,resource_url=?,question=?,options=?,answer=?,position=? WHERE id=?').bind(...values,id):
-  database.prepare('INSERT INTO lessons (title,body,video_key,thumbnail_key,video_url,resource_url,question,options,answer,position,id,course_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').bind(...values,id,s('courseId'));
-await database.batch([...photos.statements,details,database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('quiz:'+id,JSON.stringify(quiz))]);
-}catch(e){if(uploaded.length)await bucket().delete(uploaded);if(await wasCreated())return creationResult();if(e instanceof Error&&e.message.includes('malformed JSON'))throw Error('The lesson photos changed in another session. Reopen the lesson to see the latest version.');throw e;}
+const details=old?database.prepare('UPDATE lessons SET title=?,body=?,video_key=?,thumbnail_key=?,video_url=?,resource_url=?,question=?,options=?,answer=?,position=CASE WHEN course_id=? THEN ? ELSE position END WHERE id=?').bind(...values,s('courseId'),position,id):
+  database.prepare('INSERT INTO lessons (title,body,video_key,thumbnail_key,video_url,resource_url,question,options,answer,position,id,course_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').bind(...values,position,id,s('courseId'));
+const revisionKey='lesson-revision:'+id;
+const revisionGuard=old?[database.prepare(`SELECT json(CASE WHEN coalesce((SELECT value FROM settings WHERE id=?),'0')=?
+  THEN 'true' ELSE 'lesson changed' END)`).bind(revisionKey,f.has('revision')?s('revision'):old.revision)]:[];
+await database.batch([...revisionGuard,...photos.statements,details,...assignments,
+  database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind(revisionKey,crypto.randomUUID()),
+  database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('quiz:'+id,JSON.stringify(quiz))]);
+}catch(e){if(uploaded.length)await bucket().delete(uploaded);if(await wasCreated())return creationResult();if(e instanceof Error&&e.message.includes('malformed JSON'))throw Error('This lesson changed in another session. Reopen it to see the latest version.');throw e;}
 const unused=[old?.video_key&&old.video_key!==key?String(old.video_key):null,old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey?String(old.thumbnail_key):null].filter((v):v is string=>!!v);if(unused.length){try{await bucket().delete(unused)}catch{console.error('Old lesson assets could not be removed');}}
 }else throw Error('Unknown action');if(action==='lesson'||action==='visibility')revalidateListings();return Response.json({ok:true});}catch(e){return Response.json({error:(e as Error).message||'Unable to save. Please try again.'},{status:400})}}
 

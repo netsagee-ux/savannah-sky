@@ -6,17 +6,41 @@ import {readQuiz} from '@/lib/lesson-quiz';
 import {useState, type FormEvent} from 'react';
 
 type Lesson = {
-  id:string; course_id:string; title:string; position:number; body:string; video_key:string|null;
+  id:string; source_id:string; assigned_courses:string; revision:string; course_id:string; title:string; position:number; body:string; video_key:string|null;
   photos_json?:string; video_url:string|null; thumbnail_key:string|null; question:string|null; options:string|null; answer:number|null;
 };
+type CourseOption = {id:string;title:string};
+type ReusableLesson = {id:string;title:string;course_title:string};
 type Props = {
-  courses:{id:string;title:string}[]; lessons:Lesson[]; selected:string; onSelect:(id:string)=>void;
+  courses:CourseOption[]; reusableLessons:ReusableLesson[]; lessons:Lesson[]; selected:string; onSelect:(id:string)=>void;
   directUpload:boolean; busy:boolean; status:string; save:(event:FormEvent<HTMLFormElement>,action:string)=>Promise<boolean>;
 };
 
-export default function CourseLessons({courses,lessons,selected,onSelect,directUpload,busy,status,save}:Props) {
+function CourseSelection({courses,lesson,current}:{courses:CourseOption[];lesson:Lesson|null;current:string}) {
+  const previous=lesson?.assigned_courses||'[]';
+  const [selection,setSelection]=useState<string[]>(()=>lesson?JSON.parse(previous):[current]);
+  return <fieldset className="lesson-course-selection">
+    <legend>Use this lesson in</legend>
+    <p>Choose the courses that should include this lesson. Changes to its content appear in every selected course.</p>
+    <input type="hidden" name="assignmentCourses" value="1"/>
+    <input type="hidden" name="previousCourses" value={previous}/>
+    {courses.map((course,index)=>{
+      const fixed=!lesson&&course.id===current;
+      return <label key={course.id}>
+        {fixed&&<input type="hidden" name="assignedCourse" value={current}/>}
+        <input type="checkbox" name="assignedCourse" value={course.id} checked={selection.includes(course.id)}
+          disabled={fixed} required={index===0&&!selection.length}
+          onChange={e=>setSelection(e.target.checked?[...selection,course.id]:selection.filter(id=>id!==course.id))}/>
+        <span>{course.title}{course.id===current&&<small>Current course</small>}</span>
+      </label>;
+    })}
+  </fieldset>;
+}
+
+export default function CourseLessons({courses,reusableLessons,lessons,selected,onSelect,directUpload,busy,status,save}:Props) {
   const [lesson,setLesson]=useState<Lesson|null>(null);
   const [editorOpen,setEditorOpen]=useState(false);
+  const [reuseOpen,setReuseOpen]=useState(false);
   const [version,setVersion]=useState(0);
   const course=courses.find(item=>item.id===selected);
   const list=lessons.filter(item=>item.course_id===selected).sort((a,b)=>a.position-b.position || a.id.localeCompare(b.id));
@@ -32,24 +56,37 @@ export default function CourseLessons({courses,lessons,selected,onSelect,directU
     {!course ? <p>Choose a course to manage its lessons and recordings.</p> : <>
       <div className="library-heading">
         <div><h2>{course.title}</h2><p>{list.length} {list.length===1?'lesson':'lessons'} · {videos} private {videos===1?'video':'videos'}</p></div>
-        {!editorOpen && <div className="lesson-actions" inert={busy}><a className="underlink" href={courseEditPath(selected)}>Edit course</a><button className="button" type="button" disabled={busy} onClick={()=>{setLesson(null);setEditorOpen(true);}}>Add a lesson</button></div>}
+        {!editorOpen && <div className="lesson-actions" inert={busy}><a className="underlink" href={courseEditPath(selected)}>Edit course</a>{reusableLessons.length>0&&<button className="edit-link" type="button" disabled={busy} aria-expanded={reuseOpen} onClick={()=>setReuseOpen(!reuseOpen)}>Use existing lesson</button>}<button className="button" type="button" disabled={busy} onClick={()=>{setReuseOpen(false);setLesson(null);setEditorOpen(true);}}>Add a lesson</button></div>}
       </div>
+      {reuseOpen&&!editorOpen&&<form className="form lesson-reuse" onSubmit={async event=>{
+        if(await save(event,'linkLesson'))setReuseOpen(false);
+      }}>
+        <input type="hidden" name="courseId" value={course.id}/>
+        <label>Lesson to add<select required name="lessonId" defaultValue="">
+          <option value="" disabled>Choose a lesson</option>
+          {reusableLessons.map(item=><option key={item.id} value={item.id}>{item.title} · {item.course_title}</option>)}
+        </select></label>
+        <p>Future edits to this lesson will appear in every course that uses it.</p>
+        <button className="button" disabled={busy}>{busy?'Adding…':'Add to this course'}</button>
+      </form>}
       {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
-        <div><strong>{item.title}</strong><small>{item.video_key?'Private video':item.body?'Lesson notes':JSON.parse(item.photos_json||'[]').length?'Private lesson photos':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
-        <div className="lesson-actions"><button type="button" className="edit-link" disabled={busy} aria-label={'Edit '+item.title} onClick={()=>{setLesson(item);setEditorOpen(true);}}>Edit</button>
+        <div><strong>{item.title}</strong>{JSON.parse(item.assigned_courses).length>1&&<small>Shared across {JSON.parse(item.assigned_courses).length} courses</small>}<small>{item.video_key?'Private video':item.body?'Lesson notes':JSON.parse(item.photos_json||'[]').length?'Private lesson photos':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
+        <div className="lesson-actions"><button type="button" className="edit-link" disabled={busy} aria-label={'Edit '+item.title} onClick={()=>{setReuseOpen(false);setLesson(item);setEditorOpen(true);}}>Edit</button>
         <a className="underlink" href={'/learn/'+encodeURIComponent(item.id)} aria-label={'Preview '+item.title}>Preview</a></div>
       </li>)}</ol> : <p>Add the first lesson to start your course library.</p>)}
       {editorOpen && <><div className="library-heading"><h3>{lesson?'Edit lesson':'Add a lesson'}</h3>
         <button type="button" disabled={busy} className="edit-link" onClick={()=>setEditorOpen(false)}>Back to lesson list</button></div>
       <form key={lesson?.id||'new-'+version} className="form" onSubmit={submit}>
-        <input name="id" type="hidden" value={lesson?.id||''}/>
+        {lesson&&<input name="revision" type="hidden" value={lesson.revision}/>}
+        <input name="id" type="hidden" value={lesson?.source_id||''}/>
         <input name="courseId" type="hidden" value={course.id}/>
         <div className="form-two">
         <label>Lesson title<input name="title" required maxLength={120} defaultValue={lesson?.title||''}/>
         </label>
-        <label>Position<input type="number" name="position" min="0" max="1000" defaultValue={lesson?.position??nextPosition}/>
+        <label>Position in this course<input type="number" name="position" min="0" max="1000" defaultValue={lesson?.position??nextPosition}/>
         </label>
         </div>
+        <CourseSelection courses={courses} lesson={lesson} current={course.id}/>
         <label>Lesson notes (optional with photos, video or a quiz)<textarea name="body" rows={6} maxLength={20000} defaultValue={lesson?.body||''}/>
         </label>
         <LessonPhotos lessonId={lesson?.id} photos={JSON.parse(lesson?.photos_json||'[]')}/>

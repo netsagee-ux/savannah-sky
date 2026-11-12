@@ -25,7 +25,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
     database.batch([
       database.prepare(`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
         (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd FROM courses AS c WHERE c.id=?`).bind(id),
-      database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM lessons WHERE course_id=? ORDER BY position,id").bind(id),
+      database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM course_lessons WHERE course_id=? ORDER BY position,id").bind(id),
     ],'read'),
     getChatGPTUser().then(user=>({user})).catch(()=>null),
     authConfigured?merchantStatus().catch(()=>null):null,

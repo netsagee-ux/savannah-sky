@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -52,11 +52,14 @@ test('course checkout checks availability, charges the listed price and grants a
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',
     'CREATE TABLE progress(id TEXT PRIMARY KEY,user_id TEXT,lesson_id TEXT,completed_at TEXT)',
     'CREATE TABLE courses(id TEXT PRIMARY KEY, title TEXT, price INTEGER, course_url TEXT, published INTEGER, level TEXT)',
-    'CREATE TABLE lessons(id TEXT, course_id TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER,options TEXT,body TEXT)',
+    'CREATE TABLE lessons(id TEXT PRIMARY KEY, course_id TEXT, title TEXT, thumbnail_key TEXT, resource_url TEXT, video_key TEXT, video_url TEXT, position INTEGER,question TEXT,answer INTEGER,options TEXT,body TEXT)',
     'CREATE TABLE enrollments(id TEXT PRIMARY KEY, email TEXT, course_id TEXT)',
     'CREATE TABLE orders(id TEXT PRIMARY KEY,user_id TEXT,email TEXT,course_id TEXT,title TEXT,amount INTEGER,currency TEXT,status TEXT,mode TEXT,created_at TEXT,session_id TEXT,paid_at TEXT)',
     "INSERT INTO courses VALUES('gel','Gel Foundations',6500,NULL,0,'Beginner')",
   ]) await db.prepare(sql).run();
+
+  const migration=await readFile('drizzle/0007_shared_lessons.sql','utf8');
+  for(const sql of migration.split('--> statement-breakpoint'))await db.prepare(sql).run();
 
   globalThis.academyCheckoutIdentity = { user: null };
   let stripeForm;

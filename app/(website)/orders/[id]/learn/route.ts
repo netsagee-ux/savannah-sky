@@ -24,7 +24,7 @@ export async function GET(request: Request, {params}: {params: Promise<{id: stri
       return redirectTo('/orders/' + encodeURIComponent(id));
     }
     const next = await db().prepare(
-      'SELECT l.id FROM lessons l WHERE l.course_id=? ORDER BY EXISTS ' +
+      'SELECT l.id FROM course_lessons l WHERE l.course_id=? ORDER BY EXISTS ' +
       '(SELECT 1 FROM progress p WHERE p.user_id=? AND p.lesson_id=l.id), l.position, l.id LIMIT 1'
     ).bind(order.course_id, user.userId).first<{id: string}>();
     return redirectTo(next ? '/learn/' + encodeURIComponent(next.id) : '/courses/' + encodeURIComponent(order.course_id));

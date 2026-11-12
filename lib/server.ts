@@ -48,5 +48,5 @@ export async function enrolled(courseId:string) {
 export async function catalog(){return (await db().prepare(`SELECT c.id,c.title,c.description,c.level,c.price,
  (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd,
  CASE WHEN c.thumbnail_key IS NOT NULL THEN c.id END AS thumbnail_key,
- (SELECT l.id FROM lessons l WHERE l.course_id=c.id AND l.thumbnail_key IS NOT NULL ORDER BY l.position,l.id LIMIT 1) AS thumbnail_id
+ (SELECT l.id FROM course_lessons l WHERE l.course_id=c.id AND l.thumbnail_key IS NOT NULL ORDER BY l.position,l.id LIMIT 1) AS thumbnail_id
  FROM courses c WHERE c.published=1 AND NOT EXISTS(SELECT 1 FROM settings s WHERE s.id='course-format:'||c.id AND s.value='online') ORDER BY c.rowid`).all()).results;}

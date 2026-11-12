@@ -54,6 +54,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const modules={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/lib/lesson-quiz':await compile('lib/lesson-quiz.ts',{}),'next/cache':moduleUrl('export const revalidatePath=()=>{}'),'@/lib/sumup':sumup,'@/lib/course-invitation':inviteModule,'@/lib/server':server,'@/lib/course-orders':orders,'@/lib/order-receipt':receipt,'@/lib/payments':payments,
     '@/lib/payment-security':security,'@/lib/video-security':await compile('lib/video-security.ts',{}),'@/app/chatgpt-auth':auth,
     '@/lib/classroom-media':mediaModule,'@/lib/lesson-upload':parts,'@/lib/student-course-link':urls,'@vercel/blob':import.meta.resolve('@vercel/blob')};
+  modules['@/lib/lesson-assignments']=await compile('lib/lesson-assignments.ts',{'./server':server});
   modules['@/lib/course-information']=await compile('lib/course-information.ts',{'./data':modules['@/lib/data']});
   const photoTypes=await compile('lib/lesson-photos.ts',{});
   modules['@/lib/lesson-photos']=photoTypes;
@@ -64,7 +65,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const token=await route('app/api/video-access/route.ts'),stream=await route('app/api/video/[id]/route.ts');
   const origin='https://academy.example';
   const post=(path,fields)=>new Request(origin+path,{method:'POST',headers:{origin,...(fields instanceof FormData?{}:{'Content-Type':'application/json'})},body:fields instanceof FormData?fields:JSON.stringify(fields)});
-  const save=(action,data)=>{const form=new FormData();form.set('action',action);for(const [k,v] of Object.entries(data))form.set(k,v);return author.POST(post('/api/admin',form));};
+  const save=(action,data)=>{const form=new FormData();form.set('action',action);for(const [k,v] of Object.entries(data))for(const value of [v].flat())form.append(k,value);return author.POST(post('/api/admin',form));};
   const payment=data=>pay.POST(post('/api/payments',data));
   const owner={userId:'teacher',email:'netsagee@gmail.com',sessionId:'staff'};
   const buyer={userId:'student-a',email:'learner@example.test',sessionId:'phone'};
@@ -312,6 +313,71 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
     for(const data of [{answer:0},{answers:[0]},{answers:[0,0]},{answers:[0,1,1]}])
       assert.equal((await progress.POST(post('/api/progress',{lessonId:id,...data}))).status,400);
     assert.equal((await progress.POST(post('/api/progress',{lessonId:id,answers:[0,1]}))).status,200);
+  });
+  await t.test('one lesson can be taught in several courses with independent order, access and progress',async()=>{
+    state.user=owner;
+    const makeCourse=async title=>(await (await save('course',{...course,title})).json()).courseId;
+    const second=await makeCourse('Nail extensions'), third=await makeCourse('Studio essentials');
+    const assigned=async course=>(await (await author.GET(new Request(origin+'/api/admin?tab=Lessons&courseId='+course))).json());
+    const findLesson=async (course,source)=>(await assigned(course)).lessons.find(row=>row.source_id===source);
+    const source=crypto.randomUUID();
+    const create={courseId,creationId:source,title:'Shared studio notes',body:'Start here',position:'4',assignmentCourses:'1',assignedCourse:[courseId,second,second]};
+    assert.ok((await save('lesson',create)).ok);
+    assert.ok((await save('lesson',create)).ok);
+    const original=await findLesson(courseId,source), copy=await findLesson(second,source);
+    assert.equal(original.id,source);
+    assert.notEqual(copy.id,source);
+    assert.equal(copy.position,1);
+    assert.equal((await assigned(second)).lessons.length,1);
+    assert.deepEqual(JSON.parse(original.assigned_courses),[courseId,second].sort());
+    const edit={courseId:second,id:source,title:'Updated shared notes',body:'New notes',position:'7',assignmentCourses:'1',
+      previousCourses:copy.assigned_courses,revision:copy.revision,assignedCourse:[courseId,second,third]};
+    assert.ok((await save('lesson',edit)).ok);
+    assert.equal((await findLesson(second,source)).position,7);
+    const updated=await findLesson(courseId,source);
+    assert.equal(updated.position,4);
+    assert.equal(updated.body,'New notes');
+    assert.equal((await findLesson(third,source)).title,edit.title);
+    assert.equal((await save('lesson',{...edit,title:'Stale edit'})).status,400);
+    assert.equal((await findLesson(second,source)).title,edit.title);
+    assert.equal((await save('lesson',{...edit,assignedCourse:[]})).status,400);
+    assert.equal((await save('lesson',{...edit,assignedCourse:[second,'missing-course']})).status,400);
+    assert.ok((await assigned(second)).reusableLessons.some(l=>l.id===lessonId));
+    const link=()=>save('linkLesson',{courseId:second,lessonId});
+    assert.ok((await Promise.all([link(),link()])).every(r=>r.ok));
+    const shared=await findLesson(second,lessonId);
+    assert.equal(shared.position,8);
+    assert.equal((await assigned(second)).lessons.filter(l=>l.source_id===lessonId).length,1);
+    assert.ok(!(await assigned(second)).reusableLessons.some(l=>l.id===lessonId));
+    assert.deepEqual(JSON.parse(shared.photos_json),await listPhotos());
+    // This learner only owns the course receiving the link.
+    const pupil={userId:'second-student',email:'second@example.test',sessionId:'phone'};
+    await db.prepare("INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at) VALUES('shared-order',?,?,?,'Extensions',4900,'gbp','paid','live','2026-01-01')").bind(pupil.userId,pupil.email,second).run();
+    await db.prepare('INSERT INTO enrollments(id,email,course_id) VALUES(?,?,?)').bind('buyer/'+pupil.userId+'/'+second,pupil.email,second).run();
+    const videoFor=id=>token.POST(post('/api/video-access',{lessonId:id}));
+    const complete=id=>progress.POST(post('/api/progress',{lessonId:id}));
+    state.user=pupil;
+    assert.equal((await link()).status,403);
+    assert.equal((await readPhoto()).status,404);
+    assert.equal((await videoFor(lessonId)).status,403);
+    assert.equal((await complete(lessonId)).status,403);
+    assert.deepEqual(Buffer.from(await (await readPhoto(photoId,shared.id)).arrayBuffer()),picture);
+    const signed=await (await videoFor(shared.id)).json();
+    const playShared=()=>stream.GET(new Request(origin+signed.url),{params:Promise.resolve({id:shared.id})});
+    assert.deepEqual(Buffer.from(await (await playShared()).arrayBuffer()),video);
+    assert.ok((await complete(shared.id)).ok);
+    assert.equal((await db.prepare('SELECT lesson_id FROM progress WHERE user_id=?').bind(pupil.userId).all()).results[0].lesson_id,shared.id);
+    state.user=owner;
+    assert.ok((await save('lesson',{...lesson,id:lessonId,assignmentCourses:'1',previousCourses:shared.assigned_courses,assignedCourse:[courseId]})).ok);
+    assert.equal(await findLesson(second,lessonId),undefined);
+    state.user=pupil;
+    assert.equal((await playShared()).status,403);
+    assert.equal((await readPhoto(photoId,shared.id)).status,404);
+    assert.equal((await complete(shared.id)).status,403);
+    state.user=owner;
+    assert.ok((await link()).ok);
+    assert.equal((await findLesson(second,lessonId)).id,shared.id);
+    assert.equal((await findLesson(courseId,lessonId)).id,lessonId);
   });
   await t.test('conversion certificate is private and only staff approval unlocks checkout eligibility',async()=>{
     state.user=owner;

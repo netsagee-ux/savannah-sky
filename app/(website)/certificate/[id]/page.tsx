@@ -15,7 +15,7 @@ export default async function Certificate({params}:{params:Promise<{id:string}>}
   const database=db();
   const [course,lessons]=await Promise.all([
     database.prepare('SELECT title FROM courses WHERE id=?').bind(id).first<{title:string}>(),
-    database.prepare(`SELECT l.id,p.completed_at FROM lessons l
+    database.prepare(`SELECT l.id,p.completed_at FROM course_lessons l
       LEFT JOIN progress p ON p.lesson_id=l.id AND p.user_id=? WHERE l.course_id=? ORDER BY l.position,l.id`)
       .bind(user.userId,id).all<{id:string;completed_at:string|null}>(),
   ]);

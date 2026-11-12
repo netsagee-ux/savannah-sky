@@ -119,3 +119,12 @@
 .admin-area .staff-requests p { color: #545d53; }
 .admin-area .staff-requests .underlink { color: #6d3848; }
 @media(max-width:760px){ .admin-area .staff-requests { margin-inline: 14px; } }
+
+.lesson-course-selection,.lesson-reuse { margin:0; padding:1rem; border:1px solid var(--brand-line); border-radius:12px; }
+.lesson-course-selection legend { padding:0 .35rem; font-weight:600; }
+.lesson-course-selection p,.lesson-reuse p { margin:0 0 .5rem; }
+.admin-area .form .lesson-course-selection label { display:flex; align-items:center; gap:.7rem; min-height:44px; margin:0; }
+.admin-area .form .lesson-course-selection input[type=checkbox] { flex:none; width:1.1rem; height:1.1rem; min-height:0; margin:0; accent-color:var(--brand-espresso); }
+.lesson-course-selection small { display:block; font-weight:400; }
+.lesson-reuse { margin-block:.8rem; }
+.lesson-reuse .button { justify-self:start; }

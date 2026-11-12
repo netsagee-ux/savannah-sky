@@ -1,6 +1,11 @@
-import {sqliteTable,text,integer,index,blob} from 'drizzle-orm/sqlite-core';
+import {sqliteTable,text,integer,index,uniqueIndex,blob} from 'drizzle-orm/sqlite-core';
 export const courses=sqliteTable('courses',{id:text('id').primaryKey(),title:text('title').notNull(),description:text('description').notNull(),level:text('level').notNull(),price:integer('price'),paymentUrl:text('payment_url'),courseUrl:text('course_url'),thumbnailKey:text('thumbnail_key'),outcomes:text('outcomes'),requirements:text('requirements'),duration:text('duration'),accessPolicy:text('access_policy'),published:integer('published').notNull().default(0)});
 export const lessons=sqliteTable('lessons',{id:text('id').primaryKey(),courseId:text('course_id').notNull(),title:text('title').notNull(),body:text('body').notNull(),videoKey:text('video_key'),thumbnailKey:text('thumbnail_key'),videoUrl:text('video_url'),resourceUrl:text('resource_url'),question:text('question'),options:text('options'),answer:integer('answer'),position:integer('position').notNull().default(0)},t=>[index('idx_lessons_course').on(t.courseId)]);
+export const lessonAssignments=sqliteTable('lesson_assignments',{
+ id:text('id').primaryKey(),lessonId:text('lesson_id').notNull().references(()=>lessons.id,{onDelete:'cascade'}),
+ courseId:text('course_id').notNull().references(()=>courses.id,{onDelete:'cascade'}),
+ position:integer('position').notNull(),active:integer('active').notNull().default(1),
+},t=>[uniqueIndex('idx_lesson_assignment_pair').on(t.lessonId,t.courseId),index('idx_lesson_assignments_course').on(t.courseId,t.active,t.position,t.id)]);
 export const enrollments=sqliteTable('enrollments',{id:text('id').primaryKey(),email:text('email').notNull(),courseId:text('course_id').notNull()},t=>[index('idx_enrollment_email_course').on(t.email,t.courseId)]);
 export const progress=sqliteTable('progress',{id:text('id').primaryKey(),userId:text('user_id').notNull(),lessonId:text('lesson_id').notNull(),completedAt:text('completed_at').notNull()});
 export const enquiries=sqliteTable('enquiries',{id:text('id').primaryKey(),name:text('name').notNull(),email:text('email').notNull(),message:text('message').notNull(),createdAt:text('created_at').notNull()});

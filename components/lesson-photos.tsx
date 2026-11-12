@@ -37,7 +37,7 @@ export async function stageLessonPhotos(form: FormData, files: File[], report: (
 export default function LessonPhotos({lessonId, photos}: {lessonId?: string; photos: LessonPhoto[]}) {
   const [files, setFiles] = useState<File[]>([]);
   return <fieldset className="private-lesson-photos"><legend>Private lesson photos</legend>
-    <p>Add teaching diagrams or step-by-step photos. Only you and students enrolled on this course can open them.</p>
+    <p>Add teaching diagrams or step-by-step photos. Academy staff and students enrolled on a selected course can open them.</p>
     {lessonId && photos.map((photo, i) => <div className="lesson-photo-entry" key={photo.id}>
       <img src={lessonPhotoUrl(lessonId, photo.id)} alt={photo.caption || 'Lesson photo ' + (i + 1)} loading="lazy"/>
       <label>Caption<input name={'caption/' + photo.id} defaultValue={photo.caption} maxLength={200}/></label>

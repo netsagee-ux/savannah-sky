@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build",
+  "buildCommand": "node scripts/prepare-shared-lessons.mjs && npm run build",
   "installCommand": "npm ci",
   "outputDirectory": ".next"
 }

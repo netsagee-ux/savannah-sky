@@ -12,7 +12,7 @@ export async function POST(req:Request){
     if(!user)return reply({error:'Please sign in to watch this lesson.'},401);
     const body=await req.json().catch(()=>null) as {lessonId?:unknown}|null;
     if(typeof body?.lessonId!=='string')return reply({error:'Choose a lesson.'},400);
-    const lesson=await db().prepare('SELECT id,course_id,video_key FROM lessons WHERE id=?').bind(body.lessonId)
+    const lesson=await db().prepare('SELECT id,course_id,video_key FROM course_lessons WHERE id=?').bind(body.lessonId)
       .first<{id:string;course_id:string;video_key:string|null}>();
     if(!lesson||!await enrolled(lesson.course_id))return reply({error:'Course access is required.'},403);
     if(!lesson.video_key)return reply({error:'This lesson has no uploaded video.'},404);

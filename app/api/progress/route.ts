@@ -12,7 +12,7 @@ export async function POST(req:Request) {
     const data=await req.json().catch(()=>null) as Record<string,unknown>|null;
     if(typeof data?.lessonId!=='string')return reply({error:'Choose a lesson.'},400);
     const database=db();
-    const lesson=await database.prepare("SELECT id,course_id,video_key,question,options,answer,(SELECT value FROM settings WHERE id='quiz:'||l.id) AS quiz_json FROM lessons l WHERE id=?").bind(data.lessonId)
+    const lesson=await database.prepare("SELECT id,course_id,video_key,question,options,answer,(SELECT value FROM settings WHERE id='quiz:'||l.source_id) AS quiz_json FROM course_lessons l WHERE id=?").bind(data.lessonId)
       .first<{id:string;course_id:string;video_key:string|null;}&QuizRow>();
     if(!lesson||!await enrolled(lesson.course_id))return reply({error:'Course access is required.'},403);
     if(data.action==='bookmark'){
