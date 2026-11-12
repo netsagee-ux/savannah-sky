@@ -1,6 +1,6 @@
 'use client';
 import Script from 'next/script';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,useTransition} from 'react';
 import {useRouter} from 'next/navigation';
 
 type SDK={mount:(options:{id:string;checkoutId:string;locale:string;country:string;onResponse:(type:string)=>void})=>{unmount:()=>void}};
@@ -9,6 +9,7 @@ declare global {interface Window{SumUpCard?:SDK}}
 export default function SumUpCard({checkoutId}:{checkoutId:string}){
   const [loaded,setLoaded]=useState(false),[notice,setNotice]=useState('');
   const host=useRef<HTMLDivElement>(null), router=useRouter();
+  const [refreshing,startRefresh]=useTransition();
   const [checking,setChecking]=useState(false);
   useEffect(()=>{
     if(!loaded||!window.SumUpCard||!host.current)return;
@@ -32,6 +33,6 @@ export default function SumUpCard({checkoutId}:{checkoutId:string}){
     <Script src="https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js" strategy="afterInteractive" onReady={()=>setLoaded(true)} onError={()=>setNotice('The secure card form could not load. Refresh this page to try again.')}/>
     <div id="academy-sumup-card" ref={host}/>
     <p role="status">{notice||(!loaded?'Loading secure payment form…':'')}</p>
-    <button className="underlink" type="button" onClick={()=>router.refresh()}>Check payment status</button>
+    <button className="underlink" type="button" disabled={refreshing} aria-busy={refreshing} onClick={()=>startRefresh(()=>router.refresh())}>{refreshing?'Checking payment…':'Check payment status'}</button>
   </section>;
 }

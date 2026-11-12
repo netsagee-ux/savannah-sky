@@ -20,7 +20,7 @@ export default function PrivateVideo({lessonId,title,thumbnail}:{lessonId:string
     lastSent.current=current;
     queue.current=queue.current.then(async()=>{
       try{
-        const response=await fetch('/api/progress',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},
+        const response=await fetch('/api/progress',{method:'POST',signal:AbortSignal.timeout?.(15000),keepalive:true,headers:{'Content-Type':'application/json'},
           body:JSON.stringify({action:'bookmark',lessonId,...current})});
         if(!response.ok)throw Error();
       }catch{
@@ -31,16 +31,17 @@ export default function PrivateVideo({lessonId,title,thumbnail}:{lessonId:string
 
   useEffect(()=>{
     const hide=()=>{if(document.hidden)savePlace();};
+    window.addEventListener('online',savePlace);
     window.addEventListener('pagehide',savePlace);
     document.addEventListener('visibilitychange',hide);
-    return ()=>{window.removeEventListener('pagehide',savePlace);document.removeEventListener('visibilitychange',hide);savePlace();};
+    return ()=>{window.removeEventListener('online',savePlace);window.removeEventListener('pagehide',savePlace);document.removeEventListener('visibilitychange',hide);savePlace();};
   },[savePlace]);
 
   async function open(){
     if(opening.current)return;
     opening.current=true;ready.current=false;setBusy(true);setError('');
     try{
-      const response=await fetch('/api/video-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lessonId})});
+      const response=await fetch('/api/video-access',{method:'POST',signal:AbortSignal.timeout?.(30000),headers:{'Content-Type':'application/json'},body:JSON.stringify({lessonId})});
       const result=await response.json() as Playback & {error?:string};
       if(!response.ok||!result.url)throw Error(result.error||'Unable to load video.');
       if(place.current?.bookmark===result.bookmark)result.seconds=place.current.seconds;
@@ -74,7 +75,7 @@ export default function PrivateVideo({lessonId,title,thumbnail}:{lessonId:string
         if(playback.expires*1000<=Date.now()){void open();return;}
         setPlayback(null);setError('Playback stopped. Reopen the video to continue from your last position.');
       }}/>:
-      <button className="video-poster" onClick={()=>void open()} disabled={busy} aria-label={'Play '+title}>
+      <button className="video-poster" aria-busy={busy} onClick={()=>void open()} disabled={busy} aria-label={'Play '+title}>
         {thumbnail&&<img src={'/api/thumbnail/'+lessonId} alt="" width={1280} height={720}/>}
         <span className="play-disc"><Play size={28}/></span><strong>{busy?'Checking access…':'Watch lesson'}</strong>
         <span><LockKeyhole size={14}/>Private course video</span>

@@ -44,3 +44,12 @@ html:has(.atlas-drawer[open]) { overflow: hidden; }
   .atlas-drawer[open] .atlas-drawer-inner { animation: drawer-arrive .25s ease-out both; }
   @keyframes drawer-arrive { from { opacity: .6; transform: translateX(13px); } }
 }
+@media (max-width:760px) {
+  .mast-row .mast-menu,.mast-row .mast-brand { min-height:44px; align-items:center; }
+  .atlas-drawer { overscroll-behavior:contain; }
+}
+@media (max-height:540px) {
+  .atlas-drawer-inner { padding-top:max(12px,env(safe-area-inset-top)); }
+  .atlas-drawer nav { margin:12px 0 16px; }
+  .atlas-drawer nav a { min-height:44px; padding-block:6px; font-size:1.65rem; }
+}

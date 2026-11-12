@@ -91,7 +91,7 @@ const old=s('id')?await db().prepare(`SELECT l.*,(SELECT value FROM settings WHE
   coalesce((SELECT value FROM settings WHERE id='lesson-revision:'||l.id),'0') AS revision
   FROM lessons l JOIN lesson_assignments a ON a.lesson_id=l.id
   WHERE l.id=? AND a.course_id=? AND a.active=1`).bind(id,s('courseId')).first<any>():null;
-if(s('id')&&!old)throw Error('This lesson is no longer assigned to this course. Reopen the lesson list.');
+if(s('id')&&!old)return Response.json({code:'lesson_changed',error:'This lesson is no longer assigned to this course. Return to the lesson list.'},{status:409});
 const assignments=await lessonAssignmentChanges(f,id,s('courseId'),position,!old);
 const video=f.get('video'),thumbnail=f.get('thumbnail');let key:string|null=(old?.video_key as string)||null,thumbnailKey:string|null=(old?.thumbnail_key as string)||null;const uploaded:string[]=[];
 if(s('removeVideo')==='1')key=null;if(['1','private'].includes(s('removeThumbnail')))thumbnailKey=null;
@@ -130,7 +130,7 @@ const revisionGuard=old?[database.prepare(`SELECT json(CASE WHEN coalesce((SELEC
 await database.batch([...revisionGuard,...photos.statements,details,...assignments,
   database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind(revisionKey,crypto.randomUUID()),
   database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('quiz:'+id,JSON.stringify(quiz))]);
-}catch(e){if(uploaded.length)await bucket().delete(uploaded);if(await wasCreated())return creationResult();if(e instanceof Error&&e.message.includes('malformed JSON'))throw Error('This lesson changed in another session. Reopen it to see the latest version.');throw e;}
+}catch(e){if(uploaded.length)await bucket().delete(uploaded);if(await wasCreated())return creationResult();if(e instanceof Error&&e.message.includes('malformed JSON'))return Response.json({code:'lesson_changed',error:'Another session updated this lesson. Your edits are still here. Return to the lesson list and reopen it for the latest version.'},{status:409});throw e;}
 const unused=[old?.video_key&&old.video_key!==key?String(old.video_key):null,old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey?String(old.thumbnail_key):null].filter((v):v is string=>!!v);if(unused.length){try{await bucket().delete(unused)}catch{console.error('Old lesson assets could not be removed');}}
 }else throw Error('Unknown action');if(action==='lesson'||action==='visibility')revalidateListings();return Response.json({ok:true});}catch(e){return Response.json({error:(e as Error).message||'Unable to save. Please try again.'},{status:400})}}
 

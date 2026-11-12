@@ -1,13 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react';
 import AcademyWordmark from './academy-wordmark';
 import { academyPages } from './academy-navigation';
 
 export default function MobileMenu() {
   const drawer = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 761px)');
+    const closeOnDesktop = () => { if (desktop.matches) drawer.current?.close(); };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
   const close = () => drawer.current?.close();
   return <>
     <button className="mast-menu" aria-label="Open menu" aria-haspopup="dialog" onClick={() => drawer.current?.showModal()}>

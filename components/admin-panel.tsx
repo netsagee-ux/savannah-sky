@@ -39,6 +39,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
     return ()=>document.removeEventListener('keydown',searchShortcut);
   },[]);
   const latest=useRef(0);
+  const saving=useRef(false);
   const createRequests=useRef(new WeakMap<HTMLFormElement,string>());
   const [loadedView,setLoadedView]=useState(''),[loadError,setLoadError]=useState('');
   const view=tab+':'+selected;
@@ -47,13 +48,13 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
     try{
       const params=new URLSearchParams({tab});
       if(tab==='Lessons' && selected)params.set('courseId',selected);
-      const response=await fetch('/api/admin?'+params,{cache:'no-store'});
+      const response=await fetch('/api/admin?'+params,{cache:'no-store',signal:AbortSignal.timeout?.(30000)});
       if(response.status===401||response.status===403)throw new StaffSessionError();
       if(!response.ok)throw Error('Academy data could not be loaded.');
       const result=await response.json() as {courses:StudioCourse[]};
       if(ticket===latest.current&&tab==='Lessons'&&selected&&!result.courses.some(c=>c.id===selected)){setSelected('');window.history.replaceState(null,'','/admin?tab=Lessons');return;}
       if(ticket===latest.current){setData(result);setLoadedView(tab+':'+selected);setLoadError('');setNeedsSignIn(false);}
-    }catch(e){if(ticket===latest.current){setLoadError((e as Error).message);setNeedsSignIn(e instanceof StaffSessionError);}}
+    }catch(e){if(ticket===latest.current){setLoadError((e as Error).name==='TimeoutError'?'The workspace took too long to load. Please try again.':(e as Error).message);setNeedsSignIn(e instanceof StaffSessionError);}}
   },[tab,selected]);
   useEffect(()=>{setLoadError('');void refresh();return ()=>{latest.current++;};},[refresh]);
   function openTab(name:string, courseId=selected) {
@@ -66,7 +67,9 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
   function openLessons(id:string) {setSelected(id);openTab('Lessons',id);}
   async function submit(event:React.FormEvent<HTMLFormElement>,action:string) {
     event.preventDefault();
+    if(saving.current)return false;
     const form=event.currentTarget, fields=new FormData(form);
+    saving.current=true;
     setBusy(true);setStatus('');
     try {
       fields.set('action',action);
@@ -85,6 +88,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
       const response=await fetch('/api/admin',{method:'POST',body:fields});
       const result=await response.json() as {error?:string;courseId?:string;code?:string};
       if(response.status===401||(response.status===403&&result.code!=='invalid_origin'))throw new StaffSessionError();
+      if(result.code==='lesson_changed')await refresh();
       if(!response.ok) throw Error(result.error||'Unable to save.');
       setNeedsSignIn(false);createRequests.current.delete(form);form.reset();
       if(action==='course'){
@@ -97,7 +101,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
       if(!newCourse)await refresh();
       return true;
     } catch(reason) {setNeedsSignIn(reason instanceof StaffSessionError);setStatus((reason as Error).message||'Unable to save. Please retry.');return false;}
-    finally {setBusy(false);}
+    finally {saving.current=false;setBusy(false);}
   }
   function createFirstCourse(){
     openTab('Courses');setCourseForm(true);

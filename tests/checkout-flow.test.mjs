@@ -250,6 +250,11 @@ test('a course enquiry is saved for staff and invalid requests leave the inbox u
     assert.equal(entries.length, 1);
     assert.equal(entries[0].email, enquiry.email);
     assert.ok(entries[0].message.includes(enquiry.message));
+    const retry={...enquiry,requestId:crypto.randomUUID()};
+    const replies=await Promise.all([send(retry),send(retry)]);
+    assert.ok(replies.every(response=>response.ok));
+    assert.equal(db.prepare('SELECT count(*) AS n FROM enquiries').get().n,2);
+    assert.equal((await send({...enquiry,requestId:'invalid'})).status,400);
   } finally {
     delete globalThis.enquiryTestDatabase;
     db.close();

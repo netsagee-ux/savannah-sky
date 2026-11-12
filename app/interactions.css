@@ -1,0 +1,36 @@
+:root {
+  --press-in:75ms;
+  --press-out:160ms;
+  --panel-in:190ms;
+  --control-ease:cubic-bezier(.2,.7,.25,1);
+}
+:is(.academy,.admin-area) :is(button,summary,.button,.studio-button,.folio-button,.mast-account,.drawer-signin,.edit-link,.underlink) {
+  touch-action:manipulation;
+}
+:is(.academy,.admin-area) :is(button,a,summary,input,textarea,select):focus-visible {
+  outline:2px solid currentColor;
+  outline-offset:3px;
+}
+button[aria-busy=true] { cursor:progress; }
+@media (prefers-reduced-motion:no-preference) {
+  :is(.academy,.admin-area) :is(button,.button,.studio-button,.folio-button,.mast-account,.drawer-signin,.edit-link,.underlink) {
+    transition-property:background-color,color,border-color,box-shadow,translate,transform;
+    transition-duration:var(--press-out);
+    transition-timing-function:var(--control-ease);
+  }
+  :is(.academy,.admin-area) :is(button:not(:disabled),.button,.studio-button,.folio-button,.mast-account,.drawer-signin,.edit-link,.underlink):not(:disabled):active {
+    translate:0 1.5px;
+    transition-duration:var(--press-in);
+  }
+  :is(.academy,.admin-area) :is(.ce-panel:not([hidden]),.lesson-reuse,.course-information details[open] .course-information-body,.studio-drawer[open]>div) {
+    animation:academy-enter var(--panel-in) var(--control-ease) both;
+  }
+  @keyframes academy-enter { from {opacity:.65;translate:0 3px;} to {opacity:1;translate:0 0;} }
+}
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto !important; }
+  :is(.academy,.admin-area) *, :is(.academy,.admin-area) *::before, :is(.academy,.admin-area) *::after {
+    scroll-behavior:auto !important; animation-duration:0s !important;
+    animation-iteration-count:1 !important; transition-duration:0s !important;
+  }
+}

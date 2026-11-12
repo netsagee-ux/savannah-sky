@@ -67,7 +67,7 @@ export default function CourseLessons({courses,reusableLessons,lessons,selected,
           {reusableLessons.map(item=><option key={item.id} value={item.id}>{item.title} · {item.course_title}</option>)}
         </select></label>
         <p>Future edits to this lesson will appear in every course that uses it.</p>
-        <button className="button" disabled={busy}>{busy?'Adding…':'Add to this course'}</button>
+        <button className="button" aria-busy={busy} disabled={busy}>{busy?'Adding…':'Add to this course'}</button>
       </form>}
       {!editorOpen && (list.length ? <ol className="academy-lesson-list">{list.map(item=><li key={item.id}>
         <div><strong>{item.title}</strong>{JSON.parse(item.assigned_courses).length>1&&<small>Shared across {JSON.parse(item.assigned_courses).length} courses</small>}<small>{item.video_key?'Private video':item.body?'Lesson notes':JSON.parse(item.photos_json||'[]').length?'Private lesson photos':'Knowledge check'}{item.question&&(item.video_key||item.body)?' · Knowledge check':''}</small></div>
@@ -76,7 +76,8 @@ export default function CourseLessons({courses,reusableLessons,lessons,selected,
       </li>)}</ol> : <p>Add the first lesson to start your course library.</p>)}
       {editorOpen && <><div className="library-heading"><h3>{lesson?'Edit lesson':'Add a lesson'}</h3>
         <button type="button" disabled={busy} className="edit-link" onClick={()=>setEditorOpen(false)}>Back to lesson list</button></div>
-      <form key={lesson?.id||'new-'+version} className="form" onSubmit={submit}>
+      <form key={lesson?.id||'new-'+version} className="form" aria-busy={busy} onSubmit={submit}>
+        <fieldset className="lesson-edit-fields" disabled={busy}>
         {lesson&&<input name="revision" type="hidden" value={lesson.revision}/>}
         <input name="id" type="hidden" value={lesson?.source_id||''}/>
         <input name="courseId" type="hidden" value={course.id}/>
@@ -110,8 +111,9 @@ export default function CourseLessons({courses,reusableLessons,lessons,selected,
         <option value="1">Remove existing video</option>
         </select>
         </label>}{lesson?.video_url&&!lesson.video_key&&<p>Upload this lesson’s original recording to enable private playback.</p>}<QuizEditor initial={readQuiz(lesson)}/>
+        </fieldset>
         <p className="status-message" role="status">{status}</p>{status.includes('staff session')&&<a className="underlink" target="_blank" rel="noreferrer" href="/sign-in">Sign in</a>}
-        <button className="button" disabled={busy}>{busy?'Uploading & saving…':'Save lesson'}</button></form></>}
+        <button className="button" aria-busy={busy} disabled={busy}>{busy?'Saving lesson…':'Save lesson'}</button></form></>}
     </>}
   </section>;
 }

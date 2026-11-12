@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './refinement.css';
 import './brand.css';
+import './interactions.css';
 
 export const viewport: Viewport = { themeColor: '#fffaf5' };
 

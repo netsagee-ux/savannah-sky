@@ -338,7 +338,9 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
     assert.equal(updated.position,4);
     assert.equal(updated.body,'New notes');
     assert.equal((await findLesson(third,source)).title,edit.title);
-    assert.equal((await save('lesson',{...edit,title:'Stale edit'})).status,400);
+    const stale=await save('lesson',{...edit,title:'Stale edit'});
+    assert.equal(stale.status,409);
+    assert.equal((await stale.json()).code,'lesson_changed');
     assert.equal((await findLesson(second,source)).title,edit.title);
     assert.equal((await save('lesson',{...edit,assignedCourse:[]})).status,400);
     assert.equal((await save('lesson',{...edit,assignedCourse:[second,'missing-course']})).status,400);

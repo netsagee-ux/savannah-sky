@@ -2,18 +2,21 @@
 import {lessonPhotoUrl,type LessonPhoto} from '@/lib/lesson-photos';
 import PrivateVideo from './private-video';
 import {useRouter} from 'next/navigation';
-import {useState} from 'react';
+import {useRef,useState} from 'react';
 type Lesson={id:string;title:string;body:string;questions:{question:string;options:string[]}[];photos:LessonPhoto[];hasVideo:boolean;hasThumbnail:boolean};
 export default function LessonPlayer({lesson,completed}:{lesson:Lesson;completed:boolean}){
   const router=useRouter(),[answers,setAnswers]=useState<(number|null)[]>(()=>lesson.questions.map(()=>null));
   const [done,setDone]=useState(completed),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const saving=useRef(false);
   async function complete(){
+    if(done||saving.current)return;
+    saving.current=true;
     setBusy(true);setMessage('');
     try{
-      const response=await fetch('/api/progress',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lessonId:lesson.id,answers})});
+      const response=await fetch('/api/progress',{method:'POST',signal:AbortSignal.timeout?.(30000),headers:{'Content-Type':'application/json'},body:JSON.stringify({lessonId:lesson.id,answers})});
       const result=await response.json() as {error?:string};if(!response.ok)throw Error(result.error);
       setDone(true);router.refresh();setMessage('Lesson complete. Your progress has been saved.');
-    }catch(e){setMessage((e as Error).message||'Please try again.');}finally{setBusy(false);}
+    }catch(e){setMessage((e as Error).name==='TimeoutError'?'Your progress could not be confirmed. Try saving again.':(e as Error).message||'Please try again.');}finally{saving.current=false;setBusy(false);}
   }
   return <><h1>{lesson.title}</h1>{lesson.hasVideo&&<PrivateVideo lessonId={lesson.id} title={lesson.title} thumbnail={lesson.hasThumbnail}/>}
     {lesson.body&&<p className="lesson-content">{lesson.body}</p>}
@@ -27,6 +30,6 @@ export default function LessonPlayer({lesson,completed}:{lesson:Lesson;completed
         {q.options.map((v,j)=><label key={j}><input type="radio" name={'answer-'+i} checked={answers[i]===j}
           onChange={()=>setAnswers(answers.map((a,k)=>k===i?j:a))}/>{v}</label>)}</fieldset>):
         <p>When you have worked through the lesson, mark it as complete.</p>}
-      <button className="button" disabled={busy||done||answers.includes(null)} onClick={complete}>{done?'Lesson completed':busy?'Saving…':lesson.questions.length?'Check answers & complete':'Mark lesson complete'}</button>
+      <button className="button" aria-busy={busy} disabled={busy||done||answers.includes(null)} onClick={complete}>{done?'Lesson completed':busy?'Saving…':lesson.questions.length?'Check answers & complete':'Mark lesson complete'}</button>
       <p role="status">{message}</p></div></>;
 }

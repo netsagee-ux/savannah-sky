@@ -177,7 +177,7 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
       <div className="ce-actions">
         {status&&<p className="ce-error" role="alert">{status}</p>}
         <button type="button" className="ce-cancel" disabled={busy} onClick={onCancel}>Cancel</button>
-        <button type="submit" className="button ce-save" disabled={busy}>{busy?'Saving…':course?'Save changes':published?'Publish & add lessons':'Save draft & add lessons'}<ArrowRight size={17} aria-hidden="true"/></button>
+        <button type="submit" className="button ce-save" aria-busy={busy} disabled={busy}>{busy?'Saving…':course?'Save changes':published?'Publish & add lessons':'Save draft & add lessons'}<ArrowRight size={17} aria-hidden="true"/></button>
       </div>
   </form>;
 }
