@@ -16,6 +16,8 @@ test('shop and course purchase screens use the session-renewing account layout',
   }));
   assert.equal(accountLanding(true,'/shop?preview=1'),'/shop?preview=1');
   assert.equal(accountLanding(false,'/shop?preview=1'),'/shop');
+  assert.equal(accountLanding(true,'/shop#basket'),'/shop#basket');
+  assert.equal(accountLanding(false,'/shop#basket'),'/shop#basket');
 });
 
 test('a staff login link copied from a message recovers its path and keeps the requested lesson',async()=>{

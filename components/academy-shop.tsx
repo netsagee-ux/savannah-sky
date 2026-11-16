@@ -40,20 +40,18 @@ function ProductCard({product, basket, disabled, add, preview}: {
     <div className="shop-product-heading"><h2>{product.title}</h2><strong>{sample&&<small>Sample price</small>}{gbp(product.price)}</strong></div>
     {product.category && <small>{product.category}</small>}
     <p>{product.description}</p>
-    {sample ? <div className="shop-sample-options">
-      {variants.some(v=>variationName(v))&&<p>Options: {variants.map(v=>variationName(v)||'Standard').join(' · ')}</p>}
-      <a className="underlink" href="/contact#ask">Ask about availability</a>
-    </div> : <form className="form shop-product-actions" onSubmit={addProduct}>
+    <form className="form shop-product-actions" onSubmit={addProduct}>
       {variant && (variants.length > 1 || variationName(variant)) &&
         <label>Choose an option<select value={variant.id} disabled={disabled} onChange={event => {setSelected(event.target.value); setUnits('1');}}>
           {variants.map(option => <option key={option.id} value={option.id}>{variationName(option) || 'Standard'}{option.stock === 0 ? ' · Sold out' : ''}</option>)}
         </select></label>}
-      {variant && variant.stock !== null && variant.stock > 0 && <span className="shop-stock">{variant.stock} in stock</span>}
+      {variant && variant.stock !== null && variant.stock > 0 && <span className="shop-stock">{variant.stock} {sample?'available in the demo':'in stock'}</span>}
       {variant && stockLimit(variant) > 0 ? <>
         <label>Quantity<input type="number" inputMode="numeric" min="1" max={available || 1} step="1" required disabled={disabled || !available} value={units} onChange={event => setUnits(event.target.value)}/></label>
         <button type="submit" className="button outline" disabled={disabled || !canAdd}><Plus size={16} aria-hidden="true"/>{!inBasket && basket.length >= 30 ? 'Basket has 30 options' : available ? 'Add to basket' : 'Maximum in basket'}</button>
       </> : <span className="shop-stock">Sold out</span>}
-    </form>}
+      {inBasket>0 && <a className="underlink" href="#basket">View basket and checkout</a>}
+    </form>
   </article>;
 }
 
@@ -62,10 +60,28 @@ function readStorage<T>(name: string, fallback: T): T {
   catch { return fallback; }
 }
 
-export default function AcademyShop({items, methods, ready, signedIn, preview=false}: Props) {
+export default function AcademyShop(props:Props) {
+  const [view,setView]=useState<'sale'|'sample'>('sale');
+  const samples=props.items.filter(product=>product.published===sampleVisibility);
+  const sales=props.items.filter(product=>product.published===1);
+  const mixed=!props.preview && samples.length>0 && sales.length>0;
+  const sample=!props.preview && samples.length>0 && (!sales.length || view==='sample');
+  return <div id="products" className="shop-catalogue">
+    {mixed && <div className="shop-intro-links" aria-label="Choose a catalogue">
+      <button type="button" className="button outline" aria-pressed={!sample} onClick={()=>setView('sale')}>Shop products</button>
+      <button type="button" className="button outline" aria-pressed={sample} onClick={()=>setView('sample')}>Try sample products</button>
+    </div>}
+    <ShopBasket key={props.preview?'staff':sample?'sample':'sale'} {...props}
+      items={props.preview?props.items:sample?samples:sales} sample={sample}/>
+  </div>;
+}
+
+function ShopBasket({items, methods, ready, signedIn, preview=false,sample}: Props&{sample:boolean}) {
   const router = useRouter();
-  const basketKey=preview?'academy-preview-basket':'academy-basket';
-  const choicesKey=preview?'academy-preview-choices':'academy-shop-choices';
+  const basketKey=preview?'academy-preview-basket':sample?'academy-sample-basket':'academy-basket';
+  const choicesKey=preview?'academy-preview-choices':sample?'academy-sample-choices':'academy-shop-choices';
+  const [reviewKey,setReviewKey]=useState('');
+  const [sampleReceipt,setSampleReceipt]=useState<ShopQuote|null>(null);
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [category, setCategory] = useState('');
@@ -123,7 +139,7 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
     let active = true;
     async function updateQuote() {
       try {
-        const result = await fetch(preview?'/api/shop/preview':'/api/shop/quote', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: quotePayload, signal: controller.signal});
+        const result = await fetch(preview?'/api/shop/preview':sample?'/api/shop/quote?sample=1':'/api/shop/quote', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: quotePayload, signal: controller.signal});
         const data = await result.json() as ShopQuote | {error?: string};
         if (!result.ok || !('lines' in data)) throw Error('error' in data && data.error || 'We could not check this basket.');
         if (active) setResponse({key: quoteKey, quote: data});
@@ -133,9 +149,11 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
     }
     void updateQuote();
     return () => {active = false; clearTimeout(timeout); controller.abort();};
-  }, [needsQuote, quoteKey, quotePayload,preview]);
+  }, [needsQuote, quoteKey, quotePayload,preview,sample]);
 
   function change(id: string, variantId: string, delta: number) {
+    setReviewKey('');
+    setSampleReceipt(null);
     setCheckoutError('');
     const variant = variants.get(variantId);
     setBasket(old => {
@@ -157,7 +175,7 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
 
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if(preview)return;
+    if(preview||sample)return;
     if (!quote || !begin()) return;
     setCheckoutError('');
     const delivery = Object.fromEntries(new FormData(event.currentTarget));
@@ -191,8 +209,7 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
   const pendingCode = codeInput.trim().toUpperCase() !== code;
 
   if (!items.length && !basket.length) return null;
-  const showBasket = preview || basket.length>0 || items.some(p=>p.published===1);
-  return <div id="products" className={'shop-layout'+(showBasket?'':' shop-catalogue-only')}>
+  return <div className="shop-layout">
     <section aria-label="Products">
       {quantity > 0 && <a className="underlink shop-jump" href="#basket">View basket ({quantity})</a>}
       {categories.size > 0 && <div className="form shop-filter"><label>Category<select value={category} onChange={event => setCategory(event.target.value)}>
@@ -205,8 +222,9 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
         }}/>)}</div>
       <p role="status">{notice} {notice && <a className="underlink" href="#basket">View basket</a>}</p>
     </section>
-    {showBasket && <aside className="shop-basket" id="basket" aria-label="Your basket">
+    <aside className="shop-basket" id="basket" aria-label="Your basket">
       <div className="shop-basket-heading"><h2><ShoppingBag size={22} aria-hidden="true"/> Your basket</h2>{quantity > 0 && <span>{quantity} {quantity === 1 ? 'item' : 'items'}</span>}</div>
+      {sample&&<p>Sample checkout lets you try the whole order for £0.00. These items are for demonstration.</p>}
       {basket.length ? <>
         <ul>{basket.map(line => {
           const id = lineId(line), product = products.get(line.id), variant = variants.get(id);
@@ -249,7 +267,15 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
           {current?.error ? <div role="alert"><p>{current.error}</p><button type="button" className="underlink" onClick={refreshBasket}>Refresh basket</button></div> :
             needsQuote && !quote && <p role="status">Checking stock and totals…</p>}
           <p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>
-          {preview ? <p>Preview only. This basket does not create an order or take a payment.</p> : ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
+          {sample ? reviewKey===quoteKey && quote && !pendingCode ? <section className="form" aria-label="Sample checkout">
+            <h3>Review your sample order</h3>
+            <p>{quote.method.name} · Order total {gbp(quote.total)} · Due today £0.00</p>
+            <button type="button" className="button" onClick={()=>{
+              setSampleReceipt(quote);setBasket([]);setReviewKey('');setNotice('');setCode('');setCodeInput('');
+            }}>Complete sample checkout</button>
+            <button type="button" className="underlink" onClick={()=>setReviewKey('')}>Back to basket</button>
+          </section> : <button className="button" type="button" disabled={!quote||pendingCode} onClick={()=>setReviewKey(quoteKey)}>Checkout <ArrowRight size={16}/></button>
+          : preview ? <p>Preview only. This basket does not create an order or take a payment.</p> : ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
             <h3>{method?.kind === 'collection' ? 'Collection details' : 'UK delivery address'}</h3>
             <label>Full name<input name="name" readOnly={busy} autoComplete="name" maxLength={150} required/></label>
             {method?.kind !== 'collection' && ([['street','Address line 1','address-line1'],['line2','Address line 2 (optional)','address-line2'],['town','Town or city','address-level2'],['postcode','Postcode','postal-code']] as const).map(([name,label,autocomplete]) =>
@@ -260,7 +286,10 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
             <p>Checkout will open once the academy connects its payment account.</p>}
         </> : <p>Checkout will open when the academy adds a delivery or collection option.</p>}
         {checkoutError && <p role="alert">{checkoutError}</p>}
-      </> : <p>{hydrated ? 'Your basket is empty.' : 'Loading your basket…'}</p>}
-    </aside>}
+      </> : sampleReceipt ? <div role="status"><h3>Sample checkout complete</h3>
+        <p>{sampleReceipt.lines.map(line=>line.quantity+' × '+line.title).join(', ')}. Total {gbp(sampleReceipt.total)} including {sampleReceipt.method.name.toLowerCase()}. Amount charged £0.00.</p></div>
+        : <><p>{hydrated ? 'Add a product to your basket to start checkout.' : 'Loading your basket…'}</p>
+          {!preview&&<button type="button" className="button" disabled>Checkout <ArrowRight size={16}/></button>}</>}
+    </aside>
   </div>;
 }

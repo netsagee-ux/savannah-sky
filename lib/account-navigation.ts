@@ -17,7 +17,7 @@ export function accountReturn(value:unknown){
 export function accountLanding(isOwner:boolean,requested:unknown){
   const path=accountReturn(requested);
   const workspace=path==='/admin'||path.startsWith('/admin?');
-  if(isOwner)return workspace||path==='/shop?preview=1'?path:'/admin';
+  if(isOwner)return workspace||path==='/shop?preview=1'||path==='/shop#basket'?path:'/admin';
   if(path==='/shop?preview=1')return '/shop';
   return workspace?'/dashboard':path;
 }

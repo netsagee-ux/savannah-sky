@@ -25,7 +25,7 @@ export async function products(all=false,refreshStock=true):Promise<Product[]> {
   }
   return (rows[0].results as unknown as Product[]).map(product=>{
     const variants=grouped.get(product.id)||[];
-    return {...product,variants:!all && product.published===sampleVisibility?variants.map(v=>({...v,stock:null})):variants};
+    return {...product,variants};
   });
 }
 export async function deliveryMethods(all=false){
@@ -105,18 +105,21 @@ async function releaseOldHolds(variants:string[]|null=null){
   // Only verified final provider states release stock; a temporary outage keeps the hold.
   await Promise.allSettled(suspended.results.map(o=>syncShopOrder(o.id)));
 }
-async function priceCart(cart:ReturnType<typeof validateCart>,methodId:string,discountCode:string,preview=false){
+type QuoteMode='sale'|'sample'|'staff';
+async function priceCart(cart:ReturnType<typeof validateCart>,methodId:string,discountCode:string,mode:QuoteMode='sale'){
   const d=await shopDatabase();
   const variants=cart.map(l=>l.variantId);
+  const staff=Number(mode==='staff');
+  const visibility=mode==='sample'?sampleVisibility:1;
   const read=()=>d.prepare(`SELECT v.*,p.price,p.title FROM shop_variants v JOIN shop_products p ON p.id=v.product_id
-    WHERE (p.published=1 OR ?=1) AND v.active=1 AND v.id IN (SELECT value FROM json_each(?))`).bind(Number(preview),JSON.stringify(variants))
+    WHERE (p.published=? OR ?=1) AND v.active=1 AND v.id IN (SELECT value FROM json_each(?))`).bind(visibility,staff,JSON.stringify(variants))
     .all<Variant&{price:number;title:string}>();
   let [rows,method,offer]=await Promise.all([read(),d.prepare('SELECT * FROM shop_delivery_methods WHERE id=? AND (active=1 OR ?=1)')
-    .bind(methodId,Number(preview)).first<DeliveryMethod>(),discountCode?d.prepare('SELECT kind,value FROM shop_discounts WHERE code=? AND (active=1 OR ?=1)')
-    .bind(discountCode,Number(preview)).first<{kind:'fixed'|'percent';value:number}>():null]);
+    .bind(methodId,staff).first<DeliveryMethod>(),discountCode?d.prepare('SELECT kind,value FROM shop_discounts WHERE code=? AND (active=1 OR ?=1)')
+    .bind(discountCode,staff).first<{kind:'fixed'|'percent';value:number}>():null]);
   if(!method)throw new SumUpError('Choose an available delivery option.',409);
   if(discountCode&&!offer)throw new SumUpError('This discount code is unavailable. Check the code or remove it.',409);
-  if(!preview && cart.some(l=>{const v=rows.results.find(r=>r.id===l.variantId);return v&&v.stock!==null&&v.stock<l.quantity;})){
+  if(mode==='sale' && cart.some(l=>{const v=rows.results.find(r=>r.id===l.variantId);return v&&v.stock!==null&&v.stock<l.quantity;})){
     await releaseOldHolds(variants);rows=await read();
   }
   const tracked=new Set<string>();
@@ -136,10 +139,10 @@ async function priceCart(cart:ReturnType<typeof validateCart>,methodId:string,di
   const quote:ShopQuote={lines,subtotal,discount,shipping:method.price,total,method,discountCode};
   return {quote,tracked};
 }
-export async function quoteBasket(body:BasketRequest,preview=false){
+export async function quoteBasket(body:BasketRequest,mode:QuoteMode='sale'){
   if(!body)throw new SumUpError('Check your basket.',400);
   const cart=validateCart(body.items),{methodId,discountCode}=options(body);
-  return (await priceCart(cart,methodId,discountCode,preview)).quote;
+  return (await priceCart(cart,methodId,discountCode,mode)).quote;
 }
 function digest(value:unknown){return createHash('sha256').update(JSON.stringify(value)).digest('hex');}
 export async function startShopOrder(user:{userId:string;email:string},body:Purchase,origin:string){

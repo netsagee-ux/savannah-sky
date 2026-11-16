@@ -45,6 +45,7 @@ test('shop quotes, reservations and catalogue administration',async t=>{
   const as=id=>{globalThis.shopInventoryUser=id?{userId:id,email:id+'@example.test'}:null;};
   const stock=async id=>(await database.prepare('SELECT stock FROM shop_variants WHERE id=?').bind(id).first()).stock;
   const quotes=body=>quote.POST(post('/api/shop/quote',body));
+  const sampleQuote=body=>quote.POST(post('/api/shop/quote?sample=1',body));
   const buy=body=>checkout.POST(post('/api/shop/checkout',body));
   const remote=new Map();
   t.mock.method(globalThis,'fetch',async(url,options)=>{
@@ -118,8 +119,12 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     as(null);
     const sample=(await shop.products()).find(p=>p.id===id);
     assert.equal(sample.variants[0].size,'7 mm');
-    assert.equal(sample.variants[0].stock,null);
+    assert.equal(sample.variants[0].stock,8);
     const body={items:[{id,variantId:option,quantity:1}],methodId:'standard'};
+    const demo=await sampleQuote(body);
+    assert.equal(demo.status,200);assert.equal((await demo.json()).total,1550);
+    assert.equal((await sampleQuote({...body,discountCode:'DEMO10'})).status,409);
+    assert.equal((await sampleQuote({...body,items:[{id,variantId:option,quantity:9}]})).status,409);
     assert.equal((await quotes(body)).status,409);
     as('buyer');
     assert.equal((await buy({...body,attempt:crypto.randomUUID(),delivery:recipient,total:1550})).status,409);
@@ -127,8 +132,10 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     as('owner');
     assert.equal((await save('product',{...fields,published:'1',originalVersion:sample.updated_at})).status,200);
     assert.equal((await quotes(body)).status,200);
+    assert.equal((await sampleQuote(body)).status,409);
     assert.equal((await save('product',{...fields,published:'0'})).status,200);
     assert.ok(!(await shop.products()).some(p=>p.id===id));
+    assert.equal((await sampleQuote(body)).status,409);
   });
   await t.test('staff can configure variations, collection, a category and coupons; other visitors cannot',async()=>{
     as('learner');assert.equal((await admin.GET()).status,403);

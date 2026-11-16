@@ -24,7 +24,7 @@ export default function ShopProductEditor({product,id,categories,busy,save,close
       <label>Price (£)<input name="price" type="number" min="0.50" max="10000" step="0.01" required defaultValue={product?product.price/100:''}/></label>
       <label>Category<select name="category" defaultValue={product?.category_id||''}><option value="">Uncategorised</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       <label>Product photo (up to 2 MB)<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"/></label>
-      <label>Shop visibility<select name="published" defaultValue={product?.published??0}><option value="0">Hidden from shop</option><option value={sampleVisibility}>Public sample · display only</option><option value="1">Show in shop · available to order</option></select></label>
+      <label>Shop visibility<select name="published" defaultValue={product?.published??0}><option value="0">Hidden from shop</option><option value={sampleVisibility}>Public sample · demo checkout</option><option value="1">Show in shop · available to order</option></select></label>
       <div><h3>Stock and variations</h3><p>For a single product, leave colour and size blank. Enter the quantity available to sell for each variation.</p></div>
       {rows.map((v,i)=><fieldset key={v.id} className="shop-variant"><legend>Variation {i+1}</legend>
         <label>Colour<input value={v.colour} maxLength={80} onChange={e=>update(v.id,{colour:e.target.value})}/></label>

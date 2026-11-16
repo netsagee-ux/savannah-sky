@@ -27,8 +27,8 @@
   border-radius: 10px 52px 10px 10px;
 }
 .shop-layout { grid-template-columns: minmax(0, 1.6fr) minmax(290px, .85fr); }
-.shop-layout.shop-catalogue-only {grid-template-columns: minmax(0, 1fr);}
-.shop-layout {scroll-margin-top: 6rem;}
+.shop-catalogue {scroll-margin-top: 6rem;}
+.shop-catalogue > .shop-intro-links {margin-bottom: 1.25rem;}
 .shop-intro-links {display:flex;flex-wrap:wrap;align-items:center;gap:1.25rem;}
 .shop-product-heading strong {white-space:nowrap;}
 .shop-product-heading strong small {display:block;font-weight:400;}
