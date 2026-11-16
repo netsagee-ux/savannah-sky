@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import Brand from './brand';
-import AcademyWordmark from './academy-wordmark';
 import { academyPages } from './academy-navigation';
 import MobileMenu from './mobile-menu';
 
@@ -11,7 +10,7 @@ export function Header() {
       <nav className="mast-nav" aria-label="Academy navigation">
         {academyPages.slice(0, 3).map(page => <Link href={page.href} key={page.href}>{page.label}</Link>)}
       </nav>
-      <Link className="mast-brand" href="/" aria-label="Savannah Sky Training Academy home"><AcademyWordmark /></Link>
+      <Link className="mast-brand" href="/" aria-label="Savannah Sky Training Academy home"><Brand /></Link>
       <div className="mast-actions">
         <nav className="mast-nav" aria-label="Help and contact">
           {academyPages.slice(3).map(page => <Link href={page.href} key={page.href}>{page.label}</Link>)}

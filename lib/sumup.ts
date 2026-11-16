@@ -4,7 +4,11 @@ import {recordVerifiedPayment,type AcademyOrder} from './course-orders';
 import {paidInvitationPath} from './course-invitation';
 
 type Merchant={code:string;key:string};
-type Checkout={id:string;checkout_reference:string;amount:number;currency:string;merchant_code:string;status:string};
+type Checkout={id:string;checkout_reference:string;amount:number;currency:string;merchant_code:string;status:string;
+  transaction_id?:string;transactions?:{id:string;status?:string}[]};
+type TransactionEvent={id:number;type?:string;event_type?:string;status:string;amount:number};
+export type SumUpTransaction={id:string;merchant_code:string;amount:number;currency:string;status:string;simple_status?:string;
+  events?:TransactionEvent[];transaction_events?:TransactionEvent[]};
 type SumUpOrder=AcademyOrder & {merchant:string};
 const api='https://api.sumup.com';
 const settingsId='sumup:merchant:v1';
@@ -140,14 +144,29 @@ export async function checkoutMerchant(){
 export function lookupMerchantCheckout(merchant:Merchant,id:string){
   return request<Checkout>(merchant,'/v0.1/checkouts/'+encodeURIComponent(id));
 }
-export async function createMerchantCheckout(merchant:Merchant,order:Pick<SumUpOrder,'id'|'merchant'|'amount'|'session_id'>,title:string,origin:string,orderPath:string,webhook:string){
+export function lookupMerchantTransaction(merchant:Merchant,transactionId:string){
+  return request<SumUpTransaction>(merchant,'/v2.1/merchants/'+encodeURIComponent(merchant.code)+
+    '/transactions?id='+encodeURIComponent(transactionId));
+}
+export async function refundMerchantTransaction(merchant:Merchant,transactionId:string,remainingPence?:number){
+  const path='/v1.0/merchants/'+encodeURIComponent(merchant.code)+'/payments/'+encodeURIComponent(transactionId)+'/refunds';
+  await callSumUp(merchant,path,'POST',remainingPence===undefined?undefined:{amount:remainingPence/100});
+}
+export async function findMerchantCheckout(merchant:Merchant,order:Pick<SumUpOrder,'id'|'merchant'|'amount'|'session_id'>){
+  const results=await request<Checkout[]>(merchant,'/v0.1/checkouts?checkout_reference='+encodeURIComponent(order.id));
+  const candidates=results.filter(c=>c.checkout_reference===order.id);
+  if(candidates.length===0)return null;
+  if(candidates.length!==1||!checkoutMatches(candidates[0],order))throw new SumUpError('Unable to verify the order checkout.',409);
+  return lookupMerchantCheckout(merchant,candidates[0].id);
+}
+export async function createMerchantCheckout(merchant:Merchant,order:Pick<SumUpOrder,'id'|'merchant'|'amount'|'session_id'>,title:string,origin:string,orderPath:string,webhook:string,validUntil?:string){
   const base=process.env.ACADEMY_PUBLIC_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? 'https://'+process.env.VERCEL_PROJECT_PRODUCTION_URL : origin);
   const callbackOrigin=new URL(base).origin;
   let checkout:Checkout;
   try {
     checkout=await request<Checkout>(merchant,'/v0.1/checkouts',{checkout_reference:order.id,merchant_code:merchant.code,amount:order.amount/100,currency:'GBP',
       description:title,return_url:callbackOrigin+webhook+'?order='+encodeURIComponent(order.id),redirect_url:callbackOrigin+orderPath,
-      valid_until:new Date(Date.now()+60*60*1000).toISOString()});
+      valid_until:validUntil??new Date(Date.now()+60*60*1000).toISOString()});
   } catch(error) {
     // A retry may follow a successful remote create whose response was lost.
     if(error instanceof SumUpError && error.status<500 && error.status!==409)throw error;
@@ -203,7 +222,7 @@ export async function salesSummary(){
   const database=db();
   const shop=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='shop_orders'").first();
   const ledgers="SELECT user_id,email,amount,paid_at FROM orders WHERE status='paid' AND mode IN ('live','whatsapp','sumup') AND lower(currency)='gbp'"+
-    (shop?" UNION ALL SELECT user_id,email,amount,paid_at FROM shop_orders WHERE status='paid'":"");
+    (shop?" UNION ALL SELECT user_id,email,amount,paid_at FROM shop_orders WHERE status IN ('paid','refund_pending')":"");
   return database.prepare(`WITH payments AS (`+ledgers+`) SELECT COUNT(*) AS sales,COALESCE(SUM(amount),0) AS gross,
     COUNT(DISTINCT CASE WHEN user_id LIKE 'guest/%' OR user_id LIKE 'withdrawn/%'
       THEN COALESCE((SELECT p.user_id FROM payments p WHERE lower(p.email)=lower(o.email)

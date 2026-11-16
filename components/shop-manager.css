@@ -1,0 +1,29 @@
+.shop-manager {min-width:0;}
+.shop-manager .shop-admin-tabs,.shop-admin-actions,.shop-pagination,.shop-admin-title {display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.shop-manager .shop-admin-tabs {margin:0 0 1rem}
+.shop-admin-tabs button {border:1px solid var(--brand-line);border-radius:.7rem;padding:.55rem .9rem;min-height:44px;color:var(--brand-espresso);background:var(--brand-pearl)}
+.shop-admin-tabs button[aria-pressed=true] {background:var(--brand-wine);color:var(--brand-pearl);border-color:var(--brand-wine)}
+.shop-admin-title,.shop-pagination {justify-content:space-between;margin-bottom:1rem}
+.admin-area .shop-admin-title h2 {margin:0}
+.shop-manager .shop-fields {display:grid;gap:1rem;padding:0;margin:0;border:0}
+.shop-fields h3,.shop-order-detail h3 {margin:0}
+.shop-manager .shop-variant {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;border:1px solid var(--brand-line);border-radius:.75rem;padding:1rem}
+.shop-variant legend {font-weight:600;padding-inline:.4rem}
+.shop-manager .shop-setting-editor {margin-block:1rem;padding-block:1rem}
+.shop-manager .shop-remove {margin-block-start:1rem}
+.shop-manager .shop-order-card {padding:.9rem 0;border-bottom:1px solid var(--brand-line);overflow-wrap:anywhere}
+.shop-order-card summary {cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.shop-order-card summary::before {content:'+';font-size:1.3rem;color:var(--brand-wine)}
+.shop-order-card[open] summary::before {content:'−'}
+.shop-order-card summary>span {flex:1;min-width:0}
+.shop-order-card summary small {display:block;margin-top:.4rem}
+.shop-order-detail {display:grid;gap:1rem;margin:1rem 0}
+.shop-order-detail ul {list-style:disc;padding-inline-start:1.1rem}
+.shop-order-detail .underlink {justify-self:start}
+.shop-refund {border-top:1px solid var(--brand-line);padding-top:1rem}
+.shop-manager .form label.shop-check {display:flex;align-items:center;flex-direction:row}
+.shop-manager .form .shop-check input {width:1.2rem;min-height:1.2rem;accent-color:var(--brand-wine)}
+.shop-pagination {margin:1rem 0 0}
+.shop-admin-title select {padding:.5rem;max-width:100%;min-height:44px}
+.shop-manager button:focus-visible,.shop-order-card summary:focus-visible {outline:2px solid var(--brand-wine);outline-offset:3px}
+@media(max-width:520px){.shop-manager .shop-variant{grid-template-columns:1fr}.shop-admin-tabs button{flex:1 0 auto}.shop-admin-title{align-items:flex-start}.shop-order-detail code{overflow-wrap:anywhere}}

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { ArrowRight, ArrowUpRight, Menu, X } from 'lucide-react';
-import AcademyWordmark from './academy-wordmark';
+import Brand from './brand';
 import { academyPages } from './academy-navigation';
 
 export default function MobileMenu() {
@@ -21,7 +21,7 @@ export default function MobileMenu() {
     </button>
     <dialog className="atlas-drawer" ref={drawer} aria-label="Academy menu" onClick={e => { if (e.target === e.currentTarget) close(); }}>
       <div className="atlas-drawer-inner">
-        <div className="atlas-drawer-head"><Link href="/" onClick={close} aria-label="Academy home"><AcademyWordmark /></Link>
+        <div className="atlas-drawer-head"><Link href="/" onClick={close} aria-label="Academy home"><Brand /></Link>
           <button type="button" aria-label="Close menu" onClick={close}><X size={22} /></button></div>
         <nav aria-label="Mobile navigation">{academyPages.map(page =>
           <Link href={page.href} key={page.href} onClick={close}>{page.label}<ArrowUpRight size={18} aria-hidden="true" /></Link>
