@@ -5,6 +5,7 @@ import {compile,moduleUrl} from './compile-fixture.mjs';
 
 test('a staff login link copied from a message recovers its path and keeps the requested lesson',async()=>{
   const middleware=await import(await compile('proxy.ts',{
+    './lib/academy-auth-domain':await compile('lib/academy-auth-domain.ts',{}),
     '@clerk/nextjs/server':moduleUrl('export const clerkMiddleware=()=>()=>null'),
     'next/server':moduleUrl('export const NextResponse={redirect:(url,status)=>Response.redirect(url,status),next:()=>null}'),
   }));
@@ -20,6 +21,24 @@ test('a staff login link copied from a message recovers its path and keeps the r
       assert.equal(target.searchParams.get('next'),'/admin?tab=Lessons');
     }
   }
+});
+
+test('the middleware enables the frontend API on the correct production host and keeps the original login available',async t=>{
+  const variables={ACADEMY_PUBLIC_URL:'https://www.savannahsky.co.uk', ACADEMY_CLERK_PUBLISHABLE_KEY:'custom-public', NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:'original-public', CLERK_SECRET_KEY:'fixture'};
+  for(const [name,value] of Object.entries(variables)){
+    const before=process.env[name]; process.env[name]=value;
+    t.after(()=>{if(before===undefined)delete process.env[name];else process.env[name]=before;});
+  }
+  const middleware=await import(await compile('proxy.ts',{
+    './lib/academy-auth-domain':await compile('lib/academy-auth-domain.ts',{}),
+    '@clerk/nextjs/server':moduleUrl('export const clerkMiddleware=(_,options)=>request=>options(request)'),
+    'next/server':moduleUrl('export const NextResponse={next:()=>null}'),
+  }));
+  const options=host=>middleware.default({method:'GET',nextUrl:new URL('https://'+host+'/__clerk/v1/environment')},{});
+  for(const [host,key] of [['www.savannahsky.co.uk','custom-public'],['savannah-sky-k4rz-three.vercel.app','original-public']]){
+    assert.deepEqual(options(host),{publishableKey:key,proxyUrl:'https://'+host+'/__clerk',frontendApiProxy:{enabled:true}});
+  }
+  assert.deepEqual(options('other.example'),{});
 });
 
 test('a temporary account lookup error leaves only the published course outline available',async t=>{
