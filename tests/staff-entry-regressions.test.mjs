@@ -4,6 +4,20 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {clerkJSScriptUrl,clerkUIScriptUrl} from '@clerk/shared/loadClerkJsScript';
 import {compile,moduleUrl} from './compile-fixture.mjs';
 
+test('shop and course purchase screens use the session-renewing account layout',async()=>{
+  const account=moduleUrl('export const StudentLayout=({children})=>children');
+  const {StudentLayout}=await import(account);
+  for(const path of ['app/(website)/shop/layout.tsx','app/(website)/courses/[id]/layout.tsx']){
+    const layout=await import(await compile(path,{'@/components/account-layout':account}));
+    assert.equal(layout.default,StudentLayout);
+  }
+  const {accountLanding}=await import(await compile('lib/account-navigation.ts',{
+    './staff-navigation':await compile('lib/staff-navigation.ts',{}),
+  }));
+  assert.equal(accountLanding(true,'/shop?preview=1'),'/shop?preview=1');
+  assert.equal(accountLanding(false,'/shop?preview=1'),'/shop');
+});
+
 test('a staff login link copied from a message recovers its path and keeps the requested lesson',async()=>{
   const middleware=await import(await compile('proxy.ts',{
     './lib/academy-auth-domain':await compile('lib/academy-auth-domain.ts',{}),
