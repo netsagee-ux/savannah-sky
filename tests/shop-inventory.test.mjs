@@ -92,6 +92,22 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     assert.equal((await send('https://elsewhere.example')).status,403);
   });
 
+  await t.test('staff preview prices drafts without exposing them or changing shop stock',async()=>{
+    const preview=await route('preview');
+    const id=crypto.randomUUID(),option=crypto.randomUUID(),deliveryId=crypto.randomUUID();
+    as('owner');
+    assert.equal((await save('product',{id,title:'Sample kit',description:'Preview',price:'39',published:'0',
+      originalVersion:'',originalStock:'[]',variants:JSON.stringify([{id:option,colour:'',size:'Starter',stock:6,active:1}])})).status,200);
+    assert.equal((await save('delivery',{id:deliveryId,name:'Sample collection',kind:'collection',price:'0',active:'0'})).status,200);
+    assert.equal((await save('discount',{code:'DEMO10',kind:'percent',value:'10',active:'0'})).status,200);
+    const body={items:[{id,variantId:option,quantity:2}],methodId:deliveryId,discountCode:'DEMO10'};
+    const quote=await preview.POST(post('/api/shop/preview',body));
+    assert.equal(quote.status,200);assert.equal((await quote.json()).total,7020);assert.equal(await stock(option),6);
+    assert.ok(!(await shop.products()).some(p=>p.id===id));
+    assert.equal((await quotes({...body,preview:true})).status,409);
+    as('learner');assert.equal((await preview.POST(post('/api/shop/preview',body))).status,403);
+    as(null);assert.equal((await preview.POST(post('/api/shop/preview',body))).status,403);
+  });
   await t.test('staff can configure variations, collection, a category and coupons; other visitors cannot',async()=>{
     as('learner');assert.equal((await admin.GET()).status,403);
     assert.equal((await save('category',{id:category,name:'Kits'})).status,403);

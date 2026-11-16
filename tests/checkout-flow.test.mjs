@@ -45,7 +45,7 @@ test('course checkout checks availability, charges the listed price and grants a
   const { fulfill } = await import(payments);
   const { sendOrderReceipt } = await import(receipts);
   const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orderModule,'./course-invitation':invite});
-  const { POST } = await import(await compile('app/api/checkout/route.ts', {'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),
+  const { POST } = await import(await compile('app/api/checkout/route.ts', {'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),
     '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/sumup':sumup,
   }));
   for (const sql of [

@@ -11,7 +11,7 @@ const lineId = (line: BasketLine) => line.variantId || line.id;
 const variationName = (variant: {colour?: string; size?: string}) => [variant.colour, variant.size].filter(Boolean).join(' / ');
 const stockLimit = (variant: Variant) => Math.min(maxUnits, variant.stock ?? maxUnits);
 
-type Props = {items: Product[]; methods: DeliveryMethod[]; ready: boolean; signedIn: boolean};
+type Props = {items: Product[]; methods: DeliveryMethod[]; ready: boolean; signedIn: boolean; preview?: boolean};
 type ChangeLine = (id: string, variantId: string, amount: number) => void;
 
 function ProductCard({product, basket, disabled, add}: {
@@ -58,8 +58,10 @@ function readStorage<T>(name: string, fallback: T): T {
   catch { return fallback; }
 }
 
-export default function AcademyShop({items, methods, ready, signedIn}: Props) {
+export default function AcademyShop({items, methods, ready, signedIn, preview=false}: Props) {
   const router = useRouter();
+  const basketKey=preview?'academy-preview-basket':'academy-basket';
+  const choicesKey=preview?'academy-preview-choices':'academy-shop-choices';
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [category, setCategory] = useState('');
@@ -80,7 +82,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
   const basketJSON = JSON.stringify(basket);
 
   useEffect(() => {
-    const stored = readStorage<unknown>('academy-basket', []);
+    const stored = readStorage<unknown>(basketKey, []);
     if (Array.isArray(stored)) {
       const seen = new Set<string>();
       setBasket(stored.filter(line => {
@@ -90,20 +92,20 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
         return true;
       }));
     }
-    const saved = readStorage<{methodId?: string; code?: string}>('academy-shop-choices', {});
+    const saved = readStorage<{methodId?: string; code?: string}>(choicesKey, {});
     if (typeof saved.methodId === 'string') setMethodId(saved.methodId);
     if (typeof saved.code === 'string') {setCode(saved.code); setCodeInput(saved.code);}
     setHydrated(true);
-  }, []);
+  }, [basketKey,choicesKey]);
 
   useEffect(() => {
     if (hydrated) {
       try {
-        sessionStorage.setItem('academy-basket', basketJSON);
-        sessionStorage.setItem('academy-shop-choices', JSON.stringify({methodId: chosenMethod, code}));
+        sessionStorage.setItem(basketKey, basketJSON);
+        sessionStorage.setItem(choicesKey, JSON.stringify({methodId: chosenMethod, code}));
       } catch { /* The current tab can still check out without storage. */ }
     }
-  }, [hydrated, basketJSON, chosenMethod, code]);
+  }, [hydrated, basketJSON, chosenMethod, code,basketKey,choicesKey]);
 
   const quotePayload = JSON.stringify({items: basket, methodId: chosenMethod, discountCode: code});
   const quoteKey = quotePayload + '/' + generation;
@@ -117,7 +119,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
     let active = true;
     async function updateQuote() {
       try {
-        const result = await fetch('/api/shop/quote', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: quotePayload, signal: controller.signal});
+        const result = await fetch(preview?'/api/shop/preview':'/api/shop/quote', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: quotePayload, signal: controller.signal});
         const data = await result.json() as ShopQuote | {error?: string};
         if (!result.ok || !('lines' in data)) throw Error('error' in data && data.error || 'We could not check this basket.');
         if (active) setResponse({key: quoteKey, quote: data});
@@ -127,7 +129,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
     }
     void updateQuote();
     return () => {active = false; clearTimeout(timeout); controller.abort();};
-  }, [needsQuote, quoteKey, quotePayload]);
+  }, [needsQuote, quoteKey, quotePayload,preview]);
 
   function change(id: string, variantId: string, delta: number) {
     setCheckoutError('');
@@ -151,6 +153,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
 
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if(preview)return;
     if (!quote || !begin()) return;
     setCheckoutError('');
     const delivery = Object.fromEntries(new FormData(event.currentTarget));
@@ -224,7 +227,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
         {methods.length ? <>
           <div className="form">
             <label>Delivery or collection<select value={chosenMethod} disabled={busy} onChange={event => {setMethodId(event.target.value); setCheckoutError('');}}>
-              {methods.map(option => <option key={option.id} value={option.id}>{option.name} · {option.price ? gbp(option.price) : 'Free'}</option>)}
+              {methods.map(option => <option key={option.id} value={option.id}>{option.name} · {option.price ? gbp(option.price) : 'Free'}{preview&&!option.active?' · Inactive':''}</option>)}
             </select></label>
           </div>
           <form className="form" onSubmit={event => {event.preventDefault(); setCode(codeInput.trim().toUpperCase()); setCheckoutError('');}}>
@@ -241,7 +244,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
           {current?.error ? <div role="alert"><p>{current.error}</p><button type="button" className="underlink" onClick={refreshBasket}>Refresh basket</button></div> :
             needsQuote && !quote && <p role="status">Checking stock and totals…</p>}
           <p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>
-          {ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
+          {preview ? <p>Preview only. This basket does not create an order or take a payment.</p> : ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
             <h3>{method?.kind === 'collection' ? 'Collection details' : 'UK delivery address'}</h3>
             <label>Full name<input name="name" readOnly={busy} autoComplete="name" maxLength={150} required/></label>
             {method?.kind !== 'collection' && ([['street','Address line 1','address-line1'],['line2','Address line 2 (optional)','address-line2'],['town','Town or city','address-level2'],['postcode','Postcode','postal-code']] as const).map(([name,label,autocomplete]) =>

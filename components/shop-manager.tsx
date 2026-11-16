@@ -57,7 +57,7 @@ export default function ShopManager({onChange}:{onChange:()=>Promise<void>}) {
           return <div className="row" key={p.id}><div><strong>{p.title}</strong><p>{gbp(p.price)} · {p.published?'Published':'Hidden'}{p.category&&' · '+p.category}</p>
             <p>{untracked?'Includes untracked stock':stock+' available'} · {variants.length} {variants.length===1?'variation':'variations'}</p></div>
             <button className="edit-link" disabled={busy} onClick={()=>setEditing({product:p,id:p.id})} aria-label={'Edit '+p.title}>Edit</button></div>;
-        })}<a className="underlink" href="/shop">View shop</a></section>)}
+        })}<div className="shop-admin-actions"><a className="underlink" href="/shop?preview=1">Preview shop and basket</a><a className="underlink" href="/shop">View public shop</a></div></section>)}
     {(tab==='Categories'||tab==='Delivery'||tab==='Discounts')&&<ShopSettings key={tab} group={tab==='Categories'?'category':tab==='Delivery'?'delivery':'discount'} categories={view.categories} methods={view.methods} discounts={view.discounts} busy={busy} save={save}/>}
     {tab==='Orders'&&<section className="admin-section"><div className="shop-admin-title"><h2>Shop orders</h2><label>Show orders <select value={filter} disabled={busy} onChange={e=>{setFilter(e.target.value);setPage(1);}}>
       <option value="">All orders</option><option value="waiting">Awaiting fulfilment</option><option value="dispatched">Dispatched or collected</option><option value="pending">Awaiting payment</option><option value="refunds">Refunds</option></select></label></div>

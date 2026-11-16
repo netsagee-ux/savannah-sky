@@ -4,6 +4,7 @@ import {courseEditPath} from '@/lib/staff-navigation';
 import CourseEditor from './course-editor';
 import OwnerHandover from './owner-handover';
 import QualificationReviews from './qualification-reviews';
+import JournalManager from './journal-manager';
 import ShopManager from './shop-manager';
 import WorkspaceNavigation from './workspace-navigation';
 import WorkspaceLibrary, {type StudioCourse} from './workspace-library';
@@ -16,6 +17,7 @@ const sections:Record<string,{title:string;description:string}>={
   Enquiries:{title:'Enquiries',description:'Read messages sent to the academy.'},
   Reviews:{title:'Reviews',description:'Manage feedback shown on the academy website.'},
   Payments:{title:'Payments',description:'Manage your SumUp connection, orders and course receipts.'},
+  Posts:{title:'Academy posts',description:'Write, edit and publish notes for students.'},
   Shop:{title:'Academy shop',description:'Manage products, delivery and customer orders.'},
 };
 export default function AdminPanel({initialTab,initialCourse,startCreating,displayName,email,handover}:{handover:'complete'|'temporary'|'ready';initialTab:string;initialCourse:string;startCreating:boolean;displayName:string;email:string}) {
@@ -143,7 +145,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
       </div></header>
       {needsSignIn&&<p className="notice"><a className="underlink" href={signInUrl} target="_blank" rel="noopener noreferrer">Sign in in a new tab</a>. Keep this workspace open to resume your work.</p>}
       {tab==='Payments'&&totals}
-      {tab!=='Lessons'&&!isEditor&&<p role="status" className="status-message">{status}</p>}{loadError&&<div className="notice" role="alert">{loadError} <button className="underlink" onClick={()=>void refresh()}>Try again</button></div>}{loadedView!==view?<p role="status">{loadError?'':'Loading workspace…'}</p>:<>{tab==='Shop'&&<ShopManager onChange={refresh}/>}{tab==='Enquiries'&&<EnquiryInbox enquiries={data.enquiries||[]}/>}{tab==='Payments'&&<PaymentPanel onChange={refresh}/>}{tab==='Reviews'&&<ReviewManager/>}{tab==='Courses'&&!isEditor&&<>
+      {tab!=='Lessons'&&!isEditor&&<p role="status" className="status-message">{status}</p>}{loadError&&<div className="notice" role="alert">{loadError} <button className="underlink" onClick={()=>void refresh()}>Try again</button></div>}{loadedView!==view?<p role="status">{loadError?'':'Loading workspace…'}</p>:<>{tab==='Posts'&&<JournalManager/>}{tab==='Shop'&&<ShopManager onChange={refresh}/>}{tab==='Enquiries'&&<EnquiryInbox enquiries={data.enquiries||[]}/>}{tab==='Payments'&&<PaymentPanel onChange={refresh}/>}{tab==='Reviews'&&<ReviewManager/>}{tab==='Courses'&&!isEditor&&<>
         {board}
         {data.sumupReady===false&&<p className="studio-connection"><a href="/admin?tab=Payments">Connect SumUp <ArrowUpRight size={16}/></a> to start taking card payments.</p>}
       </>}

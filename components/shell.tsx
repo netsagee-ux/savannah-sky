@@ -33,7 +33,7 @@ export function Footer() {
             <Link href="/" className="studio-brand" aria-label="Savannah Sky Training Academy home"><Brand /></Link>
             <p>Where nail techs come to grow, not just to learn.</p>
           </div>
-          <div><h2>The academy</h2>{academyPages.map(({href, label}) => <Link href={href} key={href}>{label}</Link>)}</div>
+          <div><h2>The academy</h2>{academyPages.map(({href, label}) => <Link href={href} key={href}>{label}</Link>)}<Link href="/journal">Academy journal</Link></div>
           <div><h2>Students</h2><a href="/dashboard">My learning</a><a href="/shop/orders">My shop orders</a><Link href="/payment-policy">Payments and refunds</Link></div>
           <div><h2>Follow the salon</h2>
             <a href="https://www.instagram.com/savannahskysalon/" target="_blank" rel="noopener noreferrer">Instagram <ArrowUpRight size={14} /></a>

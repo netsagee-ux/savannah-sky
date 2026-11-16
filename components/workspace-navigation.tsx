@@ -1,9 +1,9 @@
 import {useEffect, useRef} from 'react';
-import {ArrowUpRight, BookOpen, Flower, GraduationCap, LibraryBig, LogOut, Menu, MessagesSquare, PanelLeftClose, PanelLeftOpen, ReceiptText, ShoppingBag, Star, UsersRound, X} from 'lucide-react';
+import {ArrowUpRight, BookOpen, Flower, GraduationCap, LibraryBig, LogOut, Menu, MessagesSquare, PanelLeftClose, PanelLeftOpen, ReceiptText, ShoppingBag, Newspaper, Star, UsersRound, X} from 'lucide-react';
 
 const groups = [
   {label: 'Teaching', items: [{name:'Courses', icon:LibraryBig}, {name:'Lessons', icon:BookOpen}, {name:'Students', icon:UsersRound}]},
-  {label: 'Academy', items: [{name:'Enquiries', icon:MessagesSquare}, {name:'Reviews', icon:Star}, {name:'Payments', icon:ReceiptText}, {name:'Shop', icon:ShoppingBag}]},
+  {label: 'Academy', items: [{name:'Enquiries', icon:MessagesSquare}, {name:'Reviews', icon:Star}, {name:'Payments', icon:ReceiptText}, {name:'Shop', icon:ShoppingBag},{name:'Posts', icon:Newspaper}]},
 ];
 type Props = {tab:string; busy:boolean; displayName:string; email:string; compact:boolean;
   onCollapse:()=>void; onSelect:(tab:string)=>void};

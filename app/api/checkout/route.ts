@@ -1,3 +1,4 @@
+import {sameSiteOrigin} from '@/lib/request-origin';
 import {isConversion} from '@/lib/data';
 import {qualification} from '@/lib/qualifications';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
@@ -6,8 +7,8 @@ import {hasCoursePrice} from '@/lib/payments';
 import {startSumUp,SumUpError} from '@/lib/sumup';
 
 export async function POST(request:Request){
-  const origin=new URL(request.url).origin;
-  if(request.headers.get('origin')!==origin)return Response.json({error:'Invalid origin.'},{status:403});
+  if(!sameSiteOrigin(request))return Response.json({error:'Invalid origin.'},{status:403});
+  const origin=request.headers.get('origin')!;
   const user=await getChatGPTUser();
   if(!user)return Response.json({error:'Sign in to buy this course.'},{status:401});
   try {

@@ -27,7 +27,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const orders=await compile('lib/course-orders.ts',{'./server':server,'./order-receipt':receipt});
   const gateway=await compile('lib/sumup.ts',{'./server':server,'./course-invitation':invitations,'./course-orders':orders});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':await compile('lib/payment-security.ts',{})});
-  const imports={'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-invitation':invitations,'@/lib/order-receipt':receipt,
+  const imports={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-invitation':invitations,'@/lib/order-receipt':receipt,
     '@/lib/course-orders':orders,'@/lib/payments':payments,'@/lib/sumup':gateway,'@/lib/student-course-link':urls};
   const route=async p=>import(await compile(p,imports));
   const checkout=await route('app/api/checkout/route.ts'),staff=await route('app/api/payments/route.ts');
@@ -97,7 +97,10 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   await db.prepare("INSERT INTO settings(id,value) VALUES('course-format:empty','online')").run();
   assert.equal((await buy('empty')).status,409); // future online courses cannot be bought
   await db.prepare("INSERT INTO settings(id,value) VALUES('class-dates:gel','Wednesday at the studio')").run();
-  const [first,second]=await Promise.all([buy(),buy()]);
+  // Vercel can reconstruct req.url with its internal host on the custom domain.
+  const forwardedCourse=()=>checkout.POST(new Request('https://service.internal/api/checkout',{method:'POST',
+    headers:{host:'academy.example',origin:site,'Content-Type':'application/json'},body:JSON.stringify({courseId:'gel'})}));
+  const [first,second]=await Promise.all([forwardedCourse(),buy()]);
   assert.equal(first.status,200);assert.equal(second.status,200);
   const {path}=await first.json();assert.deepEqual(await second.json(),{path});assert.equal(remote.size,1);
   const original=[...remote.values()][0],orderId=path.split('/').pop();

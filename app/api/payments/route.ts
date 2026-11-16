@@ -1,3 +1,4 @@
+import {sameSiteOrigin} from '@/lib/request-origin';
 import {paypalWalletAvailability,saveMerchant,merchantStatus,syncSumUp} from '@/lib/sumup';
 import {paidInvitationPath} from '@/lib/course-invitation';
 import {receiptsConfigured,sendOrderReceipt} from '@/lib/order-receipt';
@@ -22,7 +23,7 @@ export async function GET(request:Request) {
       {headers:{'Cache-Control':'private, no-store'}});
   } catch {return Response.json({error:'Payment settings are temporarily unavailable.'},{status:503});}
 }
-export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});if(req.headers.get('origin')!==new URL(req.url).origin)return Response.json({error:'Invalid origin'},{status:403});try{const body:any=await req.json();if(body.action==='connect-sumup'){
+export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});if(!sameSiteOrigin(req))return Response.json({error:'Invalid origin'},{status:403});try{const body:any=await req.json();if(body.action==='connect-sumup'){
  await saveMerchant(String(body.code||''),String(body.key||''));
  return Response.json({ok:true,message:'Your SumUp merchant account is connected.'});
 }

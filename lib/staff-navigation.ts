@@ -1,4 +1,4 @@
-const tabs=['Courses','Lessons','Students','Enquiries','Reviews','Payments','Shop'];
+const tabs=['Courses','Lessons','Students','Enquiries','Reviews','Payments','Shop','Posts'];
 
 export function courseEditPath(id:string) {
   return '/admin?'+new URLSearchParams({tab:'Courses',action:'edit',courseId:id});
