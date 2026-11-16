@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {renderToStaticMarkup} from 'react-dom/server';
+import {clerkJSScriptUrl,clerkUIScriptUrl} from '@clerk/shared/loadClerkJsScript';
 import {compile,moduleUrl} from './compile-fixture.mjs';
 
 test('a staff login link copied from a message recovers its path and keeps the requested lesson',async()=>{
@@ -35,7 +36,12 @@ test('the custom domain uses its Clerk CNAME and the Vercel address keeps its si
     'next/server':moduleUrl('export const NextResponse={next:()=>null}'),
   }));
   const options=host=>middleware.default({method:'GET',nextUrl:new URL('https://'+host+'/__clerk/v1/environment')},{});
-  assert.deepEqual(options('www.savannahsky.co.uk'),{publishableKey:'custom-public',domain:'www.savannahsky.co.uk'});
+  const custom=options('www.savannahsky.co.uk');
+  assert.deepEqual(custom,{publishableKey:'custom-public',domain:'savannahsky.co.uk'});
+  const browserConfig={...custom,publishableKey:'pk_live_'+Buffer.from('clerk.savannahsky.co.uk$').toString('base64')};
+  for(const buildUrl of [clerkJSScriptUrl,clerkUIScriptUrl]){
+    assert.equal(new URL(buildUrl(browserConfig)).origin,'https://clerk.savannahsky.co.uk');
+  }
   assert.deepEqual(options('savannah-sky-k4rz-three.vercel.app'),{publishableKey:'original-public',proxyUrl:'https://savannah-sky-k4rz-three.vercel.app/__clerk',frontendApiProxy:{enabled:true}});
   assert.deepEqual(options('other.example'),{});
 });
