@@ -1,4 +1,4 @@
-import {saveMerchant,merchantStatus,syncSumUp} from '@/lib/sumup';
+import {paypalWalletAvailability,saveMerchant,merchantStatus,syncSumUp} from '@/lib/sumup';
 import {paidInvitationPath} from '@/lib/course-invitation';
 import {receiptsConfigured,sendOrderReceipt} from '@/lib/order-receipt';
 import {confirmManualPayment,coursePassword} from '@/lib/course-orders';import {admin,db} from '@/lib/server';
@@ -6,6 +6,9 @@ import {paymentConfig,stripe,fulfill} from '@/lib/payments';
 export async function GET(request:Request) {
   if(!await admin()) return Response.json({error:'Administrator access required'},{status:403});
   try {
+    if(new URL(request.url).searchParams.get('check')==='paypal'){
+      return Response.json({availability:await paypalWalletAvailability()},{headers:{'Cache-Control':'private, no-store'}});
+    }
     const term=new URL(request.url).searchParams.get('order')?.trim().toLowerCase().slice(0,254);
     const query=db().prepare(`SELECT o.id,o.email,o.title,o.amount,o.status,o.mode,o.created_at,o.paid_at,EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||o.id) AS classroom,
       (o.user_id LIKE 'guest/%' AND o.status='paid' AND o.mode='whatsapp') AS awaitingClaim,

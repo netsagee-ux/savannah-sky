@@ -100,10 +100,10 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
           !classroom?<p>Online courses are coming soon.</p>:
           conversion&&proof?.status!=='approved'?<>
             {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
-          </>:paymentsOpen?<><p>Pay your course fee securely by card through SumUp.</p>
+          </>:paymentsOpen?<><p>Choose your payment method at secure checkout.</p>
             {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to book</a>}</>:
-          <><p>Contact Carla about booking this class while card booking is unavailable.</p><a className="underlink" href={enquiry}>Ask about this class</a></>}
-          {classroom&&!access&&<p><a className="underlink" href={'/contact?topic=instalments&course='+encodeURIComponent(course.title)+'#ask'}>Ask about payment plans</a></p>}
+          <><p>Contact Carla about booking this class while online booking is unavailable.</p><a className="underlink" href={enquiry}>Ask about this class</a></>}
+          {classroom&&!access&&<p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>}
       </aside>
     </div>
   </section>;

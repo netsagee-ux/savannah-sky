@@ -1,0 +1,5 @@
+.payment-policy {max-width: 48rem; padding-block: clamp(2.5rem,6vw,5rem);}
+.payment-policy h1 {font-size: clamp(2.6rem,6vw,4.6rem); line-height: 1.05; margin: .5rem 0 1.25rem;}
+.payment-policy h2 {font-size: clamp(1.55rem,4vw,2.1rem); margin: 2rem 0 .65rem;}
+.payment-policy p {line-height: 1.65; margin: .5rem 0 1rem;}
+.payment-policy a {text-decoration: underline; text-underline-offset: .18em;}

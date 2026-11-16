@@ -240,6 +240,7 @@ export default function AcademyShop({items, methods, ready, signedIn}: Props) {
           </dl>}
           {current?.error ? <div role="alert"><p>{current.error}</p><button type="button" className="underlink" onClick={refreshBasket}>Refresh basket</button></div> :
             needsQuote && !quote && <p role="status">Checking stock and totals…</p>}
+          <p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>
           {ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
             <h3>{method?.kind === 'collection' ? 'Collection details' : 'UK delivery address'}</h3>
             <label>Full name<input name="name" readOnly={busy} autoComplete="name" maxLength={150} required/></label>

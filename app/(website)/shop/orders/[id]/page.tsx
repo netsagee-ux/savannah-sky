@@ -2,6 +2,7 @@ import {notFound} from 'next/navigation';
 import {requireChatGPTUser} from '@/app/chatgpt-auth';
 import {deliveryFor, shopOrder, syncShopOrder} from '@/lib/shop';
 import {gbp, type OrderLine} from '@/lib/shop-types';
+import {paypalWalletAvailability} from '@/lib/sumup';
 import SumUpCard from '@/components/sumup-card';
 import ShopOrderBasketReset from '@/components/shop-order-basket-reset';
 import '../../shop.css';
@@ -53,7 +54,7 @@ export default async function ShopReceipt({params}: {params: Promise<{id: string
       </> : waiting ? <>
         <p>Payment confirmation is taking longer than usual. Check this order again before paying.</p>
         <a className="button" href={path}>Check again</a>
-      </> : order.status === 'pending' && order.session_id ? <SumUpCard checkoutId={order.session_id}/> : <>
+      </> : order.status === 'pending' && order.session_id ? <SumUpCard key={order.session_id} checkoutId={order.session_id} amountPence={order.amount} paypalAvailable={await paypalWalletAvailability(order.session_id)==='available'}/> : <>
         <p>{order.status === 'pending' ? 'Return to your basket to finish setting up this payment.' : 'This checkout is ' + order.status + '. You can start a new order from your basket.'}</p>
         <a className="button" href="/shop#basket">Return to basket</a>
       </>}

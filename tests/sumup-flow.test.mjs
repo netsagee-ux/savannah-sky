@@ -40,9 +40,19 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const as=(id)=>{globalThis.sumupTestUser=id?{userId:id,email:id==='owner'?'netsagee@gmail.com':id+'@example.test',sessionId:'browser'}:null;};
   const code='MTEST123',key='sup_sk_abcdefghijklmnop';
   const remote=new Map();let tamper={},sandbox=true,denyWrite=false,denyRead=false,closedChecks=0;
+  let checkoutMethods=[{id:'paypal'},{id:'card'}];
+  let lookupUnavailable=false;
   t.mock.method(globalThis,'fetch',async(url,options)=>{
     assert.equal(options.headers.Authorization,'Bearer '+key);
     const {pathname,searchParams}=new URL(url);
+    if(pathname.endsWith('/payment-methods')){
+      assert.equal(options.method,'GET');
+      if(lookupUnavailable)return new Response(null,{status:503});
+      if(pathname==='/v0.1/merchants/'+code+'/payment-methods')return Response.json({available_payment_methods:checkoutMethods});
+      const checkoutId=pathname.split('/')[3];
+      assert.ok(remote.has(checkoutId));
+      return Response.json({items:checkoutMethods});
+    }
     if(pathname.startsWith('/v1/merchants/'))return Response.json({merchant_code:code,sandbox,default_currency:'GBP'});
     if(pathname==='/v0.1/checkouts' && options.method==='POST'){
       const body=JSON.parse(options.body);
@@ -79,7 +89,10 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.deepEqual(await salesSummary(),{sales:0,gross:0,customers:0});
   const settings=await (await staff.GET(new Request(site+'/api/payments'))).json();assert.equal(settings.merchant.code,code);
   assert.ok(!JSON.stringify(settings).includes(key));assert.ok(!(await db.prepare("SELECT value FROM settings WHERE id='sumup:merchant:v1'").first()).value.includes(key));
+  const walletStatus=()=>staff.GET(new Request(site+'/api/payments?check=paypal'));
+  assert.deepEqual(await (await walletStatus()).json(),{availability:'available'});
   as('buyer');
+  assert.equal((await walletStatus()).status,403);
   assert.equal((await checkout.POST(post('/api/checkout',{courseId:'gel'},'https://another.example'))).status,403);
   await db.prepare("INSERT INTO settings(id,value) VALUES('course-format:empty','online')").run();
   assert.equal((await buy('empty')).status,409); // future online courses cannot be bought
@@ -93,11 +106,30 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const notify=(id=original.id,order=orderId)=>callback.POST(post('/api/sumup/webhook?order='+order,{event_type:'CHECKOUT_STATUS_CHANGED',id,status:'PAID'}));
   const grants=async()=>(await db.prepare('SELECT COUNT(*) AS n FROM enrollments').first()).n;
   const stub=moduleUrl('export default ()=>null');
+  const widget=await compile('components/sumup-card.tsx',{'react':import.meta.resolve('react'),
+    'next/script':stub,'next/navigation':moduleUrl('export const useRouter=()=>({})')});
   const receiptPage=(await import(await compile('app/(website)/orders/[id]/page.tsx',{...imports,
     'next/navigation':moduleUrl('export function notFound(){throw Error("not found")}'),
-    '@/components/activate-course':stub,'@/components/sumup-card':stub}))).default;
+    '@/components/activate-course':stub,'@/components/sumup-card':widget}))).default;
   const receiptFor=async()=>renderToStaticMarkup(await receiptPage({params:Promise.resolve({id:orderId})}));
   assert.doesNotMatch(await receiptFor(),/Wednesday at the studio/);
+  await t.test('course wallet eligibility, card fallback and credit amount limits',async()=>{
+    assert.match(await receiptFor(),/Choose PayPal/);
+    assert.match(await receiptFor(),/Pay in 3/);
+    assert.match(await receiptFor(),/payment-policy/);
+    checkoutMethods=[{id:'card'}];
+    assert.doesNotMatch(await receiptFor(),/Choose PayPal|Pay in 3/);
+    assert.match(await receiptFor(),/Secure checkout/);
+    checkoutMethods=[{id:'paypal'},{id:'card'}];
+    lookupUnavailable=true;
+    assert.doesNotMatch(await receiptFor(),/Choose PayPal/);
+    lookupUnavailable=false;
+    const {default:Widget}=await import(widget);
+    const {createElement}=await import('react');
+    const render=amount=>renderToStaticMarkup(createElement(Widget,{checkoutId:'fixture',paypalAvailable:true,amountPence:amount}));
+    assert.doesNotMatch(render(1999),/Pay in 3/);assert.match(render(2000),/Pay in 3/);
+    assert.match(render(300000),/Pay in 3/);assert.doesNotMatch(render(300001),/Pay in 3/);
+  });
   await notify();assert.equal(await grants(),0);
   as('owner');assert.equal((await configure({action:'confirm-whatsapp',id:orderId})).status,400);
   assert.equal((await configure({action:'course-password',id:orderId})).status,409);
@@ -136,7 +168,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     const hook=await import(await compile('app/api/shop/webhook/route.ts',extra));
     const receiptImports={...extra,'@/lib/shop-types':await compile('lib/shop-types.ts',{}),
       'next/navigation':moduleUrl("export function notFound(){throw Error('not found')}"),
-      '@/components/sumup-card':moduleUrl("export default function Card(){return 'Card payment form'}"),
+      '@/components/sumup-card':widget,
       '@/components/shop-order-basket-reset':moduleUrl('export default ()=>null'),
       '../../shop.css':moduleUrl(''),'../shop.css':moduleUrl('')};
     const receiptPage=(await import(await compile('app/(website)/shop/orders/[id]/page.tsx',receiptImports))).default;
@@ -164,7 +196,13 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     as('owner');assert.equal((await save('dispatch',{id:attempt})).status,400);
     as('buyer');
     const unpaidReceipt=await receiptFor(attempt);
-    assert.match(unpaidReceipt,/Card payment form/);
+    assert.match(unpaidReceipt,/Secure checkout/);
+    assert.match(unpaidReceipt,/Pay in 3/);
+    assert.match(unpaidReceipt,/Choose PayPal/);
+    assert.match(unpaidReceipt,/payment-policy/);
+    checkoutMethods=[{id:'card'}];
+    assert.doesNotMatch(await receiptFor(attempt),/Choose PayPal|Pay in 3/);
+    checkoutMethods=[{id:'paypal'},{id:'card'}];
     assert.doesNotMatch(unpaidReceipt,/Payment confirmed/);
     as('stranger');await assert.rejects(receiptFor(attempt),/not found/);
     as('owner');
@@ -178,7 +216,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     as('buyer');
     const paidReceipt=await receiptFor(attempt);
     for(const expected of ['Payment confirmed','£43.00','Your order has been dispatched','test-ref'])assert.ok(paidReceipt.includes(expected));
-    assert.doesNotMatch(paidReceipt,/Card payment form/);
+    assert.doesNotMatch(paidReceipt,/Secure checkout/);
     assert.match(renderToStaticMarkup(await historyPage()),/Dispatched/);
     as('owner');
     const visible=await (await manage.GET()).json();assert.equal(visible.orders[0].tracking,'test-ref');assert.equal(visible.orders[0].delivery.postcode,'BA1 1AB');

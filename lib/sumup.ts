@@ -78,6 +78,25 @@ export async function merchantStatus(){
   const merchant=await stored();
   return {code:merchant?.code??null,fromEnvironment:!!fromEnvironment()};
 }
+type WalletAvailability = 'available' | 'unavailable' | 'unknown';
+
+export async function paypalWalletAvailability(checkoutId?: string): Promise<WalletAvailability> {
+  try {
+    const merchant = await stored();
+    if (!merchant) return 'unavailable';
+    // Checkout-specific eligibility accounts for the actual amount and currency.
+    const path = checkoutId
+      ? '/v0.1/checkouts/' + encodeURIComponent(checkoutId) + '/payment-methods'
+      : '/v0.1/merchants/' + encodeURIComponent(merchant.code) + '/payment-methods';
+    const methods = await request<{items?: {id: string}[]; available_payment_methods?: {id: string}[]}>(merchant, path);
+    const list = methods.items ?? methods.available_payment_methods;
+    if (!Array.isArray(list)) return 'unknown';
+    return list.some(method => method.id === 'paypal') ? 'available' : 'unavailable';
+  } catch {
+    // A wallet availability check must never prevent an ordinary payment.
+    return 'unknown';
+  }
+}
 export async function saveMerchant(code:string,key:string){
   if(fromEnvironment())throw new SumUpError('This connection is managed in the hosting settings.',409);
   const merchant={code:code.trim().toUpperCase(),key:key.trim()};

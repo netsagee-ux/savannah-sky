@@ -9,6 +9,16 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
  const [data,setData]=useState<Settings|null>(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
  const [search,setSearch]=useState(''),[applied,setApplied]=useState('');
  const [loadError,setLoadError]=useState(''),[loading,setLoading]=useState(true);
+ const [wallet,setWallet]=useState<'idle'|'loading'|'available'|'unavailable'|'unknown'>('idle');
+ async function checkWallet(){
+   setWallet('loading');
+   try{
+     const response=await fetch('/api/payments?check=paypal',{cache:'no-store'});
+     const result=await response.json() as {availability?:string};
+     const status=result.availability;
+     setWallet(response.ok && (status==='available'||status==='unavailable')?status:'unknown');
+   }catch{setWallet('unknown');}
+ }
  const latest=useRef(0);
  async function refresh(term=''){
    const ticket=++latest.current;
@@ -28,6 +38,7 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
      const response=await fetch('/api/payments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
      const result=await response.json() as {error?:string;message?:string};
      if(!response.ok)throw Error(result.error);
+     if('action' in body && body.action==='connect-sumup')setWallet('idle');
      setMessage(result.message||'Saved.');
      await Promise.all([refresh(applied),onChange()]);
      return true;
@@ -51,6 +62,13 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
          <p>We’ll check that this account can create and confirm a GBP checkout. No card is charged.</p>
          <button className="button" disabled={busy}>Verify and save</button>
        </form></details>}
+   </section><section className="admin-section"><h2>PayPal and instalments</h2>
+     <p>Check whether SumUp offers PayPal for this merchant. Each course booking and shop order is checked separately. PayPal decides which buyers can pay in instalments.</p>
+     {data.merchant.code && <button type="button" className="button outline" onClick={()=>void checkWallet()} disabled={wallet==='loading'}>{wallet==='loading'?'Checking SumUp…':'Check PayPal availability'}</button>}
+     <p role="status">{wallet==='available'?'SumUp lists PayPal for this merchant. Eligible customers can check their options inside PayPal.':
+       wallet==='unavailable'?'SumUp does not currently list PayPal for this merchant. Ask SumUp to enable PayPal for online checkouts.':
+       wallet==='unknown'?'SumUp could not confirm availability. You can retry this check.':null}</p>
+     {wallet==='unavailable'&&<a className="underlink" href="https://help.sumup.com/en-GB" target="_blank" rel="noreferrer">Contact SumUp support</a>}
    </section></div>
    <section className="admin-section"><h2>Course orders</h2>
      <form className="form" onSubmit={e=>{e.preventDefault();const term=search.trim();setApplied(term);void refresh(term);}}>

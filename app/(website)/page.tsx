@@ -20,7 +20,7 @@ const questions = [
 
 const enrolment = [
   { icon: BookOpen, title: 'Find your level', text: 'Open a course to see its entry requirements, kit list and what you’ll cover in class.' },
-  { icon: CreditCard, title: 'Book your training', text: 'When enrolment is open, sign in with your student email and pay securely by card through SumUp.' },
+  { icon: CreditCard, title: 'Book your training', text: 'When enrolment is open, sign in with your student email and choose your payment method at checkout.' },
   { icon: Play, title: 'Arrange your date', text: 'Open your paid booking for class dates, then confirm your preferred date with Carla.' },
 ];
 
