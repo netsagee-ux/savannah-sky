@@ -2,6 +2,7 @@ import {shopDatabase} from './shop-schema';
 import {shopId} from './shop';
 import {SumUpError} from './sumup';
 import {imageContentType} from './video-security';
+import {sampleVisibility} from './shop-types';
 
 const field=(form:FormData,key:string)=>String(form.get(key)??'').trim();
 function pence(value:string,minimum:number) {
@@ -44,7 +45,9 @@ function variantRows(form:FormData,id:string):StockRow[] {
 export async function saveProduct(form:FormData) {
   const id=identifier(form),d=await shopDatabase();
   const title=textValue(form,'title','product name',120),description=textValue(form,'description','description',1500);
-  const price=pence(field(form,'price'),50),published=field(form,'published')==='1'?1:0;
+  const price=pence(field(form,'price'),50);
+  const visibility=field(form,'published');
+  const published=visibility===String(sampleVisibility)?sampleVisibility:Number(visibility==='1');
   let bytes:Uint8Array|null=null,mime:string|null=null;
   const file=form.get('photo');
   if(file instanceof File && file.size) {

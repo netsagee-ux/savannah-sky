@@ -4,7 +4,7 @@ import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 import {ShoppingBag, Plus, Minus, ArrowRight} from 'lucide-react';
 import {useNavigationAction} from '@/hooks/use-navigation-action';
-import {gbp, type BasketLine, type DeliveryMethod, type Product, type ShopQuote, type Variant} from '@/lib/shop-types';
+import {gbp, sampleVisibility, type BasketLine, type DeliveryMethod, type Product, type ShopQuote, type Variant} from '@/lib/shop-types';
 
 const maxUnits = 20;
 const lineId = (line: BasketLine) => line.variantId || line.id;
@@ -14,10 +14,11 @@ const stockLimit = (variant: Variant) => Math.min(maxUnits, variant.stock ?? max
 type Props = {items: Product[]; methods: DeliveryMethod[]; ready: boolean; signedIn: boolean; preview?: boolean};
 type ChangeLine = (id: string, variantId: string, amount: number) => void;
 
-function ProductCard({product, basket, disabled, add}: {
-  product: Product; basket: BasketLine[]; disabled: boolean; add: ChangeLine;
+function ProductCard({product, basket, disabled, add, preview}: {
+  product: Product; basket: BasketLine[]; disabled: boolean; add: ChangeLine; preview: boolean;
 }) {
   const variants = product.variants.filter(variant => variant.active);
+  const sample = !preview && product.published === sampleVisibility;
   const [selected, setSelected] = useState('');
   const [units, setUnits] = useState('1');
   const variant = variants.find(v => v.id === selected) || variants.find(v => stockLimit(v) > 0) || variants[0];
@@ -36,10 +37,13 @@ function ProductCard({product, basket, disabled, add}: {
 
   return <article>
     {product.has_photo ? <img loading="lazy" src={'/api/shop/photos/' + product.id + '?v=' + encodeURIComponent(product.updated_at)} alt={product.title} width={480} height={360}/> : null}
-    <div className="shop-product-heading"><h2>{product.title}</h2><strong>{gbp(product.price)}</strong></div>
+    <div className="shop-product-heading"><h2>{product.title}</h2><strong>{sample&&<small>Sample price</small>}{gbp(product.price)}</strong></div>
     {product.category && <small>{product.category}</small>}
     <p>{product.description}</p>
-    <form className="form shop-product-actions" onSubmit={addProduct}>
+    {sample ? <div className="shop-sample-options">
+      {variants.some(v=>variationName(v))&&<p>Options: {variants.map(v=>variationName(v)||'Standard').join(' · ')}</p>}
+      <a className="underlink" href="/contact#ask">Ask about availability</a>
+    </div> : <form className="form shop-product-actions" onSubmit={addProduct}>
       {variant && (variants.length > 1 || variationName(variant)) &&
         <label>Choose an option<select value={variant.id} disabled={disabled} onChange={event => {setSelected(event.target.value); setUnits('1');}}>
           {variants.map(option => <option key={option.id} value={option.id}>{variationName(option) || 'Standard'}{option.stock === 0 ? ' · Sold out' : ''}</option>)}
@@ -49,7 +53,7 @@ function ProductCard({product, basket, disabled, add}: {
         <label>Quantity<input type="number" inputMode="numeric" min="1" max={available || 1} step="1" required disabled={disabled || !available} value={units} onChange={event => setUnits(event.target.value)}/></label>
         <button type="submit" className="button outline" disabled={disabled || !canAdd}><Plus size={16} aria-hidden="true"/>{!inBasket && basket.length >= 30 ? 'Basket has 30 options' : available ? 'Add to basket' : 'Maximum in basket'}</button>
       </> : <span className="shop-stock">Sold out</span>}
-    </form>
+    </form>}
   </article>;
 }
 
@@ -187,7 +191,8 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
   const pendingCode = codeInput.trim().toUpperCase() !== code;
 
   if (!items.length && !basket.length) return null;
-  return <div className="shop-layout">
+  const showBasket = preview || basket.length>0 || items.some(p=>p.published===1);
+  return <div id="products" className={'shop-layout'+(showBasket?'':' shop-catalogue-only')}>
     <section aria-label="Products">
       {quantity > 0 && <a className="underlink shop-jump" href="#basket">View basket ({quantity})</a>}
       {categories.size > 0 && <div className="form shop-filter"><label>Category<select value={category} onChange={event => setCategory(event.target.value)}>
@@ -195,12 +200,12 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
         {[...categories].sort((a,b) => a[1].localeCompare(b[1])).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
       </select></label></div>}
       <div className="shop-products">{items.filter(p => !category || p.category_id === category).map(product =>
-        <ProductCard key={product.id} product={product} basket={basket} disabled={!hydrated || busy} add={(id, variantId, amount) => {
+        <ProductCard key={product.id} product={product} preview={preview} basket={basket} disabled={!hydrated || busy} add={(id, variantId, amount) => {
           change(id, variantId, amount); setNotice(amount + ' × ' + product.title + ' added to your basket.');
         }}/>)}</div>
       <p role="status">{notice} {notice && <a className="underlink" href="#basket">View basket</a>}</p>
     </section>
-    <aside className="shop-basket" id="basket" aria-label="Your basket">
+    {showBasket && <aside className="shop-basket" id="basket" aria-label="Your basket">
       <div className="shop-basket-heading"><h2><ShoppingBag size={22} aria-hidden="true"/> Your basket</h2>{quantity > 0 && <span>{quantity} {quantity === 1 ? 'item' : 'items'}</span>}</div>
       {basket.length ? <>
         <ul>{basket.map(line => {
@@ -256,6 +261,6 @@ export default function AcademyShop({items, methods, ready, signedIn, preview=fa
         </> : <p>Checkout will open when the academy adds a delivery or collection option.</p>}
         {checkoutError && <p role="alert">{checkoutError}</p>}
       </> : <p>{hydrated ? 'Your basket is empty.' : 'Loading your basket…'}</p>}
-    </aside>
+    </aside>}
   </div>;
 }

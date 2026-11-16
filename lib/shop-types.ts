@@ -1,6 +1,7 @@
 export type Variant = {
   id: string; product_id: string; colour: string; size: string; stock: number | null; active: number;
 };
+export const sampleVisibility = 2;
 export type Product = {
   id: string; title: string; description: string; price: number; published: number; has_photo: number;
   updated_at: string; category_id: string | null; category: string | null; variants: Variant[];

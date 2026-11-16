@@ -1,6 +1,6 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {gbp,type Product} from '@/lib/shop-types';
+import {gbp,sampleVisibility,type Product} from '@/lib/shop-types';
 import ShopProductEditor,{type SaveShop} from './shop-product-editor';
 import {ShopSettings,type ShopCategory,type ShopMethod,type ShopDiscount} from './shop-settings-editor';
 import ManagedOrderCard,{type ManagedOrder} from './shop-managed-orders';
@@ -54,7 +54,7 @@ export default function ShopManager({onChange}:{onChange:()=>Promise<void>}) {
         {!view.items.length&&<p>Add your first kit or supply.</p>}
         {view.items.map(p=>{
           const variants=p.variants.filter(v=>v.active),untracked=variants.some(v=>v.stock===null),stock=variants.reduce((n,v)=>n+(v.stock||0),0);
-          return <div className="row" key={p.id}><div><strong>{p.title}</strong><p>{gbp(p.price)} · {p.published?'Published':'Hidden'}{p.category&&' · '+p.category}</p>
+          return <div className="row" key={p.id}><div><strong>{p.title}</strong><p>{gbp(p.price)} · {p.published===sampleVisibility?'Public sample':p.published?'Published':'Hidden'}{p.category&&' · '+p.category}</p>
             <p>{untracked?'Includes untracked stock':stock+' available'} · {variants.length} {variants.length===1?'variation':'variations'}</p></div>
             <button className="edit-link" disabled={busy} onClick={()=>setEditing({product:p,id:p.id})} aria-label={'Edit '+p.title}>Edit</button></div>;
         })}<div className="shop-admin-actions"><a className="underlink" href="/shop?preview=1">Preview shop and basket</a><a className="underlink" href="/shop">View public shop</a></div></section>)}

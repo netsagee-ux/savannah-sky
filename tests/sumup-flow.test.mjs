@@ -161,10 +161,11 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   assert.doesNotMatch(await receiptFor(),/Wednesday at the studio/);
   await t.test('shop basket prices, private receipts, idempotent SumUp callbacks and dispatch',async()=>{
     const schema=await compile('lib/shop-schema.ts',{'./server':server});
-    const shopUrl=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway});
+    const shopTypes=await compile('lib/shop-types.ts',{});
+    const shopUrl=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
     const lib=await import(shopUrl),extra={...imports,'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/shop':shopUrl,'@/lib/shop-schema':schema,
       '@/lib/video-security':await compile('lib/video-security.ts',{})};
-    extra['@/lib/shop-admin']=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopUrl,'./video-security':extra['@/lib/video-security'],'./sumup':gateway});
+    extra['@/lib/shop-admin']=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopUrl,'./shop-types':shopTypes,'./video-security':extra['@/lib/video-security'],'./sumup':gateway});
     extra['@/lib/shop-refunds']=await compile('lib/shop-refunds.ts',{'./shop-schema':schema,'./sumup':gateway});
     const manage=await import(await compile('app/api/shop/admin/route.ts',extra));
     const checkout=await import(await compile('app/api/shop/checkout/route.ts',extra));

@@ -2,6 +2,7 @@ import {createCipheriv,createDecipheriv,createHash,randomBytes} from 'node:crypt
 import {shopDatabase} from './shop-schema';
 import {SumUpError,checkoutMerchant,createMerchantCheckout,findMerchantCheckout,lookupMerchantCheckout,checkoutMatches} from './sumup';
 import type {BasketLine,Delivery,DeliveryMethod,OrderLine,Product,ShopOrder,ShopQuote,Variant} from './shop-types';
+import {sampleVisibility} from './shop-types';
 
 export const shopId=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const orderSelect=`SELECT o.*,d.method_name,d.method_kind,d.discount_code,d.discount_amount
@@ -13,16 +14,19 @@ export async function products(all=false,refreshStock=true):Promise<Product[]> {
     database.prepare(`SELECT p.id,p.title,p.description,p.price,p.published,(p.photo IS NOT NULL) AS has_photo,
       p.updated_at,c.id AS category_id,c.name AS category FROM shop_products p
       LEFT JOIN shop_product_categories pc ON pc.product_id=p.id LEFT JOIN shop_categories c ON c.id=pc.category_id
-      `+(all?'':'WHERE p.published=1 ')+ 'ORDER BY p.title COLLATE NOCASE'),
+      `+(all?'':'WHERE p.published IN (1, '+sampleVisibility+') ')+ 'ORDER BY p.title COLLATE NOCASE'),
     database.prepare(`SELECT v.* FROM shop_variants v JOIN shop_products p ON p.id=v.product_id `+
-      (all?'':'WHERE p.published=1 AND v.active=1 ')+'ORDER BY v.colour,v.size,v.id')
+      (all?'':'WHERE p.published IN (1, '+sampleVisibility+') AND v.active=1 ')+'ORDER BY v.colour,v.size,v.id')
   ],'read');
   const grouped=new Map<string,Variant[]>();
   for(const v of rows[1].results as unknown as Variant[]){
     const list=grouped.get(v.product_id) || [];
     list.push(v);grouped.set(v.product_id,list);
   }
-  return (rows[0].results as unknown as Product[]).map(p=>({...p,variants:grouped.get(p.id)||[]}));
+  return (rows[0].results as unknown as Product[]).map(product=>{
+    const variants=grouped.get(product.id)||[];
+    return {...product,variants:!all && product.published===sampleVisibility?variants.map(v=>({...v,stock:null})):variants};
+  });
 }
 export async function deliveryMethods(all=false){
   const d=await shopDatabase();

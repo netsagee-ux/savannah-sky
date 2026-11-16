@@ -25,9 +25,10 @@ test('shop quotes, reservations and catalogue administration',async t=>{
   const schema=await compile('lib/shop-schema.ts',{'./server':server});
   const gateway=await compile('lib/sumup.ts',{'./server':server,'./course-orders':moduleUrl('export function recordVerifiedPayment(){}'),
     './course-invitation':moduleUrl('export function paidInvitationPath(){}')});
-  const shopModule=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway});
+  const shopTypes=await compile('lib/shop-types.ts',{});
+  const shopModule=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
   const shop=await import(shopModule);
-  const adminModule=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopModule,
+  const adminModule=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopModule,'./shop-types':shopTypes,
     './sumup':gateway,'./video-security':await compile('lib/video-security.ts',{})});
   const routes={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/shop':shopModule,'@/lib/shop-schema':schema,'@/lib/shop-admin':adminModule,'@/lib/server':server,
     '@/lib/shop-refunds':moduleUrl('export function refundShopOrder(){};export function reconcileShopRefund(){}'),
@@ -107,6 +108,27 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     assert.equal((await quotes({...body,preview:true})).status,409);
     as('learner');assert.equal((await preview.POST(post('/api/shop/preview',body))).status,403);
     as(null);assert.equal((await preview.POST(post('/api/shop/preview',body))).status,403);
+  });
+  await t.test('public samples show options anonymously and only become orderable when published for sale',async()=>{
+    const id=crypto.randomUUID(),option=crypto.randomUUID();
+    const fields={id,title:'Practice brush',description:'Sample brush',price:'12'};
+    as('owner');
+    assert.equal((await save('product',{...fields,published:'2',originalVersion:'',originalStock:'[]',
+      variants:JSON.stringify([{id:option,colour:'',size:'7 mm',stock:8,active:1}])})).status,200);
+    as(null);
+    const sample=(await shop.products()).find(p=>p.id===id);
+    assert.equal(sample.variants[0].size,'7 mm');
+    assert.equal(sample.variants[0].stock,null);
+    const body={items:[{id,variantId:option,quantity:1}],methodId:'standard'};
+    assert.equal((await quotes(body)).status,409);
+    as('buyer');
+    assert.equal((await buy({...body,attempt:crypto.randomUUID(),delivery:recipient,total:1550})).status,409);
+    assert.equal(await stock(option),8);
+    as('owner');
+    assert.equal((await save('product',{...fields,published:'1',originalVersion:sample.updated_at})).status,200);
+    assert.equal((await quotes(body)).status,200);
+    assert.equal((await save('product',{...fields,published:'0'})).status,200);
+    assert.ok(!(await shop.products()).some(p=>p.id===id));
   });
   await t.test('staff can configure variations, collection, a category and coupons; other visitors cannot',async()=>{
     as('learner');assert.equal((await admin.GET()).status,403);
