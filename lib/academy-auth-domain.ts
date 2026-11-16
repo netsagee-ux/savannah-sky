@@ -3,7 +3,8 @@ export function academyAuthDomain(host: string | null) {
   const publicUrl = process.env.ACADEMY_PUBLIC_URL;
   const customKey = process.env.ACADEMY_CLERK_PUBLISHABLE_KEY;
   if (publicUrl && customKey && new URL(publicUrl).host === host) {
-    return { publishableKey: customKey, proxyUrl: new URL('/__clerk', publicUrl).href };
+    // This domain has a Clerk CNAME. The Vercel-provided address uses a proxy.
+    return { publishableKey: customKey, domain: new URL(publicUrl).hostname };
   }
   if (host === 'savannah-sky-k4rz-three.vercel.app' && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     return { publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, proxyUrl: 'https://savannah-sky-k4rz-three.vercel.app/__clerk' };

@@ -3,7 +3,7 @@ import {NextResponse,type NextRequest,type NextFetchEvent} from 'next/server';
 import {academyAuthDomain} from './lib/academy-auth-domain';
 const clerk=clerkMiddleware(() => undefined, request => {
   const domain = academyAuthDomain(request.nextUrl.host);
-  return domain ? { ...domain, frontendApiProxy: { enabled: true } } : {};
+  return domain?.proxyUrl ? { ...domain, frontendApiProxy: { enabled: true } } : domain ?? {};
 });
 export default function proxy(req:NextRequest,event:NextFetchEvent){
  // A copied chat link can include its closing punctuation.
