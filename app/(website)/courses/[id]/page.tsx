@@ -1,3 +1,4 @@
+import {directPayPalStatus} from '@/lib/paypal';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
 import {ArrowLeft, LockKeyhole, Play, Plus} from 'lucide-react';
@@ -21,7 +22,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const {id}=await params;
   const database=db();
   const authConfigured=Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  const [outline,account,merchant]=await Promise.all([
+  const [outline,account,merchant,paypal]=await Promise.all([
     database.batch([
       database.prepare(`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
         (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd FROM courses AS c WHERE c.id=?`).bind(id),
@@ -29,6 +30,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
     ],'read'),
     getChatGPTUser().then(user=>({user})).catch(()=>null),
     authConfigured?merchantStatus().catch(()=>null):null,
+    authConfigured?directPayPalStatus().catch(()=>null):null,
   ]);
   const course=outline[0].results[0] as Course|undefined;
   if(!course)notFound();
@@ -47,7 +49,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   const lessons=outline[1].results as Lesson[];
   const priced=hasCoursePrice(course.price);
   const classroom=course.format!=='online';
-  const paymentsOpen=Boolean(classroom && viewer && !access && priced && process.env.APP_ENCRYPTION_KEY && merchant?.code);
+  const paymentsOpen=Boolean(classroom && viewer && !access && priced && process.env.APP_ENCRYPTION_KEY && (merchant?.code || paypal));
   const enquiry='/contact?course='+encodeURIComponent(course.title)+'#ask';
   const firstLesson=lessons[0];
   const learning=firstLesson?'/learn/'+encodeURIComponent(firstLesson.id):'/dashboard';
@@ -101,7 +103,7 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
           conversion&&proof?.status!=='approved'?<>
             {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
           </>:paymentsOpen?<><p>Choose your payment method at secure checkout.</p>
-            {user?<CheckoutButton courseId={id}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to book</a>}</>:
+            {user?<CheckoutButton courseId={id} paypal={Boolean(paypal)} card={Boolean(merchant?.code)}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to book</a>}</>:
           <><p>Contact Carla about booking this class while online booking is unavailable.</p><a className="underlink" href={enquiry}>Ask about this class</a></>}
           {classroom&&!access&&<p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>}
       </aside>

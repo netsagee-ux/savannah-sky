@@ -21,12 +21,12 @@ export default function ManagedOrderCard({order,busy,save}:{order:ManagedOrder;b
     {order.status==='paid'&&!order.dispatched&&<form className="form" onSubmit={e=>submit(e,'dispatch')}>{!collect&&<label>Tracking reference (optional)<input name="tracking" maxLength={180}/></label>}
       <button disabled={busy} className="button">Mark as {collect?'collected':'dispatched'}</button></form>}
     {order.status==='paid'&&order.amount>0&&(refundOpen?<form className="form shop-refund" onSubmit={e=>submit(e,'refund')}>
-      <h3>Refund {gbp(order.amount)} to the original payment method?</h3><p>This refunds the entire order through SumUp.</p>
+      <h3>Refund {gbp(order.amount)} to the original payment method?</h3><p>This refunds the entire order through the original payment provider.</p>
       <label className="shop-check"><input type="checkbox" name="restock" value="1"/>Return these items to available stock</label>
       <input type="hidden" name="confirmed" value="1"/><div className="shop-admin-actions"><button className="button" disabled={busy}>Confirm refund of {gbp(order.amount)}</button>
         <button type="button" className="button outline" disabled={busy} onClick={()=>setRefundOpen(false)}>Cancel</button></div>
       </form>:<button className="underlink" type="button" disabled={busy} onClick={()=>setRefundOpen(true)}>Refund order</button>)}
-    {order.status==='pending'&&<form onSubmit={e=>submit(e,'reconcile')}><button className="button outline" disabled={busy}>Check payment with SumUp</button></form>}
-    {order.status==='refund_pending'&&<form className="form" onSubmit={e=>submit(e,'refundStatus')}><p>If SumUp has already received the refund, check its status here. If the payment shows no refund after a connection interruption, review the transaction in your SumUp dashboard.</p><button className="button outline" disabled={busy}>Check refund with SumUp</button></form>}
+    {order.status==='pending'&&<form onSubmit={e=>submit(e,'reconcile')}><button className="button outline" disabled={busy}>Check payment with provider</button></form>}
+    {order.status==='refund_pending'&&<form className="form" onSubmit={e=>submit(e,'refundStatus')}><p>If the payment provider has already received the refund, check its status here. If the payment shows no refund after a connection interruption, review the transaction in the payment provider’s dashboard.</p><button className="button outline" disabled={busy}>Check refund with provider</button></form>}
     </div></details>;
 }

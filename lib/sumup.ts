@@ -1,3 +1,4 @@
+import {createPayPal,expireUncapturedPayPal,payPalMerchant,statePayPal} from './paypal';
 import {createCipheriv,createDecipheriv,createHmac,randomBytes} from 'node:crypto';
 import {db,enrolmentOwner} from './server';
 import {recordVerifiedPayment,type AcademyOrder} from './course-orders';
@@ -9,7 +10,7 @@ type Checkout={id:string;checkout_reference:string;amount:number;currency:string
 type TransactionEvent={id:number;type?:string;event_type?:string;status:string;amount:number};
 export type SumUpTransaction={id:string;merchant_code:string;amount:number;currency:string;status:string;simple_status?:string;
   events?:TransactionEvent[];transaction_events?:TransactionEvent[]};
-type SumUpOrder=AcademyOrder & {merchant:string};
+type SumUpOrder=AcademyOrder & {merchant:string;created_at:string};
 const api='https://api.sumup.com';
 const settingsId='sumup:merchant:v1';
 
@@ -122,7 +123,7 @@ export async function saveMerchant(code:string,key:string){
     await db().prepare('INSERT OR IGNORE INTO settings(id,value) VALUES(?,?)').bind(settingsId,packed).run();
   if(!saved.meta.changes)throw new SumUpError('Another staff member updated the merchant. Refresh before changing its key.',409);
 }
-const orderSelect=`SELECT o.*,s.value AS merchant FROM orders o JOIN settings s ON s.id='sumup:order:'||o.id WHERE o.mode='sumup' AND `;
+const orderSelect=`SELECT o.*,s.value AS merchant FROM orders o JOIN settings s ON s.id=o.mode||':order:'||o.id WHERE o.mode IN ('sumup','paypal') AND `;
 async function orderById(id:string){
   return db().prepare(orderSelect+'o.id=?').bind(id).first<SumUpOrder>();
 }
@@ -197,35 +198,82 @@ export async function createMerchantCheckout(merchant:Merchant,order:Pick<SumUpO
   return checkout;
 }
 
-export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string){
+async function closePreviousCourseCheckout(order:SumUpOrder){
+  if(order.mode==='paypal'){
+    if(await expireUncapturedPayPal({...order,kind:'course'}))await syncPayPalCourse(order.id);
+    return;
+  }
+  // A successful deactivation closes an unpaid checkout at SumUp. A pending
+  // payment attempt or a lost response must be reconciled before switching.
+  if(!order.session_id)return;
+  const merchant=await checkoutMerchant();
+  if(merchant.code!==order.merchant)return;
+  const checkout=await lookupMerchantCheckout(merchant,order.session_id);
+  const status=await applyStatus(order,checkout);
+  if(status!=='pending'||checkout.transaction_id||checkout.transactions?.length)return;
+  try{
+    await callSumUp(merchant,'/v0.1/checkouts/'+encodeURIComponent(checkout.id),'DELETE');
+  }catch{
+    await syncSumUp(order.id);
+    return;
+  }
+  await db().prepare("UPDATE orders SET status='cancelled' WHERE id=? AND mode='sumup' AND session_id=? AND status='pending'")
+    .bind(order.id,checkout.id).run();
+}
+
+export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string,provider:'sumup'|'paypal'='sumup'){
   if(!process.env.APP_ENCRYPTION_KEY)throw new SumUpError('Booking confirmation is temporarily unavailable.');
-  const merchant=await stored();
-  if(!merchant)throw new SumUpError('Classroom booking opens when the academy connects its SumUp account.');
-  // Environment credentials can be changed outside the verified staff form.
-  if(fromEnvironment())await verifyMerchant(merchant);
+  const merchant=provider==='sumup'?await checkoutMerchant():null;
+  const marker=merchant?.code??await payPalMerchant();
   const dbh=db(),id=crypto.randomUUID(),email=user.email.toLowerCase();
-  const pending="user_id=? AND course_id=? AND mode='sumup' AND status='pending'";
+  const pending="user_id=? AND course_id=? AND o.mode IN ('sumup','paypal') AND status='pending'";
+  const prior=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
+  if(prior && prior.mode!==provider){
+    await closePreviousCourseCheckout(prior);
+    const existing=await orderById(prior.id);
+    if(existing?.status==='paid')return '/orders/'+encodeURIComponent(prior.id);
+    if(existing?.status==='pending')throw new SumUpError('This booking already has an open '+(prior.mode==='paypal'?'PayPal':'card')+' checkout. Open it from My bookings to check its status before changing payment methods.',409);
+  }else if(prior && Date.now()-Date.parse(prior.created_at)>3600000){
+    if(prior.mode==='paypal')await syncPayPalCourse(prior.id);else if(prior.session_id)await syncSumUp(prior.id);
+  }
   await dbh.batch([
     dbh.prepare(`INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at)
-      SELECT ?,?,?,?,?,?,'gbp','pending','sumup',? WHERE NOT EXISTS(SELECT 1 FROM orders WHERE `+pending+
+      SELECT ?,?,?,?,?,?,'gbp','pending',?,? WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE `+pending+
       ") AND NOT EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=? AND "+enrolmentOwner+")")
-      .bind(id,user.userId,email,course.id,course.title,course.price,new Date().toISOString(),user.userId,course.id,course.id,user.userId),
-    dbh.prepare("INSERT INTO settings(id,value) SELECT 'sumup:order:'||id,? FROM orders WHERE id=?").bind(merchant.code,id),
+      .bind(id,user.userId,email,course.id,course.title,course.price,provider,new Date().toISOString(),user.userId,course.id,course.id,user.userId),
+    dbh.prepare("INSERT INTO settings(id,value) SELECT mode||':order:'||id,? FROM orders WHERE id=?").bind(marker,id),
     dbh.prepare("INSERT INTO settings(id,value) SELECT 'class-booking:'||id,'1' FROM orders WHERE id=?").bind(id),
   ]);
   const order=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
   if(!order)throw new SumUpError('Check My learning for your course.',409);
-  if(order.merchant!==merchant.code)throw new SumUpError('Contact the academy about this pending order.',409);
   const orderPath='/orders/'+encodeURIComponent(order.id);
+  if(order.mode!==provider)throw new SumUpError('A checkout was opened in another tab. Check My bookings before trying again.',409);
   if(order.session_id)return orderPath;
+  if(order.merchant!==marker)throw new SumUpError('Contact the academy about this pending order.',409);
+  if(provider==='paypal'){
+    const remote=await createPayPal({...order,kind:'course'},order.title,origin,orderPath);
+    await dbh.prepare("UPDATE orders SET session_id=? WHERE id=? AND mode='paypal' AND status='pending' AND session_id IS NULL").bind(remote,order.id).run();
+    return orderPath;
+  }
+  if(!merchant)throw new SumUpError('Card checkout is unavailable.');
   const checkout=await createMerchantCheckout(merchant,order,order.title,origin,orderPath,'/api/sumup/webhook');
   await applyStatus(order,checkout);
   return orderPath;
 }
 
+export async function syncPayPalCourse(id:string,capture=false){
+  const order=await orderById(id);
+  if(!order||order.mode!=='paypal')return null;
+  if(order.status!=='pending')return {status:order.status,approvalURL:null};
+  const state=await statePayPal({...order,kind:'course'},capture);
+  if(state.status==='paid'){await recordVerifiedPayment(order);await paidInvitationPath(id);}
+  else if(state.status!=='pending')await db().prepare("UPDATE orders SET status=? WHERE id=? AND mode='paypal' AND status='pending'").bind(state.status,id).run();
+  return state;
+}
+
 export async function syncSumUp(id:string,notifiedCheckout?:string){
   const order=await orderById(id);
-  if(!order || (notifiedCheckout && order.session_id && order.session_id!==notifiedCheckout))return null;
+  if(!order || order.mode!=='sumup' || (notifiedCheckout && order.session_id && order.session_id!==notifiedCheckout))return null;
   if(order.status!=='pending')return order.status;
   const checkoutId=order.session_id||notifiedCheckout;
   if(!checkoutId)return 'pending';
@@ -240,7 +288,7 @@ export async function syncSumUp(id:string,notifiedCheckout?:string){
 export async function salesSummary(){
   const database=db();
   const shop=await database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='shop_orders'").first();
-  const ledgers="SELECT user_id,email,amount,paid_at FROM orders WHERE status='paid' AND mode IN ('live','whatsapp','sumup') AND lower(currency)='gbp'"+
+  const ledgers="SELECT user_id,email,amount,paid_at FROM orders WHERE status='paid' AND mode IN ('live','whatsapp','sumup','paypal') AND lower(currency)='gbp'"+
     (shop?" UNION ALL SELECT user_id,email,amount,paid_at FROM shop_orders WHERE status IN ('paid','refund_pending')":"");
   return database.prepare(`WITH payments AS (`+ledgers+`) SELECT COUNT(*) AS sales,COALESCE(SUM(amount),0) AS gross,
     COUNT(DISTINCT CASE WHEN user_id LIKE 'guest/%' OR user_id LIKE 'withdrawn/%'

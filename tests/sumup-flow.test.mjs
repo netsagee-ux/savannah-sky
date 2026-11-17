@@ -25,10 +25,11 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   const invitations=await compile('lib/course-invitation.ts',{'./server':server,'./student-course-link':urls});
   const receipt=await compile('lib/order-receipt.ts',{'./server':server,'./course-invitation':invitations});
   const orders=await compile('lib/course-orders.ts',{'./server':server,'./order-receipt':receipt});
-  const gateway=await compile('lib/sumup.ts',{'./server':server,'./course-invitation':invitations,'./course-orders':orders});
+  const paypal=await compile('lib/paypal.ts',{'./server':server});
+  const gateway=await compile('lib/sumup.ts',{'./paypal':paypal,'./server':server,'./course-invitation':invitations,'./course-orders':orders});
   const payments=await compile('lib/payments.ts',{'./server':server,'./course-orders':orders,'./payment-security':await compile('lib/payment-security.ts',{})});
   const imports={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),'@/app/chatgpt-auth':auth,'@/lib/server':server,'@/lib/course-invitation':invitations,'@/lib/order-receipt':receipt,
-    '@/lib/course-orders':orders,'@/lib/payments':payments,'@/lib/sumup':gateway,'@/lib/student-course-link':urls};
+    '@/lib/course-orders':orders,'@/lib/payments':payments,'@/lib/paypal':paypal,'@/lib/sumup':gateway,'@/lib/student-course-link':urls};
   const route=async p=>import(await compile(p,imports));
   const checkout=await route('app/api/checkout/route.ts'),staff=await route('app/api/payments/route.ts');
   const callback=await route('app/api/sumup/webhook/route.ts'),entry=await route('app/(website)/orders/[id]/learn/route.ts');
@@ -113,7 +114,7 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
     'next/script':stub,'next/navigation':moduleUrl('export const useRouter=()=>({})')});
   const receiptPage=(await import(await compile('app/(website)/orders/[id]/page.tsx',{...imports,
     'next/navigation':moduleUrl('export function notFound(){throw Error("not found")}'),
-    '@/components/activate-course':stub,'@/components/sumup-card':widget}))).default;
+    '@/components/activate-course':stub,'@/components/paypal-checkout':stub,'@/components/sumup-card':widget}))).default;
   const receiptFor=async()=>renderToStaticMarkup(await receiptPage({params:Promise.resolve({id:orderId})}));
   assert.doesNotMatch(await receiptFor(),/Wednesday at the studio/);
   await t.test('course wallet eligibility, card fallback and credit amount limits',async()=>{
@@ -162,17 +163,17 @@ test('SumUp checkout, staff access, reconciliation, buyer-only links and whole-l
   await t.test('shop basket prices, private receipts, idempotent SumUp callbacks and dispatch',async()=>{
     const schema=await compile('lib/shop-schema.ts',{'./server':server});
     const shopTypes=await compile('lib/shop-types.ts',{});
-    const shopUrl=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
+    const shopUrl=await compile('lib/shop.ts',{'./paypal':paypal,'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
     const lib=await import(shopUrl),extra={...imports,'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/shop':shopUrl,'@/lib/shop-schema':schema,
       '@/lib/video-security':await compile('lib/video-security.ts',{})};
     extra['@/lib/shop-admin']=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopUrl,'./shop-types':shopTypes,'./video-security':extra['@/lib/video-security'],'./sumup':gateway});
-    extra['@/lib/shop-refunds']=await compile('lib/shop-refunds.ts',{'./shop-schema':schema,'./sumup':gateway});
+    extra['@/lib/shop-refunds']=await compile('lib/shop-refunds.ts',{'./paypal':paypal,'./shop-schema':schema,'./sumup':gateway});
     const manage=await import(await compile('app/api/shop/admin/route.ts',extra));
     const checkout=await import(await compile('app/api/shop/checkout/route.ts',extra));
     const hook=await import(await compile('app/api/shop/webhook/route.ts',extra));
     const receiptImports={...extra,'@/lib/shop-types':await compile('lib/shop-types.ts',{}),
       'next/navigation':moduleUrl("export function notFound(){throw Error('not found')}"),
-      '@/components/sumup-card':widget,
+      '@/components/paypal-checkout':stub,'@/components/sumup-card':widget,
       '@/components/shop-order-basket-reset':moduleUrl('export default ()=>null'),
       '../../shop.css':moduleUrl(''),'../shop.css':moduleUrl('')};
     const receiptPage=(await import(await compile('app/(website)/shop/orders/[id]/page.tsx',receiptImports))).default;

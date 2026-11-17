@@ -1,3 +1,4 @@
+import {createPayPal,isPayPalMerchant,payPalMerchant,statePayPal} from './paypal';
 import {createCipheriv,createDecipheriv,createHash,randomBytes} from 'node:crypto';
 import {shopDatabase} from './shop-schema';
 import {SumUpError,checkoutMerchant,createMerchantCheckout,findMerchantCheckout,lookupMerchantCheckout,checkoutMatches} from './sumup';
@@ -76,7 +77,7 @@ async function applyShopStatus(order:ShopOrder,checkout:Awaited<ReturnType<typeo
 }
 
 type BasketRequest = {items:BasketLine[];methodId?:string;discountCode?:string};
-type Purchase = BasketRequest & {attempt:string;delivery:Delivery;total:number};
+type Purchase = BasketRequest & {attempt:string;delivery:Delivery;total:number;provider?:string};
 const hour=60*60*1000;
 
 function validateCart(items:BasketLine[]){
@@ -152,11 +153,13 @@ export async function startShopOrder(user:{userId:string;email:string},body:Purc
   let order=await shopOrder(id);
   const method=order?null:await d.prepare('SELECT kind FROM shop_delivery_methods WHERE id=? AND active=1').bind(methodId).first<{kind:string}>();
   const to=address(body.delivery,(order?.method_kind??method?.kind)==='collection');
-  const fingerprint=digest([cart,to,methodId,discountCode,body.total]);
+  if(body.provider!==undefined && !['sumup','paypal'].includes(body.provider))throw new SumUpError('Choose an available payment method.',400);
+  const paypal=body.total>0&&body.provider==='paypal';
+  const fingerprint=digest([cart,to,methodId,discountCode,body.total,...(paypal?['paypal']:[])]);
   const legacyFingerprint=methodId==='standard'&&!discountCode&&cart.every(l=>l.id===l.variantId)
     ?digest([cart.map(({id,quantity})=>({id,quantity})),to,body.total]):null;
   function checkOwner(row:ShopOrder){
-    if(row.user_id!==user.userId||(row.fingerprint!==fingerprint&&row.fingerprint!==legacyFingerprint))
+    if(row.user_id!==user.userId||isPayPalMerchant(row.merchant)!==paypal||(row.fingerprint!==fingerprint&&row.fingerprint!==legacyFingerprint))
       throw new SumUpError('Start a new checkout for this basket.',409);
   }
   if(order){
@@ -164,7 +167,8 @@ export async function startShopOrder(user:{userId:string;email:string},body:Purc
     if(order.status!=='pending'||order.session_id)return path;
   }
   // Retrying an existing attempt uses its immutable quote, even if it reserved the last item.
-  const merchant=body.total>0?await checkoutMerchant():null;
+  const merchant=body.total>0&&!paypal?await checkoutMerchant():null;
+  const marker=paypal?await payPalMerchant():merchant?.code??'';
   if(!order){
     try{
       const {quote,tracked}=await priceCart(cart,methodId,discountCode);
@@ -173,7 +177,7 @@ export async function startShopOrder(user:{userId:string;email:string},body:Purc
       await d.batch([
         d.prepare(`INSERT INTO shop_orders(id,user_id,email,items,shipping,amount,delivery,fingerprint,merchant,created_at,status,paid_at)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).bind(id,user.userId,user.email,JSON.stringify(quote.lines),quote.shipping,quote.total,
-            seal(id,to),fingerprint,merchant?.code??'',now,quote.total?'pending':'paid',quote.total?null:now),
+            seal(id,to),fingerprint,marker,now,quote.total?'pending':'paid',quote.total?null:now),
         d.prepare(`INSERT INTO shop_order_details(order_id,method_id,method_name,method_kind,discount_code,discount_amount,subtotal)
           VALUES(?,?,?,?,?,?,?)`).bind(id,methodId,quote.method.name,quote.method.kind,discountCode||null,quote.discount,quote.subtotal),
         ...cart.map(l=>d.prepare('INSERT INTO shop_order_reservations(order_id,variant_id,quantity,tracked) VALUES(?,?,?,?)')
@@ -193,6 +197,13 @@ export async function startShopOrder(user:{userId:string;email:string},body:Purc
   if(!order)throw new SumUpError('Unable to save this order.');
   checkOwner(order);
   if(order.status!=='pending'||order.session_id)return path;
+  if(paypal){
+    if(order.merchant!==marker)throw new SumUpError('The receiving PayPal business changed.',409);
+    if(Date.now()-Date.parse(order.created_at)>=3*60*60*1000){await syncShopOrder(order.id);return path;}
+    const remote=await createPayPal({...order,kind:'shop'},'Savannah Sky shop',origin,path,order.method_kind==='delivery'?to:undefined);
+    await d.prepare("UPDATE shop_orders SET session_id=? WHERE id=? AND merchant=? AND status='pending' AND session_id IS NULL").bind(remote,id,marker).run();
+    return path;
+  }
   if(!merchant||order.merchant!==merchant.code)throw new SumUpError('Refresh your order before continuing.',409);
   const end=new Date(Date.parse(order.created_at)+hour);
   if(end.getTime()<=Date.now()+20_000){await syncShopOrder(id);return path;}
@@ -200,11 +211,21 @@ export async function startShopOrder(user:{userId:string;email:string},body:Purc
   await applyShopStatus(order,checkout);
   return path;
 }
+export async function syncPayPalShop(order:ShopOrder,capture=false){
+  const state=await statePayPal({...order,kind:'shop'},capture);
+  if(state.status!=='pending')await (await shopDatabase()).prepare("UPDATE shop_orders SET status=?,paid_at=CASE WHEN ?='paid' THEN ? ELSE paid_at END WHERE id=? AND merchant=? AND status='pending'")
+    .bind(state.status,state.status,new Date().toISOString(),order.id,order.merchant).run();
+  return state;
+}
 export async function syncShopOrder(id:string,notified?:string){
   const order=await shopOrder(id);
   if(!order)return null;
   if(notified&&order.session_id&&notified!==order.session_id)throw new SumUpError('Wrong checkout for this order.',409);
   if(order.status!=='pending')return order.status;
+  if(isPayPalMerchant(order.merchant)){
+    if(notified)return null;
+    return (await syncPayPalShop(order)).status;
+  }
   const checkoutId=order.session_id||notified;
   const expired=Date.parse(order.created_at)+hour+60000<Date.now();
   if(!checkoutId&&!expired)return 'pending';

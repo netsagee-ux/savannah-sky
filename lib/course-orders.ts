@@ -30,7 +30,7 @@ export async function claimPaidOrders(buyer: Buyer, id?: string, password?: stri
     database.prepare(`INSERT OR IGNORE INTO enrollments(id,email,course_id)
       SELECT 'buyer/'||paid.user_id||'/'||paid.course_id,paid.email,paid.course_id
       FROM orders paid JOIN enrollments legacy ON legacy.email=paid.email AND legacy.course_id=paid.course_id
-      WHERE legacy.id NOT LIKE 'buyer/%' AND paid.status='paid' AND paid.mode IN ('live','whatsapp','sumup')
+      WHERE legacy.id NOT LIKE 'buyer/%' AND paid.status='paid' AND paid.mode IN ('live','whatsapp','sumup','paypal')
         AND paid.user_id NOT LIKE 'guest/%' AND paid.user_id NOT LIKE 'withdrawn/%'
         AND legacy.email=? AND legacy.course_id IN (`+matchingCourses+')').bind(buyer.email.toLowerCase(), ...args),
     database.prepare("DELETE FROM enrollments WHERE id NOT LIKE 'buyer/%' AND email=? AND course_id IN ("+matchingCourses+')')
@@ -72,13 +72,13 @@ export async function recordVerifiedPayment(order: AcademyOrder) {
     if (order.status !== 'pending') throw Error('This order is no longer pending.');
     const database = db();
     const statements = [];
-    if ((['live','whatsapp','sumup'].includes(order.mode)) && !order.user_id.startsWith('guest/')) {
+    if ((['live','whatsapp','sumup','paypal'].includes(order.mode)) && !order.user_id.startsWith('guest/')) {
       const legacyId = order.email + ':' + order.course_id;
       statements.push(
         database.prepare(`INSERT OR IGNORE INTO enrollments(id,email,course_id)
           SELECT 'buyer/'||o.user_id||'/'||o.course_id,o.email,o.course_id
           FROM enrollments legacy JOIN orders o ON o.email=legacy.email AND o.course_id=legacy.course_id
-          WHERE legacy.id=? AND o.user_id NOT LIKE 'guest/%' AND o.user_id NOT LIKE 'withdrawn/%' AND o.status='paid' AND o.mode IN ('live','whatsapp','sumup')
+          WHERE legacy.id=? AND o.user_id NOT LIKE 'guest/%' AND o.user_id NOT LIKE 'withdrawn/%' AND o.status='paid' AND o.mode IN ('live','whatsapp','sumup','paypal')
             AND EXISTS (SELECT 1 FROM orders WHERE id=? AND mode=? AND status='pending')`).bind(legacyId,order.id,order.mode),
         database.prepare("DELETE FROM enrollments WHERE id=? AND EXISTS (SELECT 1 FROM orders WHERE id=? AND mode=? AND status='pending')")
           .bind(legacyId,order.id,order.mode),

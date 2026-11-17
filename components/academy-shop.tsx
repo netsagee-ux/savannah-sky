@@ -11,7 +11,7 @@ const lineId = (line: BasketLine) => line.variantId || line.id;
 const variationName = (variant: {colour?: string; size?: string}) => [variant.colour, variant.size].filter(Boolean).join(' / ');
 const stockLimit = (variant: Variant) => Math.min(maxUnits, variant.stock ?? maxUnits);
 
-type Props = {items: Product[]; methods: DeliveryMethod[]; ready: boolean; signedIn: boolean; preview?: boolean};
+type Props = {items: Product[]; methods: DeliveryMethod[]; ready: boolean; paypal?:boolean; signedIn: boolean; preview?: boolean};
 type ChangeLine = (id: string, variantId: string, amount: number) => void;
 
 function ProductCard({product, basket, disabled, add, preview}: {
@@ -76,7 +76,7 @@ export default function AcademyShop(props:Props) {
   </div>;
 }
 
-function ShopBasket({items, methods, ready, signedIn, preview=false,sample}: Props&{sample:boolean}) {
+function ShopBasket({items, methods, ready, signedIn, paypal=false, preview=false,sample}: Props&{sample:boolean}) {
   const router = useRouter();
   const basketKey=preview?'academy-preview-basket':sample?'academy-sample-basket':'academy-basket';
   const choicesKey=preview?'academy-preview-choices':sample?'academy-sample-choices':'academy-shop-choices';
@@ -93,6 +93,7 @@ function ShopBasket({items, methods, ready, signedIn, preview=false,sample}: Pro
   const [notice, setNotice] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const {busy, begin, finish} = useNavigationAction();
+  const [provider,setProvider]=useState<'sumup'|'paypal'>(ready?'sumup':'paypal');
   const attempt = useRef({payload: '', id: ''});
   const products = new Map(items.map(product => [product.id, product]));
   const variants = new Map(items.flatMap(product => product.variants.filter(v => v.active).map(v => [v.id, v] as const)));
@@ -179,7 +180,7 @@ function ShopBasket({items, methods, ready, signedIn, preview=false,sample}: Pro
     if (!quote || !begin()) return;
     setCheckoutError('');
     const delivery = Object.fromEntries(new FormData(event.currentTarget));
-    const purchase = {items: basket, methodId: chosenMethod, discountCode: code, delivery, total: quote.total};
+    const purchase = {...(provider==='paypal'&&quote.total>0?{provider}:{}),items: basket, methodId: chosenMethod, discountCode: code, delivery, total: quote.total};
     try {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(purchase)));
       const fingerprint = Array.from(new Uint8Array(digest), n => n.toString(16).padStart(2, '0')).join('');
@@ -275,11 +276,13 @@ function ShopBasket({items, methods, ready, signedIn, preview=false,sample}: Pro
             }}>Complete sample checkout</button>
             <button type="button" className="underlink" onClick={()=>setReviewKey('')}>Back to basket</button>
           </section> : <button className="button" type="button" disabled={!quote||pendingCode} onClick={()=>setReviewKey(quoteKey)}>Checkout <ArrowRight size={16}/></button>
-          : preview ? <p>Preview only. This basket does not create an order or take a payment.</p> : ready || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
+          : preview ? <p>Preview only. This basket does not create an order or take a payment.</p> : (ready || paypal) || quote?.total === 0 ? signedIn ? <form className="form" onSubmit={pay}>
             <h3>{method?.kind === 'collection' ? 'Collection details' : 'UK delivery address'}</h3>
             <label>Full name<input name="name" readOnly={busy} autoComplete="name" maxLength={150} required/></label>
             {method?.kind !== 'collection' && ([['street','Address line 1','address-line1'],['line2','Address line 2 (optional)','address-line2'],['town','Town or city','address-level2'],['postcode','Postcode','postal-code']] as const).map(([name,label,autocomplete]) =>
               <label key={name}>{label}<input name={name} readOnly={busy} autoComplete={autocomplete} maxLength={name === 'postcode' ? 10 : 150} required={name !== 'line2'}/></label>)}
+            {paypal && quote && quote.total>0 && <label>Payment method<select value={provider} onChange={e=>setProvider(e.target.value==='paypal'?'paypal':'sumup')} disabled={busy}>
+              {ready&&<option value="sumup">Card via SumUp</option>}<option value="paypal">PayPal</option></select></label>}
             {pendingCode && <p>Apply or clear the code before continuing.</p>}
             <button className="button" aria-busy={busy} disabled={busy || !quote || pendingCode}>{busy ? 'Opening your order…' : quote?.total === 0 ? 'Place order' : 'Continue to payment'} <ArrowRight size={16}/></button>
           </form> : <a className="button" href="/sign-in?redirect_url=%2Fshop%23basket">Sign in to check out</a> :

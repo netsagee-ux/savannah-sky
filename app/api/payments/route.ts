@@ -1,5 +1,6 @@
 import {sameSiteOrigin} from '@/lib/request-origin';
-import {paypalWalletAvailability,saveMerchant,merchantStatus,syncSumUp} from '@/lib/sumup';
+import {paypalWalletAvailability,saveMerchant,merchantStatus,syncSumUp,syncPayPalCourse} from '@/lib/sumup';
+import {connectPayPal,directPayPalStatus} from '@/lib/paypal';
 import {paidInvitationPath} from '@/lib/course-invitation';
 import {receiptsConfigured,sendOrderReceipt} from '@/lib/order-receipt';
 import {confirmManualPayment,coursePassword} from '@/lib/course-orders';import {admin,db} from '@/lib/server';
@@ -19,13 +20,22 @@ export async function GET(request:Request) {
       EXISTS(SELECT 1 FROM settings s WHERE s.id='order_receipt:'||o.id) AS receiptSent
       FROM orders o `+(term?'WHERE o.id=? OR o.email=? ':'')+'ORDER BY o.created_at DESC LIMIT 200');
     const orders=await (term?query.bind(term,term):query).all();
-    return Response.json({receiptConfigured:receiptsConfigured(),merchant:await merchantStatus(),orders:orders.results},
+    return Response.json({paypalMerchant:await directPayPalStatus(),receiptConfigured:receiptsConfigured(),merchant:await merchantStatus(),orders:orders.results},
       {headers:{'Cache-Control':'private, no-store'}});
   } catch {return Response.json({error:'Payment settings are temporarily unavailable.'},{status:503});}
 }
 export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});if(!sameSiteOrigin(req))return Response.json({error:'Invalid origin'},{status:403});try{const body:any=await req.json();if(body.action==='connect-sumup'){
  await saveMerchant(String(body.code||''),String(body.key||''));
  return Response.json({ok:true,message:'Your SumUp merchant account is connected.'});
+}
+if(body.action==='connect-paypal'){
+ await connectPayPal(String(body.client||'').trim(),String(body.secret||'').trim());
+ return Response.json({ok:true,message:'Your PayPal Business account is connected.'});
+}
+if(body.action==='verify-paypal'){
+ const result=await syncPayPalCourse(String(body.id));
+ if(!result)throw Error('PayPal order not found.');
+ return Response.json({ok:true,message:'PayPal payment status: '+result.status});
 }
 if(body.action==='verify-sumup'){
  const status=await syncSumUp(String(body.id));

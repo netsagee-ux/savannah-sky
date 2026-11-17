@@ -1,3 +1,4 @@
+import {isPayPalMerchant,readPayPal,refundPayPal} from './paypal';
 import {shopDatabase} from './shop-schema';
 import type {ShopOrder} from './shop-types';
 import {
@@ -102,11 +103,27 @@ async function reject(d:Database,refund:Refund) {
   ]);
 }
 
+async function claimRefund(d:Database,id:string,claim:Refund){
+  const [inserted]=await d.batch([
+    d.prepare(`INSERT INTO shop_refunds(order_id,attempt,transaction_id,restock,previous_failures,observe_only,requested_at)
+      SELECT id,?,?,?,?,?,? FROM shop_orders WHERE id=? AND status='paid' ON CONFLICT(order_id) DO NOTHING`)
+      .bind(claim.attempt,claim.transaction_id,claim.restock,claim.previous_failures,claim.observe_only,new Date().toISOString(),id),
+    d.prepare(`UPDATE shop_orders SET status='refund_pending' WHERE id=? AND status='paid'
+      AND EXISTS(SELECT 1 FROM shop_refunds WHERE order_id=? AND attempt=?)`).bind(id,id,claim.attempt),
+  ]);
+  return inserted;
+}
+async function finishPayPalRefund(d:Database,order:ShopOrder,claim:Refund):Promise<RefundStatus>{
+  const refunded=await refundPayPal({...order,kind:'shop'},claim.attempt,claim.transaction_id);
+  return refunded?complete(d,claim):'refund_pending';
+}
+
 export async function reconcileShopRefund(id:string):Promise<RefundStatus> {
   const d=await refundDatabase(),order=await orderFor(d,id);
   if(order.status==='refunded')return 'refunded';
   const refund=await d.prepare('SELECT * FROM shop_refunds WHERE order_id=?').bind(id).first<Refund>();
   if(order.status!=='refund_pending'||!refund)throw new SumUpError('There is no pending refund for this order.',409);
+  if(isPayPalMerchant(order.merchant))return finishPayPalRefund(d,order,refund);
   const merchant=await merchantFor(order);
   const transaction=await lookupMerchantTransaction(merchant,refund.transaction_id);
   const state=inspect(transaction,order,refund.transaction_id);
@@ -127,6 +144,13 @@ export async function refundShopOrder(id:string,restock:boolean):Promise<RefundS
   const d=await refundDatabase(),order=await orderFor(d,id);
   if(order.status==='refunded')return 'refunded';
   if(order.status==='refund_pending')return reconcileShopRefund(id);
+  if(isPayPalMerchant(order.merchant)){
+    const remote=await readPayPal({...order,kind:'shop'});
+    if(!remote.capture||!['COMPLETED','PARTIALLY_REFUNDED','REFUNDED'].includes(remote.capture.status))throw new SumUpError('PayPal has not confirmed a refundable capture.',409);
+    const claim:Refund={order_id:id,attempt:crypto.randomUUID(),transaction_id:remote.capture.id,restock:Number(restock),previous_failures:'[]',observe_only:0};
+    await claimRefund(d,id,claim);
+    return reconcileShopRefund(id);
+  }
   const merchant=await merchantFor(order);
   const transactionId=await transactionIdFor(merchant,order);
   const transaction=await lookupMerchantTransaction(merchant,transactionId);
@@ -135,13 +159,7 @@ export async function refundShopOrder(id:string,restock:boolean):Promise<RefundS
     throw new SumUpError('This payment is not currently eligible for a refund in SumUp.',409);
   const claim:Refund={order_id:id,attempt:crypto.randomUUID(),transaction_id:transactionId,
     restock:restock?1:0,previous_failures:JSON.stringify(state.failures),observe_only:state.pending?1:0};
-  const [inserted]=await d.batch([
-    d.prepare(`INSERT INTO shop_refunds(order_id,attempt,transaction_id,restock,previous_failures,observe_only,requested_at)
-      SELECT id,?,?,?,?,?,? FROM shop_orders WHERE id=? AND status='paid' ON CONFLICT(order_id) DO NOTHING`)
-      .bind(claim.attempt,transactionId,claim.restock,claim.previous_failures,claim.observe_only,new Date().toISOString(),id),
-    d.prepare(`UPDATE shop_orders SET status='refund_pending' WHERE id=? AND status='paid'
-      AND EXISTS(SELECT 1 FROM shop_refunds WHERE order_id=? AND attempt=?)`).bind(id,id,claim.attempt),
-  ]);
+  const inserted=await claimRefund(d,id,claim);
   if(!inserted.meta.changes)return reconcileShopRefund(id);
   if(state.confirmed===order.amount)return complete(d,claim);
   if(state.pending)return 'refund_pending';

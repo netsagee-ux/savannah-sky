@@ -2,10 +2,11 @@ import {notFound} from 'next/navigation';
 import {requireChatGPTUser} from '@/app/chatgpt-auth';
 import {db,enrolled} from '@/lib/server';
 import ActivateCourse from '@/components/activate-course';
+import PayPalCheckout from '@/components/paypal-checkout';
 import SumUpCard from '@/components/sumup-card';
 import {studentOrder} from '@/lib/course-orders';
 import {paidInvitationPath} from '@/lib/course-invitation';
-import {paypalWalletAvailability,syncSumUp} from '@/lib/sumup';
+import {paypalWalletAvailability,syncPayPalCourse,syncSumUp} from '@/lib/sumup';
 export const dynamic='force-dynamic';
 
 export default async function OrderPage({params}:{params:Promise<{id:string}>}){
@@ -15,6 +16,12 @@ export default async function OrderPage({params}:{params:Promise<{id:string}>}){
   let order=await studentOrder(id,user);
   if(!order)notFound();
   let checkingFailed=false;
+  let wallet:Awaited<ReturnType<typeof syncPayPalCourse>>=null;
+  if(order.mode==='paypal' && order.status==='pending'){
+    try{wallet=await syncPayPalCourse(id);order=await studentOrder(id,user);}
+    catch{checkingFailed=true;}
+    if(!order)notFound();
+  }
   if(order.mode==='sumup' && order.status==='pending' && order.session_id){
     try{await syncSumUp(id);order=await studentOrder(id,user);}
     catch{checkingFailed=true;}
@@ -34,9 +41,10 @@ export default async function OrderPage({params}:{params:Promise<{id:string}>}){
       {dates?<p style={{whiteSpace:'pre-line',overflowWrap:'anywhere'}}>{dates}</p>:<p>Carla will send the available class dates to {user.email}. You can also ask her about dates below.</p>}
       <a className="button" href={'/contact?topic=dates&course='+encodeURIComponent(order.title)+'#ask'}>Arrange my class date</a>
       <a className="underlink" href={course+'#materials'}>View course and supporting materials</a></>:<p>Contact the academy about your booking.</p>}</>:activation?<><p>Use the one-time password sent to your order email.</p><ActivateCourse id={id}/></>:invitation?<><p>Your lessons are ready. Sign in with this account whenever you want to return.</p><a className="button" href={invitation}>Open my course</a></>:<p>Check your access in <a href="/dashboard">My learning</a>.</p>}</>:
-      checkingFailed?<><h2>Checking your payment</h2><p>We couldn’t reach SumUp. If you’ve already paid, check again before making another payment.</p><a className="button" href={path}>Check again</a></>:
+      checkingFailed?<><h2>Checking your payment</h2><p>We couldn’t reach the payment provider. If you’ve already paid, check again before making another payment.</p><a className="button" href={path}>Check again</a></>:
+      order.mode==='paypal' && order.status==='pending' && order.session_id && wallet?<PayPalCheckout id={id} kind="course" amount={order.amount} approvalURL={wallet.approvalURL} approved={'approved' in wallet && Boolean(wallet.approved)}/>:
       order.mode==='sumup' && order.status==='pending' && order.session_id?<><h2>Choose how to pay</h2><p>{classroom?'Your classroom booking will appear under':'Course access will be added to'} {user.email}.</p><SumUpCard key={order.session_id} checkoutId={order.session_id} amountPence={order.amount} paypalAvailable={await paypalWalletAvailability(order.session_id)==='available'}/></>:
-      order.mode==='sumup'?<><h2>{order.status==='pending'?'Finish setting up your checkout':'Checkout '+order.status}</h2><a className="button" href={course+'#enrol'}>Return to enrolment</a></>:
+      (order.mode==='sumup'||order.mode==='paypal')?<><h2>{order.status==='pending'?'Finish setting up your checkout':'Checkout '+order.status}</h2><a className="button" href={course+'#enrol'}>Return to enrolment</a></>:
       <><h2>Earlier order</h2><p>Contact the academy with your order reference to check its status.</p><a className="underlink" href="/contact">Contact the academy</a></>}
     <small>Order reference {order.id}</small>
   </section>;

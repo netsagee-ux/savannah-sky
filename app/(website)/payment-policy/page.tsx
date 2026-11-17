@@ -10,12 +10,12 @@ export default function PaymentPolicy() {
     <p>This policy covers classroom bookings and shop purchases made on the Savannah Sky website.</p>
 
     <h2>Choosing how to pay</h2>
-    <p>You’ll see the total in pounds before you pay, including any delivery charge and discount. SumUp processes the payment. Its checkout shows the methods available for your order.</p>
+    <p>You’ll see the total in pounds before you pay, including any delivery charge and discount. Card payments are processed by SumUp. Where PayPal is available, you can choose it at checkout and review your payment options in your PayPal wallet.</p>
     <p>If PayPal appears, you can open your wallet and see whether PayPal offers Pay in 3. It is a credit agreement for eligible UK residents aged 18 or over. PayPal decides whether to approve a purchase and shows the amount due today, future payments and terms before you agree. Consider whether you can afford each payment. Missing payments may affect future borrowing.</p>
     <p>You can pay in full without applying for credit. If you choose instalments, PayPal manages the agreement and collects the repayments. The academy does not collect your credit application or card details. <a href="https://www.paypal.com/uk/digital-wallet/paypal-payin3/terms">Read PayPal’s UK Pay in 3 terms</a>.</p>
 
     <h2>When your order is confirmed</h2>
-    <p>Your classroom booking or paid shop order is confirmed once SumUp confirms the full order payment to the academy. If you use instalments, you can book your class or receive your goods while you make the remaining repayments to PayPal. Carla will confirm your class date separately.</p>
+    <p>Your classroom booking or paid shop order is confirmed once your payment provider confirms the full order payment to the academy. If you use instalments, you can book your class or receive your goods while you make the remaining repayments to PayPal. Carla will confirm your class date separately.</p>
     <p>If you leave checkout or it still shows a pending payment, open the order in your account and check its status before paying again.</p>
 
     <h2>Cancelling a course booking</h2>

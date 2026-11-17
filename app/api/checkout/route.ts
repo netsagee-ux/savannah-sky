@@ -19,7 +19,8 @@ export async function POST(request:Request){
     if(await enrolled(course.id))return Response.json({path:'/dashboard'});
     if(isConversion(course)&&(await qualification(course.id,user.userId))?.status!=='approved')return Response.json({error:'The academy must approve your nail qualification before payment.'},{status:409});
     if(course.format==='online'||!hasCoursePrice(course.price))return Response.json({error:'This course is not available to book.'},{status:409});
-    return Response.json({path:await startSumUp(user,course,origin)},{headers:{'Cache-Control':'no-store'}});
+    if(data.provider!==undefined && data.provider!=='sumup' && data.provider!=='paypal')return Response.json({error:'Choose an available payment method.'},{status:400});
+    return Response.json({path:await startSumUp(user,course,origin,data.provider==='paypal'?'paypal':'sumup')},{headers:{'Cache-Control':'no-store'}});
   } catch(e){
     if(e instanceof SumUpError && e.status===409)return Response.json({error:e.message},{status:409});
     return Response.json({error:'Checkout is temporarily unavailable. Please try again later.'},{status:503});

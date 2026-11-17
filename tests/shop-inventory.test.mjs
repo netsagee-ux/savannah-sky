@@ -23,16 +23,17 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     ';export const admin=async()=>globalThis.shopInventoryUser?.userId==="owner";export const enrolmentOwner=""');
   const auth=moduleUrl('export const getChatGPTUser=async()=>globalThis.shopInventoryUser');
   const schema=await compile('lib/shop-schema.ts',{'./server':server});
-  const gateway=await compile('lib/sumup.ts',{'./server':server,'./course-orders':moduleUrl('export function recordVerifiedPayment(){}'),
+  const paypal=await compile('lib/paypal.ts',{'./server':server});
+  const gateway=await compile('lib/sumup.ts',{'./paypal':paypal,'./server':server,'./course-orders':moduleUrl('export function recordVerifiedPayment(){}'),
     './course-invitation':moduleUrl('export function paidInvitationPath(){}')});
   const shopTypes=await compile('lib/shop-types.ts',{});
-  const shopModule=await compile('lib/shop.ts',{'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
+  const shopModule=await compile('lib/shop.ts',{'./paypal':paypal,'./shop-schema':schema,'./sumup':gateway,'./shop-types':shopTypes});
   const shop=await import(shopModule);
   const adminModule=await compile('lib/shop-admin.ts',{'./shop-schema':schema,'./shop':shopModule,'./shop-types':shopTypes,
     './sumup':gateway,'./video-security':await compile('lib/video-security.ts',{})});
   const routes={'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/shop':shopModule,'@/lib/shop-schema':schema,'@/lib/shop-admin':adminModule,'@/lib/server':server,
     '@/lib/shop-refunds':moduleUrl('export function refundShopOrder(){};export function reconcileShopRefund(){}'),
-    '@/lib/sumup':gateway,'@/app/chatgpt-auth':auth};
+    '@/lib/paypal':paypal,'@/lib/sumup':gateway,'@/app/chatgpt-auth':auth};
   const route=async p=>import(await compile('app/api/shop/'+p+'/route.ts',routes));
   const [admin,quote,checkout,webhook]=await Promise.all(['admin','quote','checkout','webhook'].map(route));
   const site='https://example.test';

@@ -2,23 +2,13 @@
 import {useEffect,useRef,useState} from 'react';
 import CourseInvitationActions from './course-invitation-actions';
 type Order={classroom:number;awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
-type Settings={receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};orders:Order[]};
+type Settings={paypalMerchant:string|null;receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};orders:Order[]};
 const pounds=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
 
 export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
  const [data,setData]=useState<Settings|null>(null),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
  const [search,setSearch]=useState(''),[applied,setApplied]=useState('');
  const [loadError,setLoadError]=useState(''),[loading,setLoading]=useState(true);
- const [wallet,setWallet]=useState<'idle'|'loading'|'available'|'unavailable'|'unknown'>('idle');
- async function checkWallet(){
-   setWallet('loading');
-   try{
-     const response=await fetch('/api/payments?check=paypal',{cache:'no-store'});
-     const result=await response.json() as {availability?:string};
-     const status=result.availability;
-     setWallet(response.ok && (status==='available'||status==='unavailable')?status:'unknown');
-   }catch{setWallet('unknown');}
- }
  const latest=useRef(0);
  async function refresh(term=''){
    const ticket=++latest.current;
@@ -38,7 +28,6 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
      const response=await fetch('/api/payments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
      const result=await response.json() as {error?:string;message?:string};
      if(!response.ok)throw Error(result.error);
-     if('action' in body && body.action==='connect-sumup')setWallet('idle');
      setMessage(result.message||'Saved.');
      await Promise.all([refresh(applied),onChange()]);
      return true;
@@ -62,13 +51,20 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
          <p>We’ll check that this account can create and confirm a GBP checkout. No card is charged.</p>
          <button className="button" disabled={busy}>Verify and save</button>
        </form></details>}
-   </section><section className="admin-section"><h2>PayPal and instalments</h2>
-     <p>Check whether SumUp offers PayPal for this merchant. Each course booking and shop order is checked separately. PayPal decides which buyers can pay in instalments.</p>
-     {data.merchant.code && <button type="button" className="button outline" onClick={()=>void checkWallet()} disabled={wallet==='loading'}>{wallet==='loading'?'Checking SumUp…':'Check PayPal availability'}</button>}
-     <p role="status">{wallet==='available'?'SumUp lists PayPal for this merchant. Eligible customers can check their options inside PayPal.':
-       wallet==='unavailable'?'SumUp does not currently list PayPal for this merchant. Ask SumUp to enable PayPal for online checkouts.':
-       wallet==='unknown'?'SumUp could not confirm availability. You can retry this check.':null}</p>
-     {wallet==='unavailable'&&<a className="underlink" href="https://help.sumup.com/en-GB" target="_blank" rel="noreferrer">Contact SumUp support</a>}
+   </section><section className="admin-section"><h2>PayPal and Pay in 3</h2>
+     <p>{data.paypalMerchant?'Connected to PayPal Business · '+data.paypalMerchant:'Connect the academy’s PayPal Business account to accept PayPal for courses and shop orders.'}</p>
+     <details open={!data.paypalMerchant}><summary>{data.paypalMerchant?'Update live app credentials':'Connect PayPal'}</summary>
+       <form className="form" onSubmit={async e=>{
+         e.preventDefault();const form=e.currentTarget,fields=new FormData(form);
+         if(await save({action:'connect-paypal',client:fields.get('client'),secret:fields.get('secret')}))form.reset();
+       }}>
+         <p>In the <a href="https://developer.paypal.com/dashboard/applications/live" target="_blank" rel="noreferrer">PayPal Developer Dashboard</a>, open Apps &amp; Credentials, choose Live and create or select the academy’s app.</p>
+         <label>Live Client ID<input name="client" autoComplete="off" spellCheck={false} required/></label>
+         <label>Live Secret<input name="secret" type="password" autoComplete="new-password" required/></label>
+         <small>Verification creates an unpaid checkout to identify the receiving business. No money is taken.</small>
+         <button className="button" disabled={busy}>Verify and connect PayPal</button>
+       </form></details>
+     <p>PayPal shows qualifying buyers their instalment amounts and dates before they agree.</p>
    </section></div>
    <section className="admin-section"><h2>Course orders</h2>
      <form className="form" onSubmit={e=>{e.preventDefault();const term=search.trim();setApplied(term);void refresh(term);}}>
@@ -80,11 +76,11 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
        const active=Boolean(order.accessActive||order.awaitingClaim);
        return <article className="payment-record" key={order.id}><h3>{order.title}</h3>
          <p>{order.email} · {pounds.format(order.amount/100)} · {order.status}</p>
-         <small>{new Date(order.created_at).toLocaleDateString('en-GB')} · {order.mode==='sumup'?'SumUp':order.mode==='test'?'Test':'Historical order'} · Ref {order.id}</small>
+         <small>{new Date(order.created_at).toLocaleDateString('en-GB')} · {order.mode==='sumup'?'SumUp':order.mode==='paypal'?'PayPal':order.mode==='test'?'Test':'Historical order'} · Ref {order.id}</small>
          {order.status==='paid' && order.mode!=='test' && (active?<><CourseInvitationActions id={order.id} email={order.email} title={order.title} classroom={Boolean(order.classroom)}/>
            {order.receiptSent?<small>Email accepted for sending</small>:data.receiptConfigured&&<button className="underlink" disabled={busy} onClick={()=>void save({action:'send-receipt',id:order.id})}>Send confirmation email</button>}</>:<small>Course access inactive</small>)}
          {Boolean(order.awaitingClaim)&&<button className="underlink" disabled={busy} onClick={()=>{if(confirm('Withdraw the unclaimed course invitation?'))void save({action:'withdraw-claim',id:order.id});}}>Withdraw invitation</button>}
-         {order.status==='pending'&&order.mode==='sumup'&&<button className="button outline" disabled={busy} onClick={()=>void save({action:'verify-sumup',id:order.id})}>Check with SumUp</button>}
+         {order.status==='pending'&&['sumup','paypal'].includes(order.mode)&&<button className="button outline" disabled={busy} onClick={()=>void save({action:'verify-'+order.mode,id:order.id})}>Check with {order.mode==='paypal'?'PayPal':'SumUp'}</button>}
          {order.status==='pending'&&order.mode==='whatsapp'&&<button className="underlink" disabled={busy} onClick={()=>{if(confirm('Have you received '+pounds.format(order.amount/100)+' for this historical order?'))void save({action:'confirm-whatsapp',id:order.id});}}>Confirm earlier payment</button>}
          {order.status==='pending'&&['live','test'].includes(order.mode)&&<button className="underlink" disabled={busy} onClick={()=>void save({action:'reconcile',id:order.id})}>Check earlier card payment</button>}
        </article>;

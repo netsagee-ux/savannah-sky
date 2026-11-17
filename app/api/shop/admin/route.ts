@@ -4,6 +4,7 @@ import {shopDatabase} from '@/lib/shop-schema';
 import {products,deliveryFor,deliveryMethods,shopId,syncShopOrder} from '@/lib/shop';
 import {saveProduct,manageShopSetting} from '@/lib/shop-admin';
 import {refundShopOrder,reconcileShopRefund} from '@/lib/shop-refunds';
+import {PayPalError} from '@/lib/paypal';
 import {SumUpError} from '@/lib/sumup';
 import type {ShopOrder} from '@/lib/shop-types';
 
@@ -58,15 +59,15 @@ export async function POST(req:Request) {
       } else if(action==='refund') {
         if(form.get('confirmed')!=='1') throw new SumUpError('Confirm the full refund first.',400);
         const result=await refundShopOrder(id,form.get('restock')==='1');
-        return reply({ok:true,message:result==='refunded'?'Refund confirmed by SumUp.':'Refund submitted. Check the order for confirmation.'});
+        return reply({ok:true,message:result==='refunded'?'Refund confirmed by the payment provider.':'Refund submitted. Check the order for confirmation.'});
       } else if(action==='refundStatus') {
         const result=await reconcileShopRefund(id);
-        return reply({ok:true,message:result==='refunded'?'Refund confirmed by SumUp.':'Check the refund status shown on the order.'});
+        return reply({ok:true,message:result==='refunded'?'Refund confirmed by the payment provider.':'Check the refund status shown on the order.'});
       } else throw new SumUpError('Unknown shop action.',400);
     }
     return reply({ok:true});
   } catch(e) {
-    if(e instanceof SumUpError)return reply({error:e.message},e.status);
+    if(e instanceof SumUpError || e instanceof PayPalError)return reply({error:e.message},e.status);
     if(/unique constraint/i.test(String(e))) return reply({error:'That name or code already exists. Edit the existing entry instead.'},409);
     return reply({error:'Could not save the changes. Refresh the shop and try again.'},503);
   }

@@ -44,9 +44,10 @@ test('course checkout checks availability, charges the listed price and grants a
   const { confirmManualPayment, ownedOrder } = await import(orderModule);
   const { fulfill } = await import(payments);
   const { sendOrderReceipt } = await import(receipts);
-  const sumup=await compile('lib/sumup.ts',{'./server':server,'./course-orders':orderModule,'./course-invitation':invite});
+  const paypal=await compile('lib/paypal.ts',{'./server':server});
+  const sumup=await compile('lib/sumup.ts',{'./paypal':paypal,'./server':server,'./course-orders':orderModule,'./course-invitation':invite});
   const { POST } = await import(await compile('app/api/checkout/route.ts', {'@/lib/request-origin':await compile('lib/request-origin.ts',{}),'@/lib/data':await compile('lib/data.ts',{}),'@/lib/qualifications':await compile('lib/qualifications.ts',{'./server':server}),
-    '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/sumup':sumup,
+    '@/app/chatgpt-auth': identity, '@/lib/server': server, '@/lib/payments': payments, '@/lib/paypal':paypal,'@/lib/sumup':sumup,
   }));
   for (const sql of [
     'CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)',

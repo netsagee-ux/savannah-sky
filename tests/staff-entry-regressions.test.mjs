@@ -77,6 +77,7 @@ test('a temporary account lookup error leaves only the published course outline 
     '@/lib/qualifications':moduleUrl('export const qualification=()=>null'),
     '@/lib/data':courseData,
     '@/lib/course-information':await compile('lib/course-information.ts',{'./data':courseData}),
+    '@/lib/paypal':moduleUrl('export const directPayPalStatus=async()=>null'),
     '@/lib/sumup':moduleUrl('export const merchantStatus=()=>{throw Error("checkout should stay closed")}'),
     '@/lib/payments':moduleUrl('export const hasCourseDelivery=()=>true,hasCoursePrice=()=>true;'),
     '@/app/chatgpt-auth':moduleUrl('export const getChatGPTUser=async()=>{throw Error("unavailable")}'),

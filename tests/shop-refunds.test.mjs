@@ -18,10 +18,11 @@ test('shop refunds bind the original transaction, survive duplicate requests, an
   const db=(await import(adapter)).database();
   const server=moduleUrl('export {database as db} from '+JSON.stringify(adapter)+'; export const enrolmentOwner=""');
   const schema=await compile('lib/shop-schema.ts',{'./server':server});
-  const gateway=await compile('lib/sumup.ts',{'./server':server,
+  const paypal=await compile('lib/paypal.ts',{'./server':server});
+  const gateway=await compile('lib/sumup.ts',{'./paypal':paypal,'./server':server,
     './course-orders':moduleUrl('export function recordVerifiedPayment(){}'),
     './course-invitation':moduleUrl('export function paidInvitationPath(){}')});
-  const {refundShopOrder,reconcileShopRefund}=await import(await compile('lib/shop-refunds.ts',{'./shop-schema':schema,'./sumup':gateway}));
+  const {refundShopOrder,reconcileShopRefund}=await import(await compile('lib/shop-refunds.ts',{'./paypal':paypal,'./shop-schema':schema,'./sumup':gateway}));
   await db.prepare('CREATE TABLE settings(id TEXT PRIMARY KEY,value TEXT)').run();
   await (await import(schema)).shopDatabase();
   const orders=new Map(),transactions=new Map();

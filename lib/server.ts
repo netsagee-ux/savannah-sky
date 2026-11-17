@@ -35,7 +35,7 @@ export async function admin(){
 // Match older email-keyed enrolments through the original buyer's paid order.
 export const enrolmentOwner = `EXISTS (
  SELECT 1 FROM orders paid WHERE paid.user_id=? AND paid.course_id=e.course_id
- AND paid.status='paid' AND paid.amount>0 AND paid.mode IN ('sumup','live','whatsapp')
+ AND paid.status='paid' AND paid.amount>0 AND paid.mode IN ('sumup','live','whatsapp','paypal')
  AND (e.id='buyer/'||paid.user_id||'/'||paid.course_id OR
       (e.id NOT LIKE 'buyer/%' AND e.email=paid.email)))`;
 export async function enrolled(courseId:string) {
