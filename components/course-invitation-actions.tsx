@@ -16,9 +16,9 @@ export default function CourseInvitationActions({id,title,email,classroom=false}
       if(!response.ok)throw Error();
       const details=await response.json() as {password:string|null;path:string};
       const url=new URL(details.path,window.location.origin);
-      const intro=classroom?'View your in-person booking and available dates here: ':'Open your course here: ';
+      const intro=classroom?'View your in-person booking and joining details here: ':'Open your course here: ';
       const instructions=details.password?'One-time course password: '+details.password+'\nVerify your order email, then enter this password to unlock the lessons.':
-        classroom?'Sign in to see joining details and arrange your date with Carla.':'Sign in to open your lessons.';
+        classroom?'Sign in to review your booking and joining details. Carla will confirm your class date.':'Sign in to open your lessons.';
       const text='Your payment for '+title+' is confirmed. '+intro+url.href+'\nStudent login: '+email+'\n'+instructions;
       setReply(text);
       try {await navigator.clipboard.writeText(text);setCopied(true);} catch { /* The selectable message is available below. */ }

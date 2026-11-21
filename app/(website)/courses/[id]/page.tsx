@@ -1,3 +1,4 @@
+import {parseSchedule,upcomingDates} from '@/lib/course-schedule';
 import {directPayPalStatus} from '@/lib/paypal';
 import Link from 'next/link';
 import {notFound} from 'next/navigation';
@@ -18,13 +19,14 @@ import './course.css';
 export const dynamic='force-dynamic';
 type Lesson = {id:string;title:string;has_video:number;has_quiz:number;position:number};
 
-export default async function Detail({params}:{params:Promise<{id:string}>}) {
+export default async function Detail({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{date?:string}>}) {
   const {id}=await params;
+  const initialDate=(await searchParams||{}).date;
   const database=db();
   const authConfigured=Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const [outline,account,merchant,paypal]=await Promise.all([
     database.batch([
-      database.prepare(`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,
+      database.prepare(`SELECT c.*,${courseInformationColumns},(SELECT value FROM settings WHERE id='course-format:'||c.id) AS format,(SELECT value FROM settings WHERE id='course-schedule:'||c.id) AS course_schedule,
         (SELECT value FROM settings WHERE id='cpd:'||c.id) AS cpd FROM courses AS c WHERE c.id=?`).bind(id),
       database.prepare("SELECT id,title,position,(video_key IS NOT NULL AND video_key<>'') AS has_video,(NULLIF(question,'') IS NOT NULL) AS has_quiz FROM course_lessons WHERE course_id=? ORDER BY position,id").bind(id),
     ],'read'),
@@ -34,6 +36,8 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
   ]);
   const course=outline[0].results[0] as Course|undefined;
   if(!course)notFound();
+  const schedule=parseSchedule(course.course_schedule);
+  const publicSchedule={...schedule,dates:upcomingDates(schedule)};
   const conversion=isConversion(course);
   // The public outline remains readable while account services recover.
   const viewer=await (async()=>{
@@ -95,15 +99,16 @@ export default async function Detail({params}:{params:Promise<{id:string}>}) {
       <aside id="enrol" className="practice-enrol" aria-label="Student enrolment">
         <span className="studio-kicker">{classroom?'Classroom booking':'Student access'}</span>
         <h2>{access?'Your course':!classroom?'Coming soon':priced?'£'+(course.price!/100).toFixed(2):'Ask about this class'}</h2>
-        {classroom&&!access&&<p>After payment, open your booking for available dates and joining instructions. Carla will confirm your chosen date with you.</p>}
+        {classroom&&!access&&<p>Check the dates below before booking. Your joining instructions are available in My bookings after payment.</p>}
         {conversion&&!access&&<p>A nail qualification is required. The academy reviews your certificate before you can pay.</p>}
+        {classroom&&!access&&<CheckoutButton courseId={id} schedule={publicSchedule} scheduled={schedule.dates.length>0} signedIn={Boolean(user)} initialDate={initialDate}
+          bookable={paymentsOpen} qualificationRequired={conversion&&proof?.status!=='approved'} paypal={Boolean(paypal)} card={Boolean(merchant?.code)}/>}
         {!viewer?<><p role="status">Your account access couldn’t be checked just now.</p><form method="get" action={'/courses/'+encodeURIComponent(id)+'#enrol'}><button className="underlink" type="submit">Check access again</button></form></>:
           access?<>{viewer.owner?<a className="button" href={courseEditPath(id)}>Edit course</a>:<a className="button" href="/dashboard?view=student">My bookings</a>}{firstLesson&&<a className="underlink" href={learning}>Open supporting materials</a>}</>:
           !classroom?<p>Online courses are coming soon.</p>:
           conversion&&proof?.status!=='approved'?<>
             {user?(proof?.status==='pending'?<p role="status">Your qualification is awaiting review.</p>:<>{proof?.status==='resubmit'&&<p>Please submit a clearer copy of your qualification.</p>}<QualificationForm courseId={id}/></>):<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to submit qualification</a>}
-          </>:paymentsOpen?<><p>Choose your payment method at secure checkout.</p>
-            {user?<CheckoutButton courseId={id} paypal={Boolean(paypal)} card={Boolean(merchant?.code)}/>:<a className="button" href={'/sign-in?redirect_url='+encodeURIComponent('/courses/'+id+'#enrol')}>Sign in to book</a>}</>:
+          </>:paymentsOpen?null:
           <><p>Contact Carla about booking this class while online booking is unavailable.</p><a className="underlink" href={enquiry}>Ask about this class</a></>}
           {classroom&&!access&&<p><a className="underlink" href="/payment-policy">Payment options, cancellations and refunds</a></p>}
       </aside>

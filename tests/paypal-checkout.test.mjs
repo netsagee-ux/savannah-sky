@@ -105,9 +105,14 @@ test('direct PayPal course and shop orders',async t=>{
   const pay=(kind,id,origin)=>confirm.POST(post({kind,id},origin));
   await t.test('course approval, ownership, verified GBP capture and duplicate confirmations',async()=>{
     await db.prepare("INSERT INTO courses(id,title,description,level,price,published) VALUES('gel','Gel nails','Lesson','Beginner',4950,1)").run();
-    as('buyer');const result=await buyCourse('gel');assert.equal(result.status,200);
+    const schedule={message:'Autumn training',dates:[{id:'autumn',date:'2099-09-12',start:'10:00',end:'16:00',status:'available',note:''}]};
+    await db.prepare("INSERT INTO settings(id,value) VALUES('course-schedule:gel',?)").bind(JSON.stringify(schedule)).run();
+    as('buyer');assert.equal((await buyCourse('gel')).status,409);
+    const result=await course.POST(post({courseId:'gel',provider:'paypal',dateId:'autumn'}));assert.equal(result.status,200);
     const {path}=await result.json(),id=path.split('/').pop();
-    assert.deepEqual(await (await buyCourse('gel')).json(),{path});
+    assert.deepEqual(await (await course.POST(post({courseId:'gel',provider:'paypal',dateId:'autumn'}))).json(),{path});
+    const date=JSON.parse((await db.prepare('SELECT value FROM settings WHERE id=?').bind('course-date:'+id).first()).value);
+    assert.equal(date.id,'autumn');assert.match(date.label,/12 Sept 2099/);
     const saved=await db.prepare('SELECT session_id,status FROM orders WHERE id=?').bind(id).first();
     const order=remote.get(saved.session_id),unit=order.purchase_units[0];
     assert.equal(unit.amount.value,'49.50');assert.equal(unit.amount.currency_code,'GBP');

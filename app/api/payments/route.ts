@@ -12,7 +12,7 @@ export async function GET(request:Request) {
       return Response.json({availability:await paypalWalletAvailability()},{headers:{'Cache-Control':'private, no-store'}});
     }
     const term=new URL(request.url).searchParams.get('order')?.trim().toLowerCase().slice(0,254);
-    const query=db().prepare(`SELECT o.id,o.email,o.title,o.amount,o.status,o.mode,o.created_at,o.paid_at,EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||o.id) AS classroom,
+    const query=db().prepare(`SELECT o.id,o.email,o.title,(SELECT CASE WHEN json_extract(value,'$.id')<>'' THEN json_extract(value,'$.label') END FROM settings WHERE id='course-date:'||o.id) AS selected_date,o.amount,o.status,o.mode,o.created_at,o.paid_at,EXISTS(SELECT 1 FROM settings WHERE id='class-booking:'||o.id) AS classroom,
       (o.user_id LIKE 'guest/%' AND o.status='paid' AND o.mode='whatsapp') AS awaitingClaim,
       EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=o.course_id AND
         (e.id='buyer/'||o.user_id||'/'||o.course_id OR (e.id NOT LIKE 'buyer/%' AND e.email=o.email

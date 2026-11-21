@@ -37,9 +37,10 @@ export default async function OrderPage({params}:{params:Promise<{id:string}>}){
   return <section className="studio-wrap order-room"><a className="underlink" href={course}>Back to course</a>
     <p className="studio-kicker">{classroom?'In-person booking':'Your enrolment'}</p><h1>{order.title}</h1>
     {order.amount>0&&<p className="order-total">£{(order.amount/100).toFixed(2)}</p>}
+    {order.selected_date&&<div className="order-date"><h2>Preferred course date</h2><p>{order.selected_date}</p><p>Carla will confirm your place. Contact the academy if you need to change this date.</p></div>}
     {paid?<><h2>Payment confirmed</h2>{classroom?<>{classAccess?<><h3>Class dates and joining details</h3>
-      {dates?<p style={{whiteSpace:'pre-line',overflowWrap:'anywhere'}}>{dates}</p>:<p>Carla will send the available class dates to {user.email}. You can also ask her about dates below.</p>}
-      <a className="button" href={'/contact?topic=dates&course='+encodeURIComponent(order.title)+'#ask'}>Arrange my class date</a>
+      {dates?<p style={{whiteSpace:'pre-line',overflowWrap:'anywhere'}}>{dates}</p>:<p>Carla will send your joining details to {user.email}. You can also contact her below.</p>}
+      <a className="button" href={'/contact?topic=dates&course='+encodeURIComponent(order.title)+'#ask'}>{order.selected_date?'Contact Carla about my booking':'Arrange my class date'}</a>
       <a className="underlink" href={course+'#materials'}>View course and supporting materials</a></>:<p>Contact the academy about your booking.</p>}</>:activation?<><p>Use the one-time password sent to your order email.</p><ActivateCourse id={id}/></>:invitation?<><p>Your lessons are ready. Sign in with this account whenever you want to return.</p><a className="button" href={invitation}>Open my course</a></>:<p>Check your access in <a href="/dashboard">My learning</a>.</p>}</>:
       checkingFailed?<><h2>Checking your payment</h2><p>We couldn’t reach the payment provider. If you’ve already paid, check again before making another payment.</p><a className="button" href={path}>Check again</a></>:
       order.mode==='paypal' && order.status==='pending' && order.session_id && wallet?<PayPalCheckout id={id} kind="course" amount={order.amount} approvalURL={wallet.approvalURL} approved={'approved' in wallet && Boolean(wallet.approved)}/>:

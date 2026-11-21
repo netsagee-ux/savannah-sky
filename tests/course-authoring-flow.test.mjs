@@ -102,6 +102,19 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
     assert.equal((await save('course',{...course,id:courseId,inclusions:'x'.repeat(3001)})).status,400);
     assert.equal((await readCourse()).inclusions,information.inclusions);
   });
+  await t.test('course dates and availability can be saved and reopened; invalid dates never overwrite the schedule',async()=>{
+    const schedule={message:'Please contact Carla for another day.',dates:[{id:'morning',date:'2099-04-20',start:'10:00',end:'16:00',status:'available',note:'Kit included'}]};
+    const get=async()=>JSON.parse((await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json()).courses[0].course_schedule);
+    assert.equal((await save('course',{...course,id:courseId,courseDatesEditor:'1',courseAvailabilityNote:schedule.message,courseDateId:'morning',courseDateDay:'2099-04-20',courseDateStart:'10:00',courseDateEnd:'16:00',courseDateStatus:'available',courseDateNote:'Kit included'})).status,200);
+    assert.deepEqual(await get(),schedule);
+    const invalid={...schedule,dates:[{...schedule.dates[0],date:'2099-02-30'}]};
+    assert.equal((await save('course',{...course,id:courseId,courseSchedule:JSON.stringify(invalid)})).status,400);
+    assert.deepEqual(await get(),schedule);
+    // Older editors that omit the schedule must preserve it.
+    assert.equal((await save('course',{...course,id:courseId})).status,200);
+    assert.deepEqual(await get(),schedule);
+    assert.equal((await save('course',{...course,id:courseId,courseSchedule:JSON.stringify({dates:[],message:''})})).status,200);
+  });
   const directory=(await import(server)).catalog;
   assert.ok((await save('visibility',{id:courseId,published:'1'})).ok);
   assert.ok((await directory()).some(item=>item.id===courseId));

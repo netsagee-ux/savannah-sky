@@ -6,10 +6,12 @@ import {accredited, courseFee, courseSummary, isConversion, type Course} from '@
 import {courseInformationDefaults,extraCourseFields} from '@/lib/course-information';
 import {courseImage} from './ui';
 import './course-editor.css';
+import CourseDateEditor from './course-date-editor';
 
 const panels = [
   {id:'details', label:'Details', heading:'Course details', icon:NotebookPen},
   {id:'plan', label:'Course information', heading:'Course information', icon:Layers3},
+  {id:'dates', label:'Course dates', heading:'Dates & availability', icon:BookOpen},
   {id:'publishing', label:'Publishing', heading:'Pricing & visibility', icon:Wallet},
 ] as const;
 type Panel = typeof panels[number]['id'];
@@ -128,8 +130,13 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
         </>}
         {id==='plan'&&<>
           <label>Course format<select name="format" defaultValue={course?.format||'classroom'}><option value="classroom">In person at the academy</option><option value="online">Online · coming soon</option></select></label>
-          <label>Class dates and joining instructions<textarea name="classDates" rows={4} maxLength={3000} defaultValue={course?.class_dates||''} placeholder="Available dates, class times, venue and how to confirm a place"/></label>
+        </>}
+        {id==='dates'&&<>
+          <CourseDateEditor value={course?.course_schedule}/>
+          <label>Private joining instructions<textarea name="classDates" rows={4} maxLength={3000} defaultValue={course?.class_dates||''} placeholder="Venue, what to bring and how to confirm the booking"/></label>
           <small>Paid classroom students can read these details in their booking. Update them here as dates change.</small>
+        </>}
+        {id==='plan'&&<>
           <label>Duration<input name="duration" maxLength={200} defaultValue={course?.duration||''} placeholder="e.g. 1 day at the salon"/></label>
           <p className="ce-public-hint">Students can expand these sections before booking. Leave optional wording blank to use the existing course details. Edit the overview under Details.</p>
           {extraField('audience')}
@@ -171,7 +178,7 @@ export default function CourseEditor({course,busy,status,onSave,onCancel}:Props)
         {(file||coverError||course?.thumbnail_key)&&<button type="button" className="ce-clear-cover" onClick={clearCover}>
           {removed&&!file&&!coverError?<Upload size={14}/>:<X size={14}/>}
           {file||coverError?'Clear selection':removed?'Restore cover':'Remove cover'}</button>}
-        <p id="ce-cover-help" role={coverError?'alert':undefined}>{coverError||'JPG, PNG or WebP · up to 3 MB'}</p>
+        <p id="ce-cover-help" role={coverError?'alert':undefined}>{coverError||'JPG, PNG or WebP · up to 3 MB. The full photo is shown without cropping. Upload the original if the photo itself has already been cropped.'}</p>
       </div>
     </aside>
       <div className="ce-actions">

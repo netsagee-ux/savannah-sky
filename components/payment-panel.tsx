@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import CourseInvitationActions from './course-invitation-actions';
-type Order={classroom:number;awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
+type Order={selected_date?:string|null;classroom:number;awaitingClaim:number;accessActive:number;receiptSent:number;id:string;email:string;title:string;amount:number;status:string;mode:string;created_at:string};
 type Settings={paypalMerchant:string|null;receiptConfigured:boolean;merchant:{code:string|null;fromEnvironment:boolean};orders:Order[]};
 const pounds=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'});
 
@@ -74,7 +74,7 @@ export default function PaymentPanel({onChange}:{onChange:()=>Promise<void>}){
      {loading&&<p role="status">Loading orders…</p>}
      {!loading&&!loadError&&data.orders.map(order=>{
        const active=Boolean(order.accessActive||order.awaitingClaim);
-       return <article className="payment-record" key={order.id}><h3>{order.title}</h3>
+       return <article className="payment-record" key={order.id}><h3>{order.title}</h3>{order.selected_date&&<p><strong>Preferred course date:</strong> {order.selected_date}</p>}
          <p>{order.email} · {pounds.format(order.amount/100)} · {order.status}</p>
          <small>{new Date(order.created_at).toLocaleDateString('en-GB')} · {order.mode==='sumup'?'SumUp':order.mode==='paypal'?'PayPal':order.mode==='test'?'Test':'Historical order'} · Ref {order.id}</small>
          {order.status==='paid' && order.mode!=='test' && (active?<><CourseInvitationActions id={order.id} email={order.email} title={order.title} classroom={Boolean(order.classroom)}/>

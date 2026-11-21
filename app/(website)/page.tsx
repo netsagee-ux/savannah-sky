@@ -14,14 +14,14 @@ export const revalidate = 60;
 const questions = [
   ['Do I need a qualification to start?', 'Our beginner courses are open to complete beginners. Conversion courses are for nail technicians who already hold a relevant qualification. You’ll find the entry requirements on each course page.'],
   ['Are the courses online or in person?', 'All current courses are taught in person with Carla. Online courses are coming soon. You can check your booking and any supporting materials on your phone.'],
-  ['When do I choose a class date?', 'After payment, open your booking for date options and joining instructions. Carla will confirm your place on the date you agree together.'],
+  ['When do I choose a class date?', 'Choose a preferred available date on the course page before paying. If no dates are listed, contact Carla to agree a date first. Your selected date is saved with your booking for Carla to confirm.'],
   ['Is my course CPD accredited?', 'Look for the CPD accreditation details on the course page. You can also view your completion record in My learning once you finish your lessons and knowledge checks.'],
 ];
 
 const enrolment = [
   { icon: BookOpen, title: 'Find your level', text: 'Open a course to see its entry requirements, kit list and what you’ll cover in class.' },
-  { icon: CreditCard, title: 'Book your training', text: 'When enrolment is open, sign in with your student email and choose your payment method at checkout.' },
-  { icon: Play, title: 'Arrange your date', text: 'Open your paid booking for class dates, then confirm your preferred date with Carla.' },
+  { icon: CreditCard, title: 'Book your training', text: 'Choose a preferred course date, sign in with your student email and continue to secure checkout.' },
+  { icon: Play, title: 'Get ready for class', text: 'Your preferred date stays with your booking. Carla will confirm your place and share your joining instructions.' },
 ];
 
 async function courseEntries(): Promise<CourseEntry[]> {
@@ -31,6 +31,7 @@ async function courseEntries(): Promise<CourseEntry[]> {
       id: course.id, title: course.title,
       level: isConversion(course) ? 'Conversion' : course.level || 'Classroom course',
       fee: course.price != null ? courseFee(course.price) : null,
+      image:course.thumbnail_key?'/api/course-thumbnail/'+course.id:course.thumbnail_id?'/api/thumbnail/'+course.thumbnail_id:undefined,
     }));
   } catch {
     return [];

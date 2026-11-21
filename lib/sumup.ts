@@ -221,31 +221,36 @@ async function closePreviousCourseCheckout(order:SumUpOrder){
     .bind(order.id,checkout.id).run();
 }
 
-export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string,provider:'sumup'|'paypal'='sumup'){
+export async function startSumUp(user:{userId:string;email:string},course:{id:string;price:number;title:string},origin:string,provider:'sumup'|'paypal'='sumup',selection?:{id:string;label:string;schedule:string}){
   if(!process.env.APP_ENCRYPTION_KEY)throw new SumUpError('Booking confirmation is temporarily unavailable.');
   const merchant=provider==='sumup'?await checkoutMerchant():null;
   const marker=merchant?.code??await payPalMerchant();
   const dbh=db(),id=crypto.randomUUID(),email=user.email.toLowerCase();
   const pending="user_id=? AND course_id=? AND o.mode IN ('sumup','paypal') AND status='pending'";
   const prior=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
-  if(prior && prior.mode!==provider){
+  const priorDate=prior?(await dbh.prepare('SELECT value FROM settings WHERE id=?').bind('course-date:'+prior.id).first<{value:string}>())?.value:null;
+  const snapshot=selection?JSON.stringify({id:selection.id,label:selection.label}):null;
+  if(prior && (prior.mode!==provider || (snapshot!==null&&snapshot!==priorDate&&!(selection?.id===''&&!priorDate)))){
     await closePreviousCourseCheckout(prior);
     const existing=await orderById(prior.id);
     if(existing?.status==='paid')return '/orders/'+encodeURIComponent(prior.id);
-    if(existing?.status==='pending')throw new SumUpError('This booking already has an open '+(prior.mode==='paypal'?'PayPal':'card')+' checkout. Open it from My bookings to check its status before changing payment methods.',409);
+    if(existing?.status==='pending')throw new SumUpError('This booking already has an open '+(prior.mode==='paypal'?'PayPal':'card')+' checkout. Open it from My bookings to check its status before changing its date or payment method.',409);
   }else if(prior && Date.now()-Date.parse(prior.created_at)>3600000){
     if(prior.mode==='paypal')await syncPayPalCourse(prior.id);else if(prior.session_id)await syncSumUp(prior.id);
   }
   await dbh.batch([
     dbh.prepare(`INSERT INTO orders(id,user_id,email,course_id,title,amount,currency,status,mode,created_at)
       SELECT ?,?,?,?,?,?,'gbp','pending',?,? WHERE NOT EXISTS(SELECT 1 FROM orders o WHERE `+pending+
-      ") AND NOT EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=? AND "+enrolmentOwner+")")
-      .bind(id,user.userId,email,course.id,course.title,course.price,provider,new Date().toISOString(),user.userId,course.id,course.id,user.userId),
+      ") AND NOT EXISTS(SELECT 1 FROM enrollments e WHERE e.course_id=? AND "+enrolmentOwner+")"+(selection?" AND coalesce((SELECT value FROM settings WHERE id=?),'')=?":""))
+      .bind(id,user.userId,email,course.id,course.title,course.price,provider,new Date().toISOString(),user.userId,course.id,course.id,user.userId,...(selection?['course-schedule:'+course.id,selection.schedule]:[])),
     dbh.prepare("INSERT INTO settings(id,value) SELECT mode||':order:'||id,? FROM orders WHERE id=?").bind(marker,id),
     dbh.prepare("INSERT INTO settings(id,value) SELECT 'class-booking:'||id,'1' FROM orders WHERE id=?").bind(id),
+    ...(snapshot!==null?[dbh.prepare("INSERT INTO settings(id,value) SELECT 'course-date:'||id,? FROM orders WHERE id=?").bind(snapshot,id)]:[]),
   ]);
   const order=await dbh.prepare(orderSelect+pending).bind(user.userId,course.id).first<SumUpOrder>();
-  if(!order)throw new SumUpError('Check My learning for your course.',409);
+  if(!order)throw new SumUpError('The course or its dates changed. Refresh the course page, or check My bookings if you already paid.',409);
+  const savedDate=(await dbh.prepare('SELECT value FROM settings WHERE id=?').bind('course-date:'+order.id).first<{value:string}>())?.value;
+  if(snapshot!==null&&savedDate!==snapshot&&!(selection?.id===''&&!savedDate))throw new SumUpError('Another checkout is already open for this course. Open My bookings to check its date before continuing.',409);
   const orderPath='/orders/'+encodeURIComponent(order.id);
   if(order.mode!==provider)throw new SumUpError('A checkout was opened in another tab. Check My bookings before trying again.',409);
   if(order.session_id)return orderPath;

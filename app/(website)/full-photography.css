@@ -1,0 +1,27 @@
+/* Keep the salon's original photographs whole on every screen. */
+.academy .salon-home .cover-photo > div { aspect-ratio:1; border-radius:12px; background:#f2e8df; }
+.academy .salon-home .cover-photo img,
+.academy .salon-home .card-photo img,
+.academy .salon-home .print-image img,
+.academy .programme-image img,
+.academy .intro-inner > img,
+.academy .practice-lessons .class-cover,
+.academy .desk-course > img {
+  object-fit:contain; object-position:center; transform:none; animation:none; background:#f2e8df;
+}
+.academy .salon-home .card-photo { aspect-ratio:1; }
+.academy .salon-home .print-image { aspect-ratio:1; }
+.academy .programme-image { aspect-ratio:auto; border-radius:12px; }
+.academy .programme-image img { display:block; height:auto; aspect-ratio:1; }
+.academy .programme-level { position:static; padding:10px 12px; margin:0; flex-wrap:wrap; }
+.academy .practice-lessons .class-cover { height:auto; max-height:40rem; border-radius:12px; }
+.academy .intro-inner > img { border-radius:12px; }
+.academy .salon-home .edit-card:hover img,
+.academy .salon-home .work-print:hover img,
+.academy .programme:hover .programme-image img { transform:none; }
+.course-booking-options { display:grid; gap:12px; min-width:0; }
+.course-booking-options label { font-weight:600; }
+.course-booking-options select { width:100%; min-width:0; min-height:48px; padding:12px 36px 12px 12px; font:inherit; font-size:1rem; color:inherit; border:1px solid #b59ca5; border-radius:8px; background-color:#fffaf5; }
+.course-booking-options p { margin:0 0 8px; }
+.course-availability-note { white-space:pre-line; overflow-wrap:anywhere; }
+.order-date { padding:20px; margin-block:20px; border:1px solid #d9c4ca; border-radius:12px; }
