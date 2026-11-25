@@ -1,3 +1,4 @@
+import {FormSubmissionError,readEditorForm} from '@/lib/editor-form';
 import {sameSiteOrigin} from '@/lib/request-origin';
 import {admin} from '@/lib/server';
 import {shopDatabase} from '@/lib/shop-schema';
@@ -40,9 +41,8 @@ export async function GET(req:Request) {
 }
 export async function POST(req:Request) {
   if(!sameSiteOrigin(req) || !await admin()) return reply({error:'Staff access required.'},403);
-  if(Number(req.headers.get('content-length')||0)>4*1024*1024) return reply({error:'Choose a photo under 2 MB.'},413);
   try {
-    const form=await req.formData(),action=String(form.get('action')||''),id=String(form.get('id')||'');
+    const form=await readEditorForm(req),action=String(form.get('action')||''),id=String(form.get('id')||'');
     if(action==='product') await saveProduct(form);
     else if(['postage','category','removeCategory','delivery','discount'].includes(action)) await manageShopSetting(form,action);
     else {
@@ -67,6 +67,7 @@ export async function POST(req:Request) {
     }
     return reply({ok:true});
   } catch(e) {
+    if(e instanceof FormSubmissionError)return reply({error:e.message,code:e.code},e.status);
     if(e instanceof SumUpError || e instanceof PayPalError)return reply({error:e.message},e.status);
     if(/unique constraint/i.test(String(e))) return reply({error:'That name or code already exists. Edit the existing entry instead.'},409);
     return reply({error:'Could not save the changes. Refresh the shop and try again.'},503);

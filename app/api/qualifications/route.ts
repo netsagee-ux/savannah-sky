@@ -1,3 +1,5 @@
+import {FormSubmissionError,readEditorForm} from '@/lib/editor-form';
+import {sameSiteOrigin} from '@/lib/request-origin';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {admin,bucket,db} from '@/lib/server';
 import {isConversion} from '@/lib/data';
@@ -19,11 +21,10 @@ export async function GET(req:Request){
   return new Response(file.body as BodyInit,{headers:{'Content-Type':q.mime||'application/octet-stream','Content-Disposition':'attachment; filename="qualification.'+(q.mime==='application/pdf'?'pdf':q.mime==='image/png'?'png':'jpg')+'"','X-Content-Type-Options':'nosniff','Cache-Control':'private,no-store'}});
 }
 export async function POST(req:Request){
-  if(req.headers.get('origin')!==new URL(req.url).origin)return reply({error:'Invalid origin.'},403);
+  if(!sameSiteOrigin(req))return reply({error:'Invalid origin.'},403);
   const user=await getChatGPTUser();if(!user)return reply({error:'Sign in first.'},401);
-  if(Number(req.headers.get('content-length')||0)>3*1024*1024)return reply({error:'Choose a file up to 2 MB.'},413);
   try{
-    const f=await req.formData(),action=String(f.get('action')),database=db();
+    const f=await readEditorForm(req),action=String(f.get('action')),database=db();
     if(action==='approve'||action==='resubmit'){
       if(!await admin())return reply({error:'Staff access required.'},403);
       const id=String(f.get('id'));if(!/^qualification:[a-f0-9]{64}$/.test(id))return reply({error:'Invalid request.'},400);
@@ -52,5 +53,5 @@ export async function POST(req:Request){
       if(!saved.meta.changes){await bucket().delete(proof);return reply({error:'A submission already exists.'},409);}
     }catch(e){await bucket().delete(proof);throw e;}
     return reply({ok:true});
-  }catch{return reply({error:'Unable to save the qualification. Please try again.'},503);}
+  }catch(error){if(error instanceof FormSubmissionError)return reply({error:error.message,code:error.code},error.status);return reply({error:'Unable to save the qualification. Please try again.'},503);}
 }

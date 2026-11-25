@@ -31,7 +31,7 @@ async function courseEntries(): Promise<CourseEntry[]> {
       id: course.id, title: course.title,
       level: isConversion(course) ? 'Conversion' : course.level || 'Classroom course',
       fee: course.price != null ? courseFee(course.price) : null,
-      image:course.thumbnail_key?'/api/course-thumbnail/'+course.id:course.thumbnail_id?'/api/thumbnail/'+course.thumbnail_id:undefined,
+      image:course.thumbnail_key?'/api/course-thumbnail/'+course.id+'?v='+encodeURIComponent(course.thumbnail_key):course.thumbnail_id?'/api/thumbnail/'+course.thumbnail_id:undefined,
     }));
   } catch {
     return [];

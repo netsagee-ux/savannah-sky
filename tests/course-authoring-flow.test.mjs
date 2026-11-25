@@ -66,7 +66,8 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const token=await route('app/api/video-access/route.ts'),stream=await route('app/api/video/[id]/route.ts');
   const origin='https://academy.example';
   const post=(path,fields)=>new Request(origin+path,{method:'POST',headers:{origin,...(fields instanceof FormData?{}:{'Content-Type':'application/json'})},body:fields instanceof FormData?fields:JSON.stringify(fields)});
-  const save=(action,data)=>{const form=new FormData();form.set('action',action);for(const [k,v] of Object.entries(data))for(const value of [v].flat())form.append(k,value);return author.POST(post('/api/admin',form));};
+  const {encodeEditorForm}=await import(await compile('lib/editor-form.ts',{}));
+  const save=async(action,data)=>{const form=new FormData();form.set('action',action);for(const [k,v] of Object.entries(data))for(const value of [v].flat())form.append(k,value);return author.POST(new Request(origin+'/api/admin',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:await encodeEditorForm(form)}));};
   const payment=data=>pay.POST(post('/api/payments',data));
   const owner={userId:'teacher',email:'netsagee@gmail.com',sessionId:'staff'};
   const buyer={userId:'student-a',email:'learner@example.test',sessionId:'phone'};
@@ -90,6 +91,29 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
   const edited=await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json();
   assert.equal(edited.courses[0].format,'classroom');
   assert.equal(edited.courses[0].class_dates,'Private classroom joining notes');
+  await t.test('course pictures save, replace and reopen with their exact bytes; bad submissions never overwrite the record',async()=>{
+    const image=await readFile('public/nail-pink-french.jpg');
+    const get=async()=>(await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json()).courses.find(c=>c.id===courseId);
+    assert.equal((await save('course',{...course,id:courseId,courseThumbnail:new File([image],'original.jpg',{type:'image/jpeg'})})).status,200);
+    const first=await get();assert.deepEqual(Buffer.from(files.get(first.thumbnail_key).bytes),image);
+    const cover=await route('app/api/course-thumbnail/[id]/route.ts');
+    const response=await cover.GET(new Request(origin+'/cover'),{params:Promise.resolve({id:courseId})});
+    assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),image);
+    const changed={...course,id:courseId,title:'Updated course text',courseThumbnail:new File([],'')};
+    assert.equal((await save('course',changed)).status,200);
+    assert.equal((await get()).thumbnail_key,first.thumbnail_key);
+    const failed=await author.POST(new Request(origin+'/api/admin',{method:'POST',headers:{origin,'Content-Type':'multipart/form-data; boundary=missing'},body:'interrupted'}));
+    assert.equal(failed.status,400);assert.doesNotMatch((await failed.json()).error,/parse body as FormData/);
+    assert.equal((await get()).title,'Updated course text');
+    assert.equal((await get()).thumbnail_key,first.thumbnail_key);
+    assert.equal((await save('course',{...course,id:courseId,courseThumbnail:new File(['bad image'],'invalid.jpg',{type:'image/jpeg'})})).status,400);
+    assert.equal((await get()).thumbnail_key,first.thumbnail_key);
+    assert.equal((await save('course',{...course,id:courseId,courseThumbnail:new File([image],'replacement.jpg',{type:'image/jpeg'})})).status,200);
+    const second=await get();assert.notEqual(second.thumbnail_key,first.thumbnail_key);
+    assert.deepEqual(Buffer.from(files.get(second.thumbnail_key).bytes),image);assert.equal(files.has(first.thumbnail_key),false);
+    assert.equal((await save('course',{...course,id:courseId,removeCourseThumbnail:'1'})).status,200);
+    assert.equal((await get()).thumbnail_key,null);assert.equal(files.has(second.thumbnail_key),false);
+  });
   await t.test('public course sections can be saved, reopened and cleared without changing missing fields',async()=>{
     const information={audience:'Qualified technicians',inclusions:'Classroom tuition',kit_options:'Tools provided for the day',progression:'Practise structured overlays'};
     const readCourse=async()=>(await (await author.GET(new Request(origin+'/api/admin?tab=Courses'))).json()).courses[0];
@@ -399,7 +423,7 @@ test('staff can publish fifteen recordings and earlier paid guest orders still a
     state.user=owner;
     const conversion=(await (await save('course',{...course,title:'Builder conversion',level:'Conversion',published:'1'})).json()).courseId;
     const quals=await route('app/api/qualifications/route.ts');
-    const submit=(values)=>{const f=new FormData();for(const [k,v] of Object.entries(values))f.set(k,v);return quals.POST(post('/api/qualifications',f));};
+    const submit=async(values)=>{const f=new FormData();for(const [k,v] of Object.entries(values))f.set(k,v);return quals.POST(new Request(origin+'/api/qualifications',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:await encodeEditorForm(f)}));};
     state.user=buyer;
     const buy=()=>checkout.POST(post('/api/checkout',{courseId:conversion}));
     assert.match((await (await buy()).json()).error,/approve your nail qualification/);

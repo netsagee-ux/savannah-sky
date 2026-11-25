@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {mkdtemp,rm} from 'node:fs/promises';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {compile,moduleUrl} from './compile-fixture.mjs';
@@ -38,10 +38,11 @@ test('shop quotes, reservations and catalogue administration',async t=>{
   const [admin,quote,checkout,webhook]=await Promise.all(['admin','quote','checkout','webhook'].map(route));
   const site='https://example.test';
   const post=(path,body)=>new Request(site+path,{method:'POST',headers:{origin:site,'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const save=(action,fields,origin=site)=>{
+  const {encodeEditorForm}=await import(await compile('lib/editor-form.ts',{}));
+  const save=async(action,fields,origin=site)=>{
     const form=new FormData();
     for(const [name,value] of Object.entries({action,...fields}))form.set(name,value);
-    return admin.POST(new Request(site+'/api/shop/admin',{method:'POST',headers:{origin},body:form}));
+    return admin.POST(new Request(site+'/api/shop/admin',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:await encodeEditorForm(form)}));
   };
   const as=id=>{globalThis.shopInventoryUser=id?{userId:id,email:id+'@example.test'}:null;};
   const stock=async id=>(await database.prepare('SELECT stock FROM shop_variants WHERE id=?').bind(id).first()).stock;
@@ -149,6 +150,22 @@ test('shop quotes, reservations and catalogue administration',async t=>{
     assert.equal((await save('product',{...originalProduct,originalVersion:'',originalStock:'[]',variants:JSON.stringify(variants)})).status,200);
     const catalog=await shop.products();assert.equal(catalog.find(p=>p.id===product).category,'Kits');
     assert.deepEqual(catalog.find(p=>p.id===product).variants.map(v=>v.stock),[4,1]);
+  });
+
+  await t.test('product photos persist byte-for-byte and text-only edits preserve the stored photo',async()=>{
+    as('owner');
+    const id=crypto.randomUUID(),image=await readFile('public/nail-pink-french.jpg');
+    const values={id,title:'Private photo test',description:'Original shop photo',price:'12.00',published:'0'};
+    assert.equal((await save('product',{...values,photo:new File([image],'nails.jpg',{type:'image/jpeg'})})).status,200);
+    const stored=async()=>database.prepare('SELECT * FROM shop_products WHERE id=?').bind(id).first();
+    assert.deepEqual(Buffer.from((await stored()).photo),image);
+    const version=(await stored()).updated_at;
+    assert.equal((await save('product',{...values,title:'Edited product',photo:new File([],'')})).status,200);
+    const row=await stored();assert.equal(row.title,'Edited product');assert.deepEqual(Buffer.from(row.photo),image);
+    assert.notEqual(row.updated_at,version);
+    assert.equal((await save('product',{...values,photo:new File(['broken'],'bad.jpg',{type:'image/jpeg'})})).status,400);
+    assert.equal((await stored()).title,'Edited product');
+    assert.deepEqual(Buffer.from((await stored()).photo),image);
   });
 
   await t.test('two attempts to buy the last unit create one checkout; expiration releases it once',async()=>{

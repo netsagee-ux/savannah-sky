@@ -1,3 +1,4 @@
+import {FormSubmissionError,readEditorForm} from '@/lib/editor-form';
 import {scheduleFromForm} from '@/lib/course-schedule';
 import {lessonAssignmentChanges,linkToCourse} from '@/lib/lesson-assignments';
 import {courseInformationColumns,extraCourseFields} from '@/lib/course-information';
@@ -52,7 +53,7 @@ export async function GET(request:Request){
       directVideoUpload:Boolean(process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID)},{headers:{'Cache-Control':'private, no-store'}});
   }catch{return Response.json({error:'Academy data could not be loaded.'},{status:503});}
 }
-export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});try{if(!sameSiteOrigin(req))return Response.json({error:'Reopen the academy dashboard to save from this website.',code:'invalid_origin'},{status:403});if(Number(req.headers.get('content-length')||0)>4*1024*1024)return Response.json({error:'Upload lesson videos separately and keep thumbnails under 3 MB.'},{status:413});const f=await req.formData();const s=(k:string)=>String(f.get(k)||'').trim();const action=s('action');
+export async function POST(req:Request){if(!await admin())return Response.json({error:'Administrator access required'},{status:403});try{if(!sameSiteOrigin(req))return Response.json({error:'Reopen the academy dashboard to save from this website.',code:'invalid_origin'},{status:403});const f=await readEditorForm(req);const s=(k:string)=>String(f.get(k)||'').trim();const action=s('action');
 const creationId=!s('id') && (action==='course'||action==='lesson') ? s('creationId') : '';
 if(creationId && !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(creationId))throw Error('Reopen the editor and try saving again.');
 async function wasCreated(){
@@ -135,7 +136,7 @@ await database.batch([...revisionGuard,...photos.statements,details,...assignmen
   database.prepare('INSERT INTO settings(id,value) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value').bind('quiz:'+id,JSON.stringify(quiz))]);
 }catch(e){if(uploaded.length)await bucket().delete(uploaded);if(await wasCreated())return creationResult();if(e instanceof Error&&e.message.includes('malformed JSON'))return Response.json({code:'lesson_changed',error:'Another session updated this lesson. Your edits are still here. Return to the lesson list and reopen it for the latest version.'},{status:409});throw e;}
 const unused=[old?.video_key&&old.video_key!==key?String(old.video_key):null,old?.thumbnail_key&&old.thumbnail_key!==thumbnailKey?String(old.thumbnail_key):null].filter((v):v is string=>!!v);if(unused.length){try{await bucket().delete(unused)}catch{console.error('Old lesson assets could not be removed');}}
-}else throw Error('Unknown action');if(action==='lesson'||action==='visibility')revalidateListings();return Response.json({ok:true});}catch(e){return Response.json({error:(e as Error).message||'Unable to save. Please try again.'},{status:400})}}
+}else throw Error('Unknown action');if(action==='lesson'||action==='visibility')revalidateListings();return Response.json({ok:true});}catch(e){return Response.json({error:(e as Error).message||'Unable to save. Please try again.',...(e instanceof FormSubmissionError?{code:e.code}:{})},{status:e instanceof FormSubmissionError?e.status:400})}}
 
 function newAssetKey(folder:string) {
   const hasStore=process.env.BLOB_READ_WRITE_TOKEN||process.env.BLOB_STORE_ID||process.env.R2_ENDPOINT;

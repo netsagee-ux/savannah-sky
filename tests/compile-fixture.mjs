@@ -8,6 +8,7 @@ export function moduleUrl(source) {
 export async function compile(path, imports) {
   let source = await readFile(path, 'utf8');
   if(source.includes("'@/lib/course-schedule'")&&!imports['@/lib/course-schedule'])imports={...imports,'@/lib/course-schedule':await compile('lib/course-schedule.ts',{})};
+  if(source.includes("'@/lib/editor-form'")&&!imports['@/lib/editor-form'])imports={...imports,'@/lib/editor-form':await compile('lib/editor-form.ts',{})};
   for (const [from, to] of Object.entries(imports)) source = source.replaceAll("'" + from + "'", JSON.stringify(to));
   const compiled=ts.transpileModule(source, {
     fileName:path,

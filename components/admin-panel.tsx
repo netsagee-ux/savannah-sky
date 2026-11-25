@@ -1,4 +1,4 @@
-"use client";import EnquiryInbox from './enquiry-inbox';import {StaffSessionError,uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
+"use client";import {submitEditorForm} from './submit-editor-form';import EnquiryInbox from './enquiry-inbox';import {StaffSessionError,uploadLessonVideo} from "@/components/upload-lesson-video";import ReviewManager from '@/components/review-manager';import PaymentPanel from '@/components/payment-panel';import {useState,useEffect,useCallback,useRef} from 'react';
 import {stageLessonPhotos} from './lesson-photos';
 import {courseEditPath} from '@/lib/staff-navigation';
 import CourseEditor from './course-editor';
@@ -87,8 +87,7 @@ export default function AdminPanel({initialTab,initialCourse,startCreating,displ
         await stageLessonPhotos(fields,Array.from(photos||[]),setStatus);
         await uploadLessonVideo(fields,setStatus,Boolean(data.directVideoUpload));
       }
-      const response=await fetch('/api/admin',{method:'POST',body:fields});
-      const result=await response.json() as {error?:string;courseId?:string;code?:string};
+      const {response,result}=await submitEditorForm('/api/admin',fields);
       if(response.status===401||(response.status===403&&result.code!=='invalid_origin'))throw new StaffSessionError();
       if(result.code==='lesson_changed')await refresh();
       if(!response.ok) throw Error(result.error||'Unable to save.');

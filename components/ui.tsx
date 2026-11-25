@@ -23,7 +23,7 @@ const previewLooks: Record<string, string> = {
 };
 
 export function courseImage(course: Course, index = 0, size = 960) {
-  if (course.thumbnail_key) return '/api/course-thumbnail/' + course.id;
+  if (course.thumbnail_key) return '/api/course-thumbnail/' + course.id + '?v=' + encodeURIComponent(course.thumbnail_key);
   if (course.thumbnail_id) return '/api/thumbnail/' + course.thumbnail_id;
   const look = previewLooks[course.id] ?? ['sculpted', 'botanical', 'floral'][index % 3];
   return '/nail-' + look + '-' + size + '.webp';

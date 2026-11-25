@@ -15,7 +15,7 @@ export default function StudentDesk({name,email,courses,orders,failed,staff=fals
       {courses.length ? <div className="desk-courses">{courses.map(course=>{
         const complete=Number(course.total)>0 && Number(course.total)===Number(course.completed);
         return <article className="desk-course" key={course.id}>
-          <img src={course.thumbnail_key?'/api/course-thumbnail/'+course.id:'/nail-sculpted-480.webp'} alt="" width={480} height={360}/>
+          <img src={course.thumbnail_key?'/api/course-thumbnail/'+course.id+'?v='+encodeURIComponent(course.thumbnail_key):'/nail-sculpted-480.webp'} alt="" width={480} height={360}/>
           <div><small>{course.level}</small><h3>{course.title}</h3>
             {course.booking_id&&<a className="button" href={'/orders/'+encodeURIComponent(course.booking_id)}>View class dates <ArrowUpRight size={16}/></a>}
             {(!course.booking_id||course.total>0)&&<><progress aria-label={course.title+' progress'} value={course.completed} max={Math.max(1,course.total)}/>

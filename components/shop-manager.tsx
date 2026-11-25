@@ -1,4 +1,5 @@
 'use client';
+import {submitEditorForm} from './submit-editor-form';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {gbp,sampleVisibility,type Product} from '@/lib/shop-types';
 import ShopProductEditor,{type SaveShop} from './shop-product-editor';
@@ -32,8 +33,7 @@ export default function ShopManager({onChange}:{onChange:()=>Promise<void>}) {
     locked.current=true;setBusy(true);setMessage('');setError('');
     form.set('action',action);
     try {
-      const response=await fetch('/api/shop/admin',{method:'POST',body:form});
-      const data=await response.json() as {error?:string;message?:string};
+      const {response,result:data}=await submitEditorForm('/api/shop/admin',form);
       if(!response.ok) throw Error(data.error||'Could not save the changes.');
       setMessage(data.message|| (action==='dispatch'?'Fulfilment updated.':'Changes saved.'));
       await refresh();
